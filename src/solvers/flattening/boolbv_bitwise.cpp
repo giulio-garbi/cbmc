@@ -10,14 +10,16 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/bitvector_expr.h>
 
-bvt boolbvt::convert_bitwise(const exprt &expr)
+bvt boolbvt::convert_bitwise(const exprt &expr, const bwsize bitwidth)
 {
+  PRECONDITION(bitwidth & expr.get_int(ID_C_reduced_bitwidth));
   const std::size_t width = boolbv_width(expr.type());
 
   if(expr.id()==ID_bitnot)
   {
     const exprt &op = to_bitnot_expr(expr).op();
-    const bvt &op_bv = convert_bv(op, width);
+    PRECONDITION(bitwidth & op.get_int(ID_C_reduced_bitwidth));
+    const bvt &op_bv = convert_bv(op, bitwidth, width);
     return bv_utils.inverted(op_bv);
   }
   else if(expr.id()==ID_bitand || expr.id()==ID_bitor ||
@@ -26,17 +28,19 @@ bvt boolbvt::convert_bitwise(const exprt &expr)
           expr.id()==ID_bitxnor)
   {
     bvt bv;
-    bv.resize(width);
+    const auto reduced_width = (bitwidth == REDUCED) ? std::max((int)width, BWLEN) : width;
+    bv.resize(reduced_width);
 
     forall_operands(it, expr)
     {
-      const bvt &op = convert_bv(*it, width);
+      PRECONDITION(bitwidth & it->get_int(ID_C_reduced_bitwidth));
+      const bvt &op = convert_bv(*it, bitwidth, width);
 
       if(it==expr.operands().begin())
         bv=op;
       else
       {
-        for(std::size_t i=0; i<width; i++)
+        for(std::size_t i=0; i<reduced_width; i++)
         {
           if(expr.id()==ID_bitand)
             bv[i]=prop.land(bv[i], op[i]);

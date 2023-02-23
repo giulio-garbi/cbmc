@@ -6,17 +6,17 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
-#include "boolbv_type.h"
-
 #include <util/bitvector_types.h>
 
 #include <solvers/floatbv/float_utils.h>
 
-bvt boolbvt::convert_abs(const abs_exprt &expr)
+#include "boolbv.h"
+#include "boolbv_type.h"
+
+bvt boolbvt::convert_abs(const abs_exprt &expr, const bwsize bitwidth)
 {
-  const bvt &op_bv=convert_bv(expr.op());
+  PRECONDITION((bitwidth & expr.op().get_int(ID_C_reduced_bitwidth)) != 0);
+  const bvt &op_bv=convert_bv(expr.op(), bitwidth);
 
   if(expr.op().type()!=expr.type())
     return conversion_failed(expr);

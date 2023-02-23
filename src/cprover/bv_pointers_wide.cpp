@@ -573,7 +573,7 @@ static bool is_pointer_subtraction(const exprt &expr)
          minus_expr.rhs().type().id() == ID_pointer;
 }
 
-bvt bv_pointers_widet::convert_bitvector(const exprt &expr)
+bvt bv_pointers_widet::convert_bitvector(const exprt &expr, const bwsize bitwidth)
 {
   if(expr.type().id() == ID_pointer)
     return convert_pointer_type(expr);

@@ -9,18 +9,19 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_SOLVERS_PROP_PROP_CONV_SOLVER_H
 #define CPROVER_SOLVERS_PROP_PROP_CONV_SOLVER_H
 
-#include <map>
-#include <string>
-
 #include <util/expr.h>
 #include <util/message.h>
 
 #include <solvers/conflict_provider.h>
 #include <solvers/hardness_collector.h>
 
+#include "../../goto-symex/goto_symex.h"
 #include "prop.h"
 #include "prop_conv.h"
 #include "solver_resource_limits.h"
+
+#include <map>
+#include <string>
 
 class equal_exprt;
 
@@ -112,7 +113,7 @@ protected:
   /// {} is returned.
   virtual optionalt<bool> get_bool(const exprt &expr) const;
 
-  virtual literalt convert_rest(const exprt &expr);
+  virtual literalt convert_rest(const exprt &expr, const bwsize bitwidth);
   virtual literalt convert_bool(const exprt &expr);
 
   virtual bool set_equality_to_true(const equal_exprt &expr);

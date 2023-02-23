@@ -19,6 +19,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/pointer_offset_size.h>
 #include <util/pointer_predicates.h>
 
+#include "goto-symex/goto_symex.h"
+
 /// Map bytes according to the configured endianness. The key difference to
 /// endianness_mapt is that bv_endianness_mapt is aware of the bit-level
 /// encoding of types, which need not co-incide with the bit layout at
@@ -607,7 +609,7 @@ static bool is_pointer_subtraction(const exprt &expr)
          minus_expr.rhs().type().id() == ID_pointer;
 }
 
-bvt bv_pointerst::convert_bitvector(const exprt &expr)
+bvt bv_pointerst::convert_bitvector(const exprt &expr, const bwsize bitwidth)
 {
   if(expr.type().id()==ID_pointer)
     return convert_pointer_type(expr);

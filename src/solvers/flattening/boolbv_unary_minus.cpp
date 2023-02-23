@@ -25,7 +25,7 @@ bvt boolbvt::convert_unary_minus(const unary_minus_exprt &expr)
 
   const exprt &op = expr.op();
 
-  const bvt &op_bv = convert_bv(op, width);
+  const bvt &op_bv = convert_bv(op, ERROR, width);
 
   bvtypet bvtype=get_bvtype(type);
   bvtypet op_bvtype = get_bvtype(op.type());

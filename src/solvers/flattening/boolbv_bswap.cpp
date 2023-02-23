@@ -10,8 +10,10 @@ Author: Michael Tautschnig
 
 #include <util/bitvector_expr.h>
 
-bvt boolbvt::convert_bswap(const bswap_exprt &expr)
+bvt boolbvt::convert_bswap(const bswap_exprt &expr, const bwsize bitwidth)
 {
+  PRECONDITION(bitwidth & expr.get_int(ID_C_reduced_bitwidth));
+  PRECONDITION(bitwidth & expr.op().get_int(ID_C_reduced_bitwidth));
   const std::size_t width = boolbv_width(expr.type());
 
   // width must be multiple of bytes
@@ -19,7 +21,10 @@ bvt boolbvt::convert_bswap(const bswap_exprt &expr)
   if(width % byte_bits != 0)
     return conversion_failed(expr);
 
-  bvt result = convert_bv(expr.op(), width);
+  bvt result = convert_bv(expr.op(), bitwidth, width);
+  int numzeros = width - result.size();
+  if(bitwidth == REDUCED && numzeros>0)
+    result.insert(result.begin(), numzeros, const_literal(false));
 
   std::size_t dest_base = width;
 
@@ -34,6 +39,9 @@ bvt boolbvt::convert_bswap(const bswap_exprt &expr)
 
     result[src].swap(result[dest_base + bit_offset]);
   }
+
+  if(bitwidth == REDUCED && numzeros>0)
+    result.erase(result.begin(), result.begin()+numzeros);
 
   return result;
 }

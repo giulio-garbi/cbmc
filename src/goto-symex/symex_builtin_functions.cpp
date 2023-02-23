@@ -445,6 +445,9 @@ void goto_symext::symex_input(
   {
     exprt l2_arg = state.rename(code.operands()[i], ns).get();
     do_simplify(l2_arg);
+    setup_reduced_bitwidth(l2_arg);
+    if(l2_arg.get_int(ID_C_reduced_bitwidth) == BOTH_OK)
+      l2_arg.set(ID_C_reduced_bitwidth, REDUCED);
     args.emplace_back(std::move(l2_arg));
   }
 

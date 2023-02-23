@@ -24,7 +24,7 @@ bvt boolbvt::convert_vector(const vector_exprt &expr)
 
     for(const auto &op : operands)
     {
-      const bvt &tmp = convert_bv(op, op_width);
+      const bvt &tmp = convert_bv(op, ERROR, op_width);
 
       bv.insert(bv.end(), tmp.begin(), tmp.end());
     }

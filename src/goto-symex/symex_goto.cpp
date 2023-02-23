@@ -241,6 +241,9 @@ void goto_symext::symex_goto(statet &state)
   if(symex_config.simplify_opt)
     renamed_guard.simplify(ns);
   new_guard = renamed_guard.get();
+  setup_reduced_bitwidth(new_guard);
+  if(new_guard.get_int(ID_C_reduced_bitwidth) == BOTH_OK)
+    new_guard.set(ID_C_reduced_bitwidth, REDUCED);
 
   if(new_guard.is_false())
   {
@@ -281,6 +284,9 @@ void goto_symext::symex_goto(statet &state)
       // instruction is a conditional goto
       exprt negated_guard = not_exprt{new_guard};
       do_simplify(negated_guard);
+      setup_reduced_bitwidth(negated_guard);
+      if(negated_guard.get_int(ID_C_reduced_bitwidth) == BOTH_OK)
+        negated_guard.set(ID_C_reduced_bitwidth, REDUCED);
       log.statistics() << "replacing self-loop at "
                        << state.source.pc->source_location() << " by assume("
                        << from_expr(ns, state.source.function_id, negated_guard)

@@ -15,15 +15,20 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <solvers/floatbv/float_utils.h>
 
 /// Flatten <, >, <= and >= expressions.
-literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
+literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr, const bwsize bitwidth)
 {
+  PRECONDITION(bitwidth == FULL || bitwidth == REDUCED);
   const irep_idt &rel=expr.id();
 
   const exprt &lhs = expr.lhs();
   const exprt &rhs = expr.rhs();
 
-  const bvt &bv_lhs = convert_bv(lhs);
-  const bvt &bv_rhs = convert_bv(rhs);
+  PRECONDITION(lhs.get_int(ID_C_reduced_bitwidth) == rhs.get_int(ID_C_reduced_bitwidth));
+  PRECONDITION(lhs.get_int(ID_C_reduced_bitwidth) == FULL ||
+               lhs.get_int(ID_C_reduced_bitwidth) == REDUCED);
+
+  const bvt &bv_lhs = convert_bv(lhs, (bwsize) lhs.get_int(ID_C_reduced_bitwidth));
+  const bvt &bv_rhs = convert_bv(rhs, (bwsize) lhs.get_int(ID_C_reduced_bitwidth));
 
   bvtypet bvtype_lhs = get_bvtype(lhs.type());
   bvtypet bvtype_rhs = get_bvtype(rhs.type());

@@ -26,6 +26,14 @@ class side_effect_exprt;
 class symex_assignt;
 class typet;
 
+enum bwsize{
+  ERROR=0x0, REDUCED=0x1, FULL=0x2, BOTH_OK=0x3
+};
+#define BWLEN 5
+
+void setup_reduced_bitwidth(exprt& exp);
+void setup_reduced_bitwidth_assign(exprt& lhs, exprt& rhs);
+
 /// \brief The main class for the forward symbolic simulator
 /// \remarks
 /// Higher-level architectural information on symbolic execution is

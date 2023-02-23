@@ -12,7 +12,7 @@ bvt boolbvt::convert_union(const union_exprt &expr)
 {
   std::size_t width=boolbv_width(expr.type());
 
-  const bvt &op_bv=convert_bv(expr.op());
+  const bvt &op_bv=convert_bv(expr.op(), ERROR);
 
   INVARIANT(
     op_bv.size() <= width,

@@ -11,9 +11,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "goto_symex.h"
 
-#include "expr_skeleton.h"
-#include "symex_assign.h"
-
 #include <util/arith_tools.h>
 #include <util/c_types.h>
 #include <util/format_expr.h>
@@ -27,7 +24,160 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/string_expr.h>
 #include <util/string_utils.h>
 
+#include "expr_skeleton.h"
+#include "symex_assign.h"
+
 #include <climits>
+
+void label_exp_given_type(exprt& exp, const typet& type){
+  if(const auto ubt = type_try_dynamic_cast<unsignedbv_typet>(type))
+  {
+    if(ubt->get_width() == 32 || ubt->get_width() <= BWLEN)
+    {
+      exp.set(ID_C_reduced_bitwidth, bwsize::REDUCED);
+    } else {
+      exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+    }
+  }
+  else if(const auto sbt = type_try_dynamic_cast<signedbv_typet>(type))
+  {
+    if(sbt->get_width() == 32 || ubt->get_width() <= BWLEN)
+    {
+      exp.set(ID_C_reduced_bitwidth, bwsize::REDUCED);
+    } else {
+      exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+    }
+  } else {
+    exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+  }
+}
+
+void setup_reduced_bitwidth_assign(exprt& lhs, exprt& rhs){
+  setup_reduced_bitwidth(lhs);
+  setup_reduced_bitwidth(rhs);
+  bwsize common = (bwsize)(lhs.get_int(ID_C_reduced_bitwidth) & rhs.get_int(ID_C_reduced_bitwidth));
+  INVARIANT_WITH_DIAGNOSTICS(
+    common != ERROR,
+    "All operands should have common bitwidth",
+    lhs.pretty(), rhs.pretty());
+  if(common == BOTH_OK)
+    common = REDUCED;
+  lhs.set(ID_C_reduced_bitwidth, common);
+  rhs.set(ID_C_reduced_bitwidth, common);
+}
+
+void setup_reduced_bitwidth(exprt& exp){
+  if(exp.id() == ID_symbol) {
+    label_exp_given_type(exp, exp.type());
+  } else if (exp.id() == ID_constant) {
+    exp.set(ID_C_reduced_bitwidth, bwsize::BOTH_OK);
+  } else if (exp.id() == ID_sizeof) {
+    exp.set(ID_C_reduced_bitwidth, bwsize::BOTH_OK);
+  } else if (exp.id() == ID_index) {
+    label_exp_given_type(exp, exp.type());
+    setup_reduced_bitwidth(to_index_expr(exp).array());
+  } else if (exp.id() == ID_cast_expression) {
+    label_exp_given_type(exp, exp.type());
+    if(exp.get_int(ID_C_reduced_bitwidth) == bwsize::REDUCED){
+      if(const auto ubt = type_try_dynamic_cast<unsignedbv_typet>(exp.type())){
+        exp.type() = unsignedbv_typet{5};
+      } else if(const auto sbt = type_try_dynamic_cast<signedbv_typet>(exp.type())) {
+        exp.type() = signedbv_typet{5};
+      } else {
+        UNREACHABLE;
+      }
+    }
+    setup_reduced_bitwidth(to_typecast_expr(exp).op());
+  } else if (exp.id() == ID_dereference) {
+    label_exp_given_type(exp, exp.type());
+    setup_reduced_bitwidth(to_dereference_expr(exp).op());
+  } else if (exp.id() == ID_address_of) {
+    exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+    setup_reduced_bitwidth(to_address_of_expr(exp).op());
+  } else if(exp.id() == ID_unary_plus || exp.id() == ID_unary_minus ||
+          exp.id() == ID_bitreverse || exp.id() == ID_byte_update_big_endian ||
+          exp.id() == ID_byte_update_little_endian || exp.id() == ID_ashr ||
+          exp.id() == ID_shr || exp.id() == ID_shl || exp.id() == ID_abs ||
+          exp.id() == ID_bitnot || exp.id() == ID_bswap){
+    const auto& op0 = exp.operands().begin();
+    Forall_operands(it, exp)
+    {
+      setup_reduced_bitwidth(*it);
+    }
+    exp.set(ID_C_reduced_bitwidth, exp.get(op0->get(ID_C_reduced_bitwidth)));
+  } else if (exp.id() == ID_or || exp.id() == ID_and || exp.id() == ID_equal ||
+          exp.id() == ID_notequal || exp.id() == ID_lt || exp.id() == ID_le ||
+          exp.id() == ID_gt || exp.id() == ID_ge){
+    bwsize operands_expectation = bwsize::BOTH_OK;
+    Forall_operands(it, exp)
+    {
+      setup_reduced_bitwidth(*it);
+      bwsize common = (bwsize)(it->get_int(ID_C_reduced_bitwidth) & operands_expectation);
+      INVARIANT_WITH_DIAGNOSTICS(
+        common != ERROR,
+        "All operands should have common bitwidth",
+        exp.pretty(), it->pretty());
+      operands_expectation = common;
+    }
+    Forall_operands(it, exp){
+      it->set(ID_C_reduced_bitwidth, operands_expectation);
+    }
+    exp.set(ID_C_reduced_bitwidth, bwsize::BOTH_OK);
+  } else if(exp.id() == ID_bitor || exp.id() == ID_bitand ||
+          exp.id() == ID_bitxor || exp.id() == ID_plus || exp.id() == ID_minus ||
+          exp.id() == ID_mult || exp.id() == ID_div || exp.id() == ID_mod ||
+          exp.id() == "no-overflow-plus" || exp.id() == "no-overflow-minus" ||
+          exp.id() == ID_bitnor || exp.id() == ID_bitnand || exp.id() == ID_bitxnor) {
+    bwsize operands_expectation = bwsize::BOTH_OK;
+    Forall_operands(it, exp)
+    {
+      setup_reduced_bitwidth(*it);
+      bwsize common = (bwsize)(it->get_int(ID_C_reduced_bitwidth) & operands_expectation);
+      INVARIANT_WITH_DIAGNOSTICS(
+        common != ERROR,
+        "All operands should have common bitwidth",
+        exp.pretty(), it->pretty());
+      operands_expectation = common;
+    }
+    Forall_operands(it, exp){
+      it->set(ID_C_reduced_bitwidth, operands_expectation);
+    }
+    exp.set(ID_C_reduced_bitwidth, operands_expectation);
+  } else if (exp.id() == ID_overflow_result_minus || exp.id() == ID_overflow_result_plus ||
+          exp.id() == ID_overflow_result_unary_minus || exp.id() == ID_overflow_result_mult ||
+          exp.id() == ID_overflow_result_shl){
+    bwsize operands_expectation = bwsize::BOTH_OK;
+    Forall_operands(it, exp)
+    {
+      setup_reduced_bitwidth(*it);
+      bwsize common = (bwsize)(it->get_int(ID_C_reduced_bitwidth) & operands_expectation);
+      INVARIANT_WITH_DIAGNOSTICS(
+        common != ERROR,
+        "All operands should have common bitwidth",
+        exp.pretty(), it->pretty());
+      operands_expectation = common;
+    }
+    Forall_operands(it, exp){
+      it->set(ID_C_reduced_bitwidth, operands_expectation);
+    }
+    exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+  } else if(  exp.id() == ID_extractbit || exp.id() == ID_extractbits ||
+          exp.id() == ID_byte_extract_big_endian ||
+          exp.id() == ID_byte_extract_little_endian) {
+    Forall_operands(it, exp) {
+      setup_reduced_bitwidth(*it);
+    }
+    label_exp_given_type(exp, exp.type());
+  } else if (exp.id() == ID_array || exp.id() == ID_array_of){
+    Forall_operands(it, exp)
+    {
+      label_exp_given_type(*it, to_array_type(exp.type()).element_type());
+    }
+    exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+  } else {
+    exp.set(ID_C_reduced_bitwidth, bwsize::FULL);
+  }
+}
 
 void goto_symext::do_simplify(exprt &expr)
 {
@@ -123,6 +273,7 @@ void goto_symext::symex_assign(
     symex_assignt{*this, state, assignment_type, ns, symex_config, target,
                   copy_sm_nonstruct}
         .assign_rec(lhs, expr_skeletont{}, rhs, lhs_if_then_else_conditions);
+    setup_reduced_bitwidth_assign(lhs, rhs);
   }
 }
 

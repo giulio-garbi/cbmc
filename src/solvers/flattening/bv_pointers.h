@@ -48,8 +48,8 @@ protected:
   virtual bvt add_addr(const exprt &);
 
   // overloading
-  literalt convert_rest(const exprt &) override;
-  bvt convert_bitvector(const exprt &) override; // no cache
+  literalt convert_rest(const exprt &, const bwsize) override;
+  bvt convert_bitvector(const exprt &, const bwsize) override; // no cache
 
   exprt
   bv_get_rec(const exprt &, const bvt &, std::size_t offset) const override;

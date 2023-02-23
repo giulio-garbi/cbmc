@@ -173,6 +173,10 @@ void goto_symext::symex_assert(
   // now try simplifier on it
   do_simplify(l2_condition);
 
+  setup_reduced_bitwidth(l2_condition);
+  if(l2_condition.get_int(ID_C_reduced_bitwidth) == BOTH_OK)
+    l2_condition.set(ID_C_reduced_bitwidth, REDUCED);
+
   std::string msg = id2string(instruction.source_location().get_comment());
   if(msg.empty())
     msg = "assertion";
@@ -229,7 +233,9 @@ void goto_symext::symex_assume_l2(statet &state, const exprt &cond)
   exprt rewritten_cond = cond;
   if(has_subexpr(rewritten_cond, ID_exists))
     rewrite_quantifiers(rewritten_cond, state);
-
+  setup_reduced_bitwidth(rewritten_cond);
+  if(rewritten_cond.get_int(ID_C_reduced_bitwidth) == BOTH_OK)
+    rewritten_cond.set(ID_C_reduced_bitwidth, REDUCED);
   if(state.threads.size()==1)
   {
     exprt tmp = state.guard.guard_expr(rewritten_cond);

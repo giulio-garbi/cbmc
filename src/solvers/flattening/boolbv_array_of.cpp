@@ -13,10 +13,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_types.h>
 
 /// Flatten arrays constructed from a single element.
-bvt boolbvt::convert_array_of(const array_of_exprt &expr)
+bvt boolbvt::convert_array_of(const array_of_exprt &expr, const bwsize bitwidth)
 {
   DATA_INVARIANT(
     expr.type().id() == ID_array, "array_of expression shall have array type");
+
+  PRECONDITION((bitwidth & expr.get_int(ID_C_reduced_bitwidth)) != 0);
+  PRECONDITION(bitwidth == FULL);
 
   const array_typet &array_type = expr.type();
 
@@ -31,7 +34,7 @@ bvt boolbvt::convert_array_of(const array_of_exprt &expr)
 
   const auto size = numeric_cast_v<mp_integer>(to_constant_expr(array_size));
 
-  const bvt &tmp = convert_bv(expr.what());
+  const bvt &tmp = convert_bv(expr.what(), (bwsize) expr.what().get_int(ID_C_reduced_bitwidth));
 
   INVARIANT(
     size * tmp.size() == width,

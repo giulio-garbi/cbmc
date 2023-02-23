@@ -24,6 +24,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "boolbv_map.h"
 #include "boolbv_width.h"
 #include "bv_utils.h" // IWYU pragma: keep
+#include "../../goto-symex/goto_symex.h"
 
 class binary_overflow_exprt;
 class bitreverse_exprt;
@@ -58,10 +59,10 @@ public:
   }
 
   virtual const bvt &convert_bv( // check cache
-    const exprt &expr,
+    const exprt &expr, const bwsize bitwidth,
     const optionalt<std::size_t> expected_width = {});
 
-  virtual bvt convert_bitvector(const exprt &expr); // no cache
+  virtual bvt convert_bitvector(const exprt &expr, const bwsize bitwidth); // no cache
 
   // overloading
   exprt get(const exprt &expr) const override;
@@ -120,7 +121,7 @@ protected:
   boolbv_mapt map;
 
   // overloading
-  literalt convert_rest(const exprt &expr) override;
+  literalt convert_rest(const exprt &expr, const bwsize bitwidth) override;
   virtual bool boolbv_set_equality_to_true(const equal_exprt &expr);
 
   // NOLINTNEXTLINE(readability/identifiers)
@@ -135,7 +136,7 @@ protected:
     const typet &src_type, const bvt &src,
     const typet &dest_type, bvt &dest);
 
-  virtual literalt convert_bv_rel(const binary_relation_exprt &);
+  virtual literalt convert_bv_rel(const binary_relation_exprt &, const bwsize bitwidth);
   virtual literalt convert_typecast(const typecast_exprt &expr);
   virtual literalt convert_reduction(const unary_exprt &expr);
   virtual literalt convert_onehot(const unary_exprt &expr);
@@ -150,25 +151,25 @@ protected:
 
   virtual bvt convert_index(const exprt &array, const mp_integer &index);
   virtual bvt convert_index(const index_exprt &expr);
-  virtual bvt convert_bswap(const bswap_exprt &expr);
+  virtual bvt convert_bswap(const bswap_exprt &expr, const bwsize bitwidth);
   virtual bvt convert_byte_extract(const byte_extract_exprt &expr);
   virtual bvt convert_byte_update(const byte_update_exprt &expr);
   virtual bvt convert_constraint_select_one(const exprt &expr);
   virtual bvt convert_if(const if_exprt &expr);
   virtual bvt convert_struct(const struct_exprt &expr);
-  virtual bvt convert_array(const exprt &expr);
+  virtual bvt convert_array(const exprt &expr, const bwsize bitwidth);
   virtual bvt convert_vector(const vector_exprt &expr);
   virtual bvt convert_complex(const complex_exprt &expr);
   virtual bvt convert_complex_real(const complex_real_exprt &expr);
   virtual bvt convert_complex_imag(const complex_imag_exprt &expr);
   virtual bvt convert_array_comprehension(const array_comprehension_exprt &);
   virtual bvt convert_let(const let_exprt &);
-  virtual bvt convert_array_of(const array_of_exprt &expr);
+  virtual bvt convert_array_of(const array_of_exprt &expr, const bwsize bitwidth);
   virtual bvt convert_union(const union_exprt &expr);
   virtual bvt convert_empty_union(const empty_union_exprt &expr);
   virtual bvt convert_bv_typecast(const typecast_exprt &expr);
-  virtual bvt convert_add_sub(const exprt &expr);
-  virtual bvt convert_add_with_overflow(const exprt &expr);
+  virtual bvt convert_add_sub(const exprt &expr, const bwsize bitwidth);
+  virtual bvt convert_add_with_overflow(const exprt &expr, const bwsize bitwidth);
   virtual bvt convert_mult(const mult_exprt &expr);
   virtual bvt convert_div(const div_exprt &expr);
   virtual bvt convert_mod(const mod_exprt &expr);
@@ -181,9 +182,9 @@ protected:
   virtual bvt convert_case(const exprt &expr);
   virtual bvt convert_cond(const cond_exprt &);
   virtual bvt convert_shift(const binary_exprt &expr);
-  virtual bvt convert_bitwise(const exprt &expr);
+  virtual bvt convert_bitwise(const exprt &expr, const bwsize bitwidth);
   virtual bvt convert_unary_minus(const unary_minus_exprt &expr);
-  virtual bvt convert_abs(const abs_exprt &expr);
+  virtual bvt convert_abs(const abs_exprt &expr, const bwsize bitwidth);
   virtual bvt convert_concatenation(const concatenation_exprt &expr);
   virtual bvt convert_replication(const replication_exprt &expr);
   virtual bvt convert_constant(const constant_exprt &expr);
@@ -194,8 +195,8 @@ protected:
   virtual bvt convert_power(const binary_exprt &expr);
   virtual bvt convert_function_application(
     const function_application_exprt &expr);
-  virtual bvt convert_bitreverse(const bitreverse_exprt &expr);
-  virtual bvt convert_saturating_add_sub(const binary_exprt &expr);
+  virtual bvt convert_bitreverse(const bitreverse_exprt &expr, const bwsize bitwidth);
+  virtual bvt convert_saturating_add_sub(const binary_exprt &expr, const bwsize bitwidth);
   virtual bvt convert_overflow_result(const overflow_result_exprt &expr);
 
   void convert_with(

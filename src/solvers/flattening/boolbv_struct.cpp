@@ -47,7 +47,7 @@ bvt boolbvt::convert_struct(const struct_exprt &expr)
 
     if(subtype_width!=0)
     {
-      const bvt &op_bv = convert_bv(op, subtype_width);
+      const bvt &op_bv = convert_bv(op, ERROR, subtype_width);
 
       INVARIANT(
         bit_idx + op_bv.size() <= width, "bit index shall be within bounds");

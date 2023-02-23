@@ -13,7 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <solvers/floatbv/float_utils.h>
 
-bvt boolbvt::convert_add_sub(const exprt &expr)
+bvt boolbvt::convert_add_sub(const exprt &expr, const bwsize bitwidth)
 {
   PRECONDITION(
     expr.id() == ID_plus || expr.id() == ID_minus ||
@@ -42,7 +42,8 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
   DATA_INVARIANT(
     op0.type() == type, "add/sub with mixed types:\n" + expr.pretty());
 
-  bvt bv = convert_bv(op0, width);
+  PRECONDITION((bitwidth & op0.get_int(ID_C_reduced_bitwidth)) != 0);
+  bvt bv = convert_bv(op0, bitwidth, width);
 
   bool subtract=(expr.id()==ID_minus ||
                  expr.id()=="no-overflow-minus");
@@ -66,7 +67,8 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
     DATA_INVARIANT(
       it->type() == type, "add/sub with mixed types:\n" + expr.pretty());
 
-    const bvt &op = convert_bv(*it, width);
+    PRECONDITION((bitwidth & it->get_int(ID_C_reduced_bitwidth)) != 0);
+    const bvt &op = convert_bv(*it, bitwidth, width);
 
     if(type.id()==ID_vector || type.id()==ID_complex)
     {
@@ -140,7 +142,7 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
   return bv;
 }
 
-bvt boolbvt::convert_add_with_overflow(const exprt &expr){
+bvt boolbvt::convert_add_with_overflow(const exprt &expr, const bwsize bitwidth){
   PRECONDITION(
     expr.id() == ID_plus_with_overflow);
 
@@ -154,17 +156,19 @@ bvt boolbvt::convert_add_with_overflow(const exprt &expr){
 
   const exprt &op0 = to_multi_ary_expr(expr).op0();
   const exprt &op1 = to_multi_ary_expr(expr).op1();
+  PRECONDITION((bitwidth & op0.get_int(ID_C_reduced_bitwidth)) != 0);
+  PRECONDITION((bitwidth & op1.get_int(ID_C_reduced_bitwidth)) != 0);
   /*DATA_INVARIANT(
     op0.type() == type, "add/sub with mixed types:\n" + expr.pretty());
   DATA_INVARIANT(
     op1.type() == type, "add/sub with mixed types:\n" + expr.pretty());*/
 
-  return bv_utils.add_with_overflow(convert_bv(op0, width),
-                                                convert_bv(op1, width),
+  return bv_utils.add_with_overflow(convert_bv(op0, bitwidth, width),
+                                                convert_bv(op1, bitwidth, width),
                                           type.id()==ID_signedbv? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED);
 }
 
-bvt boolbvt::convert_saturating_add_sub(const binary_exprt &expr)
+bvt boolbvt::convert_saturating_add_sub(const binary_exprt &expr, const bwsize bitwidth)
 {
   PRECONDITION(
     expr.id() == ID_saturating_minus || expr.id() == ID_saturating_plus);
@@ -196,8 +200,10 @@ bvt boolbvt::convert_saturating_add_sub(const binary_exprt &expr)
       ? bv_utilst::representationt::SIGNED
       : bv_utilst::representationt::UNSIGNED;
 
-  bvt bv = convert_bv(expr.lhs(), width);
-  const bvt &op = convert_bv(expr.rhs(), width);
+  PRECONDITION((bitwidth & expr.lhs().get_int(ID_C_reduced_bitwidth)) != 0);
+  bvt bv = convert_bv(expr.lhs(), bitwidth, width);
+  PRECONDITION((bitwidth & expr.rhs().get_int(ID_C_reduced_bitwidth)) != 0);
+  const bvt &op = convert_bv(expr.rhs(), bitwidth, width);
 
   if(type.id() != ID_vector && type.id() != ID_complex)
     return bv_utils.saturating_add_sub(bv, op, subtract, rep);
