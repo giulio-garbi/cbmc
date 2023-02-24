@@ -140,15 +140,15 @@ void goto_trace_stept::output(
 
 void goto_trace_stept::merge_ireps(merge_irept &dest)
 {
-  dest(cond_expr);
-  dest(full_lhs);
-  dest(full_lhs_value);
+  dest(cond_expr, false);
+  dest(full_lhs, false);
+  dest(full_lhs_value, false);
 
   for(auto &io_arg : io_args)
-    dest(io_arg);
+    dest(io_arg, false);
 
   for(auto &function_arg : function_arguments)
-    dest(function_arg);
+    dest(function_arg, false);
 }
 
 /// Returns the numeric representation of an expression, based on

@@ -13,6 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <unordered_set>
 
 #include "irep.h"
+#include "optional.h"
 
 class merged_irept:public irept
 {
@@ -105,13 +106,14 @@ protected:
 class merge_irept
 {
 public:
-  void operator()(irept &);
+  void operator()(irept &, const bool);
 
 protected:
   typedef std::unordered_set<irept, irep_hash> irep_storet;
   irep_storet irep_store;
+  optionalt<irept> cache;
 
-  const irept &merged(const irept &irep);
+  const irept &merged(const irept &irep, const bool use_cache);
 };
 
 class merge_full_irept

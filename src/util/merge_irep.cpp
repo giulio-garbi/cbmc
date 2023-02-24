@@ -133,16 +133,21 @@ const merged_irept &merged_irepst::merged(const irept &irep)
       static_cast<const irept &>(*result.first));
 }
 
-void merge_irept::operator()(irept &irep)
+void merge_irept::operator()(irept &irep, const bool use_cache)
 {
   // only useful if there is sharing
   #ifdef SHARING
-  irep=merged(irep);
+  irep=merged(irep, use_cache);
+  if(use_cache)
+    cache = {irep};
   #endif
 }
 
-const irept &merge_irept::merged(const irept &irep)
+const irept &merge_irept::merged(const irept &irep, const bool use_cache)
 {
+  if(use_cache && cache && *cache == irep){
+    return *cache;
+  }
   auto entry = irep_store.insert(irep);
   if(!entry.second)
     return *entry.first;
@@ -153,7 +158,7 @@ const irept &merge_irept::merged(const irept &irep)
   std::size_t index = 0;
   for(const auto &sub_irep : src_sub)
   {
-    const irept &op = merged(sub_irep); // recursive call
+    const irept &op = merged(sub_irep, use_cache); // recursive call
     if(&op.read() != &(sub_irep.read()))
     {
       if(!dest_sub_ptr)
@@ -171,7 +176,7 @@ const irept &merge_irept::merged(const irept &irep)
   {
     if(!irept::is_comment(irep_entry.first))
     {
-      const irept &op = merged(irep_entry.second); // recursive call
+      const irept &op = merged(irep_entry.second, use_cache); // recursive call
       if(&op.read() != &(irep_entry.second.read()))
       {
         if(!dest_named_sub_ptr)
