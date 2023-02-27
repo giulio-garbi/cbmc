@@ -46,7 +46,7 @@ public:
     const ssa_exprt &ssa_object,
     unsigned atomic_section_id,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::shared_write()
   virtual void shared_write(
@@ -54,7 +54,7 @@ public:
     const ssa_exprt &ssa_object,
     unsigned atomic_section_id,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::assignment()
   virtual void assignment(
@@ -65,7 +65,7 @@ public:
     const exprt &ssa_rhs,
     const sourcet &source,
     assignment_typet assignment_type,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::decl()
   virtual void decl(
@@ -74,14 +74,14 @@ public:
     const exprt &initializer,
     const sourcet &source,
     assignment_typet assignment_type,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::dead()
   virtual void dead(
     const exprt &guard,
     const ssa_exprt &ssa_lhs,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::function_call()
   virtual void function_call(
@@ -90,7 +90,7 @@ public:
     const std::vector<renamedt<exprt, L2>> &ssa_function_arguments,
     const sourcet &source,
     bool hidden,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::function_return()
   virtual void function_return(
@@ -98,13 +98,13 @@ public:
     const irep_idt &function_id,
     const sourcet &source,
     bool hidden,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::location()
   virtual void location(
     const exprt &guard,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::output()
   virtual void output(
@@ -112,7 +112,7 @@ public:
     const sourcet &source,
     const irep_idt &output_id,
     const std::list<renamedt<exprt, L2>> &args,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::output_fmt()
   virtual void output_fmt(
@@ -121,7 +121,7 @@ public:
     const irep_idt &output_id,
     const irep_idt &fmt,
     const std::list<exprt> &args,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::input()
   virtual void input(
@@ -129,14 +129,14 @@ public:
     const sourcet &source,
     const irep_idt &input_id,
     const std::list<exprt> &args,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::assumption()
   virtual void assumption(
     const exprt &guard,
     const exprt &cond,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::assertion()
   virtual void assertion(
@@ -144,14 +144,14 @@ public:
     const exprt &cond,
     const std::string &msg,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::goto_instruction()
   virtual void goto_instruction(
     const exprt &guard,
     const renamedt<exprt, L2> &cond,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::constraint()
   virtual void constraint(
@@ -163,27 +163,27 @@ public:
   virtual void spawn(
     const exprt &guard,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::memory_barrier()
   virtual void memory_barrier(
     const exprt &guard,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::atomic_begin()
   virtual void atomic_begin(
     const exprt &guard,
     unsigned atomic_section_id,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// \copydoc symex_targett::atomic_end()
   virtual void atomic_end(
     const exprt &guard,
     unsigned atomic_section_id,
     const sourcet &source,
-    optionalt<irept>& merged_guard);
+    optionalt<exprt>& merged_guard);
 
   /// Interface method to initiate the conversion into a decision procedure
   /// format. The method iterates over the equation, i.e. over the SSA steps and

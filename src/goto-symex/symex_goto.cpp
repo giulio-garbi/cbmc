@@ -510,7 +510,7 @@ void goto_symext::symex_goto(statet &state)
                   << messaget::eom;
         });
 
-      optionalt<irept> fake_merged_guard = {};
+      optionalt<exprt> fake_merged_guard = {};
       target.assignment(
         guard.as_expr(),
         new_lhs, new_lhs, guard_symbol_expr,
@@ -854,7 +854,7 @@ static void merge_names(
               << messaget::eom;
     });
 
-  optionalt<irept> fake_merged_guard = {};
+  optionalt<exprt> fake_merged_guard = {};
   target.assignment(
     true_exprt(),
     new_lhs,

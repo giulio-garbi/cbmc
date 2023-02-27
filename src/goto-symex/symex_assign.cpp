@@ -228,7 +228,7 @@ void symex_assignt::assign_non_struct_symbol(
       ? symex_targett::assignment_typet::HIDDEN
       : assignment_type;
 
-  optionalt<irept> fake_merged_guard = {};
+  optionalt<exprt> fake_merged_guard = {};
   target.assignment(
     make_and(state.guard.as_expr(), conjunction(guard)),
     l2_lhs,

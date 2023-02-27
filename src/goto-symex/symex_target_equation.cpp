@@ -32,7 +32,7 @@ void symex_target_equationt::shared_read(
   const ssa_exprt &ssa_object,
   unsigned atomic_section_id,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::SHARED_READ);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -42,7 +42,9 @@ void symex_target_equationt::shared_read(
   SSA_step.atomic_section_id=atomic_section_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -51,7 +53,7 @@ void symex_target_equationt::shared_write(
   const ssa_exprt &ssa_object,
   unsigned atomic_section_id,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::SHARED_WRITE);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -61,7 +63,9 @@ void symex_target_equationt::shared_write(
   SSA_step.atomic_section_id=atomic_section_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -69,28 +73,32 @@ void symex_target_equationt::shared_write(
 void symex_target_equationt::spawn(
   const exprt &guard,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::SPAWN);
   SSA_stept &SSA_step=SSA_steps.back();
   SSA_step.guard=guard;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
 void symex_target_equationt::memory_barrier(
   const exprt &guard,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::MEMORY_BARRIER);
   SSA_stept &SSA_step=SSA_steps.back();
   SSA_step.guard=guard;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -99,7 +107,7 @@ void symex_target_equationt::atomic_begin(
   const exprt &guard,
   unsigned atomic_section_id,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::ATOMIC_BEGIN);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -107,7 +115,9 @@ void symex_target_equationt::atomic_begin(
   SSA_step.atomic_section_id=atomic_section_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -116,7 +126,7 @@ void symex_target_equationt::atomic_end(
   const exprt &guard,
   unsigned atomic_section_id,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::ATOMIC_END);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -124,7 +134,9 @@ void symex_target_equationt::atomic_end(
   SSA_step.atomic_section_id=atomic_section_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -136,7 +148,7 @@ void symex_target_equationt::assignment(
   const exprt &ssa_rhs,
   const sourcet &source,
   assignment_typet assignment_type,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   PRECONDITION(ssa_lhs.is_not_nil());
 
@@ -149,7 +161,9 @@ void symex_target_equationt::assignment(
                                               assignment_type});
 
   merge_ireps(SSA_steps.back(), merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_steps.back().guard = *merged_guard;
+  else
     merged_guard = SSA_steps.back().guard;
 }
 
@@ -159,7 +173,7 @@ void symex_target_equationt::decl(
   const exprt &initializer,
   const sourcet &source,
   assignment_typet assignment_type,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   PRECONDITION(ssa_lhs.is_not_nil());
 
@@ -177,7 +191,9 @@ void symex_target_equationt::decl(
   SSA_step.cond_expr=equal_exprt(SSA_step.ssa_lhs, SSA_step.ssa_lhs);
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -186,7 +202,7 @@ void symex_target_equationt::dead(
   const exprt &,
   const ssa_exprt &,
   const sourcet &,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   // we currently don't record these
 }
@@ -194,7 +210,7 @@ void symex_target_equationt::dead(
 void symex_target_equationt::location(
   const exprt &guard,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::LOCATION);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -202,7 +218,9 @@ void symex_target_equationt::location(
   SSA_step.guard=guard;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -212,7 +230,7 @@ void symex_target_equationt::function_call(
   const std::vector<renamedt<exprt, L2>> &function_arguments,
   const sourcet &source,
   const bool hidden,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::FUNCTION_CALL);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -224,7 +242,9 @@ void symex_target_equationt::function_call(
   SSA_step.hidden = hidden;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -233,7 +253,7 @@ void symex_target_equationt::function_return(
   const irep_idt &function_id,
   const sourcet &source,
   const bool hidden,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::FUNCTION_RETURN);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -243,7 +263,9 @@ void symex_target_equationt::function_return(
   SSA_step.hidden = hidden;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -252,7 +274,7 @@ void symex_target_equationt::output(
   const sourcet &source,
   const irep_idt &output_id,
   const std::list<renamedt<exprt, L2>> &args,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::OUTPUT);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -263,7 +285,9 @@ void symex_target_equationt::output(
   SSA_step.io_id=output_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -273,7 +297,7 @@ void symex_target_equationt::output_fmt(
   const irep_idt &output_id,
   const irep_idt &fmt,
   const std::list<exprt> &args,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::OUTPUT);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -285,7 +309,9 @@ void symex_target_equationt::output_fmt(
   SSA_step.format_string=fmt;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -294,7 +320,7 @@ void symex_target_equationt::input(
   const sourcet &source,
   const irep_idt &input_id,
   const std::list<exprt> &args,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::INPUT);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -304,7 +330,9 @@ void symex_target_equationt::input(
   SSA_step.io_id=input_id;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -312,7 +340,7 @@ void symex_target_equationt::assumption(
   const exprt &guard,
   const exprt &cond,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::ASSUME);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -321,7 +349,9 @@ void symex_target_equationt::assumption(
   SSA_step.cond_expr=cond;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -330,7 +360,7 @@ void symex_target_equationt::assertion(
   const exprt &cond,
   const std::string &msg,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::ASSERT);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -340,7 +370,9 @@ void symex_target_equationt::assertion(
   SSA_step.comment=msg;
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 
@@ -348,7 +380,7 @@ void symex_target_equationt::goto_instruction(
   const exprt &guard,
   const renamedt<exprt, L2> &cond,
   const sourcet &source,
-  optionalt<irept>& merged_guard)
+  optionalt<exprt>& merged_guard)
 {
   SSA_steps.emplace_back(source, goto_trace_stept::typet::GOTO);
   SSA_stept &SSA_step=SSA_steps.back();
@@ -357,7 +389,9 @@ void symex_target_equationt::goto_instruction(
   SSA_step.cond_expr = cond.get();
 
   merge_ireps(SSA_step, merged_guard.has_value());
-  if(!merged_guard)
+  if(merged_guard)
+    SSA_step.guard = *merged_guard;
+  else
     merged_guard = SSA_step.guard;
 }
 

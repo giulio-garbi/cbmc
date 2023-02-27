@@ -61,7 +61,7 @@ void goto_symext::symex_atomic_end(statet &state)
     exprt read_guard_expr=read_guard.as_expr();
     do_simplify(read_guard_expr);
 
-    optionalt<irept> fake_merged_guard = {};
+    optionalt<exprt> fake_merged_guard = {};
     target.shared_read(
       read_guard_expr,
       r,
@@ -85,7 +85,7 @@ void goto_symext::symex_atomic_end(statet &state)
     exprt write_guard_expr=write_guard.as_expr();
     do_simplify(write_guard_expr);
 
-    optionalt<irept> fake_merged_guard = {};
+    optionalt<exprt> fake_merged_guard = {};
     target.shared_write(
       write_guard_expr,
       w,
