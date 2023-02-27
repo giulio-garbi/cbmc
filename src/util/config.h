@@ -106,10 +106,11 @@ class symbol_table_baset;
   " --gcc                        use GCC as preprocessor\n"                    \
 
 #define OPT_CONFIG_BACKEND                                                     \
-  "(object-bits):"                                                             \
+  "(object-bits):(increasing-object-bits)"                                                             \
 
 #define HELP_CONFIG_BACKEND                                                    \
-  " --object-bits n              number of bits used for object addresses\n"
+  " --object-bits n              number of bits used for object addresses\n"   \
+  " --increasing-object-bits     increase object_bits as needed in solvers\n"
 
 // clang-format on
 
@@ -335,6 +336,7 @@ public:
     // number of bits to encode heap object addresses
     std::size_t object_bits = 8;
     bool is_object_bits_default = true;
+    bool is_object_bits_incremental = false;
   } bv_encoding;
 
   // this is the function to start executing

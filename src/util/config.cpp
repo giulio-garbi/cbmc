@@ -1116,6 +1116,11 @@ bool configt::set(const cmdlinet &cmdline)
       cmdline.get_value("object-bits"), ansi_c.pointer_width);
   }
 
+  if(cmdline.isset("increasing-object-bits"))
+  {
+    bv_encoding.is_object_bits_incremental = true;
+  }
+
   if(cmdline.isset("malloc-fail-assert") && cmdline.isset("malloc-fail-null"))
   {
     throw invalid_command_line_argument_exceptiont{
@@ -1338,7 +1343,9 @@ void configt::set_object_bits_from_symbol_table(
 std::string configt::object_bits_info()
 {
   return "Running with "+std::to_string(bv_encoding.object_bits)+
-    " object bits, "+
+    " object bits"+
+    (bv_encoding.is_object_bits_incremental?" (can be increased as needed)":"")+
+    ", "+
     std::to_string(ansi_c.pointer_width-bv_encoding.object_bits)+
     " offset bits ("+
     (bv_encoding.is_object_bits_default ? "default" : "user-specified")+

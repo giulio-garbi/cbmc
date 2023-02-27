@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/std_expr.h>
 
+#include "config.h"
 #include "solver_hardness.h"
 #include "ssa_step.h"
 
@@ -346,8 +347,20 @@ void symex_target_equationt::convert(decision_proceduret &decision_procedure)
 {
   const auto convert_SSA_start = std::chrono::steady_clock::now();
 
-  convert_without_assertions(decision_procedure);
-  convert_assertions(decision_procedure);
+  try
+  {
+    convert_without_assertions(decision_procedure);
+    convert_assertions(decision_procedure);
+  } catch(analysis_exceptiont ex){
+    if(config.bv_encoding.is_object_bits_incremental)
+    {
+      config.bv_encoding.object_bits++;
+      log.status() << "Incrementing object_bits to "
+                   << config.bv_encoding.object_bits << messaget::eom;
+    } else {
+      throw ex;
+    }
+  }
 
   const auto convert_SSA_stop = std::chrono::steady_clock::now();
   std::chrono::duration<double> convert_SSA_runtime =
