@@ -88,7 +88,8 @@ public:
     const exprt &guard,
     const ssa_exprt &ssa_object,
     unsigned atomic_section_id,
-    const sourcet &source) = 0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Write to a shared variable \p ssa_object: we effectively assign a value
   /// from this thread to be visible by other threads.
@@ -101,7 +102,8 @@ public:
     const exprt &guard,
     const ssa_exprt &ssa_object,
     unsigned atomic_section_id,
-    const sourcet &source) = 0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Write to a local variable. The `cond_expr` is _lhs==rhs_.
   /// \param guard: Precondition for this read event
@@ -121,7 +123,8 @@ public:
     const exprt &original_full_lhs,
     const exprt &ssa_rhs,
     const sourcet &source,
-    assignment_typet assignment_type)=0;
+    assignment_typet assignment_type,
+    optionalt<irept>& merged_guard)=0;
 
   /// Declare a fresh variable. The `cond_expr` is _lhs==lhs_.
   /// \param guard: Precondition for a declaration of this variable
@@ -136,7 +139,8 @@ public:
     const ssa_exprt &ssa_lhs,
     const exprt &initializer,
     const sourcet &source,
-    assignment_typet assignment_type) = 0;
+    assignment_typet assignment_type,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Remove a variable from the scope.
   /// \param guard: Precondition for removal of this variable
@@ -146,7 +150,8 @@ public:
   virtual void dead(
     const exprt &guard,
     const ssa_exprt &ssa_lhs,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record a function call.
   /// \param guard: Precondition for calling a function
@@ -160,7 +165,8 @@ public:
     const irep_idt &function_id,
     const std::vector<renamedt<exprt, L2>> &ssa_function_arguments,
     const sourcet &source,
-    bool hidden) = 0;
+    bool hidden,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Record return from a function.
   /// \param guard: Precondition for returning from a function
@@ -172,7 +178,8 @@ public:
     const exprt &guard,
     const irep_idt &function_id,
     const sourcet &source,
-    bool hidden) = 0;
+    bool hidden,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Record a location.
   /// \param guard: Precondition for reaching this location
@@ -180,7 +187,8 @@ public:
   ///  recorded
   virtual void location(
     const exprt &guard,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record an output.
   /// \param guard: Precondition for writing to the output
@@ -192,7 +200,8 @@ public:
     const exprt &guard,
     const sourcet &source,
     const irep_idt &output_id,
-    const std::list<renamedt<exprt, L2>> &args) = 0;
+    const std::list<renamedt<exprt, L2>> &args,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Record formatted output.
   /// \param guard: Precondition for writing to the output
@@ -206,7 +215,8 @@ public:
     const sourcet &source,
     const irep_idt &output_id,
     const irep_idt &fmt,
-    const std::list<exprt> &args)=0;
+    const std::list<exprt> &args,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record an input.
   /// \param guard: Precondition for reading from the input
@@ -218,7 +228,8 @@ public:
     const exprt &guard,
     const sourcet &source,
     const irep_idt &input_id,
-    const std::list<exprt> &args)=0;
+    const std::list<exprt> &args,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record an assumption.
   /// \param guard: Precondition for reaching this assumption
@@ -228,7 +239,8 @@ public:
   virtual void assumption(
     const exprt &guard,
     const exprt &cond,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record an assertion.
   /// \param guard: Precondition for reaching this assertion
@@ -240,7 +252,8 @@ public:
     const exprt &guard,
     const exprt &cond,
     const std::string &msg,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record a goto instruction.
   /// \param guard: Precondition for reaching this goto instruction
@@ -250,7 +263,8 @@ public:
   virtual void goto_instruction(
     const exprt &guard,
     const renamedt<exprt, L2> &cond,
-    const sourcet &source) = 0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard) = 0;
 
   /// Record a _global_ constraint: there is no guard limiting its scope.
   /// \param cond: Condition represented by this constraint
@@ -268,7 +282,8 @@ public:
   ///  thread is to be spawned
   virtual void spawn(
     const exprt &guard,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record creating a memory barrier
   /// \param guard: Precondition for reaching this barrier
@@ -276,7 +291,8 @@ public:
   ///  barrier is created
   virtual void memory_barrier(
     const exprt &guard,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record a beginning of an atomic section
   /// \param guard: Precondition for reaching this atomic section
@@ -286,7 +302,8 @@ public:
   virtual void atomic_begin(
     const exprt &guard,
     unsigned atomic_section_id,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 
   /// Record ending an atomic section
   /// \param guard: Precondition for reaching the end of this atomic section
@@ -296,7 +313,8 @@ public:
   virtual void atomic_end(
     const exprt &guard,
     unsigned atomic_section_id,
-    const sourcet &source)=0;
+    const sourcet &source,
+    optionalt<irept>& merged_guard)=0;
 };
 
 /// Base class comparison operator for symbolic execution targets. Order first

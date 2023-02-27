@@ -205,7 +205,8 @@ void goto_symext::symex_function_call_symbol(
   for(auto &argument : arguments)
     cleaned_arguments.push_back(clean_expr(argument, state, false));
 
-  target.location(state.guard.as_expr(), state.source);
+  target.location(state.guard.as_expr(), state.source,
+                  state.merged_guard);
 
   PRECONDITION(function.id() == ID_symbol);
   const irep_idt &identifier=
@@ -284,7 +285,8 @@ void goto_symext::symex_function_call_post_clean(
 
   // record the call
   target.function_call(
-    state.guard.as_expr(), identifier, renamed_arguments, state.source, hidden);
+    state.guard.as_expr(), identifier, renamed_arguments, state.source, hidden,
+    state.merged_guard);
 
   if(!goto_function.body_available())
   {
@@ -292,7 +294,8 @@ void goto_symext::symex_function_call_post_clean(
 
     // record the return
     target.function_return(
-      state.guard.as_expr(), identifier, state.source, hidden);
+      state.guard.as_expr(), identifier, state.source, hidden,
+      state.merged_guard);
 
     if(cleaned_lhs.is_not_nil())
     {
@@ -417,6 +420,7 @@ static void pop_frame(
   if(state.threads.size() == 1 && !doing_path_exploration)
   {
     state.guard = frame.guard_at_function_start;
+    state.merged_guard = {};
   }
 
   for(const irep_idt &l1_o_id : frame.local_objects)
@@ -444,7 +448,8 @@ void goto_symext::symex_end_of_function(statet &state)
 
   // first record the return
   target.function_return(
-    state.guard.as_expr(), state.source.function_id, state.source, hidden);
+    state.guard.as_expr(), state.source.function_id, state.source, hidden,
+    state.merged_guard);
 
   // before we drop the frame, remember the call LHS
   // and the return value symbol, if any

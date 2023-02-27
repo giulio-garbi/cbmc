@@ -242,7 +242,8 @@ void goto_symext::symex_other(
   }
   else if(statement==ID_fence)
   {
-    target.memory_barrier(state.guard.as_expr(), state.source);
+    target.memory_barrier(state.guard.as_expr(), state.source,
+                          state.merged_guard);
   }
   else if(statement==ID_havoc_object)
   {

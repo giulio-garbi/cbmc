@@ -244,14 +244,16 @@ void goto_symext::symex_goto(statet &state)
 
   if(new_guard.is_false())
   {
-    target.location(state.guard.as_expr(), state.source);
+    target.location(state.guard.as_expr(), state.source,
+                    state.merged_guard);
 
     // next instruction
     symex_transition(state);
     return; // nothing to do
   }
 
-  target.goto_instruction(state.guard.as_expr(), renamed_guard, state.source);
+  target.goto_instruction(state.guard.as_expr(), renamed_guard, state.source,
+                          state.merged_guard);
 
   DATA_INVARIANT(
     !instruction.targets.empty(), "goto should have at least one target");
@@ -451,6 +453,7 @@ void goto_symext::symex_goto(statet &state)
     symex_transition(state, state_pc, backward);
 
     state.guard = guardt(false_exprt(), guard_manager);
+    state.merged_guard = {};
     state.reachable = false;
   }
   else
@@ -507,12 +510,14 @@ void goto_symext::symex_goto(statet &state)
                   << messaget::eom;
         });
 
+      optionalt<irept> fake_merged_guard = {};
       target.assignment(
         guard.as_expr(),
         new_lhs, new_lhs, guard_symbol_expr,
         new_rhs,
         original_source,
-        symex_targett::assignment_typet::GUARD);
+        symex_targett::assignment_typet::GUARD,
+        fake_merged_guard);
 
       guard_expr = state.rename(boolean_negate(guard_symbol_expr), ns).get();
     }
@@ -568,6 +573,7 @@ void goto_symext::symex_unreachable_goto(statet &state)
       state.call_stack().top().goto_state_map[goto_target];
     goto_statet new_state(state.guard_manager);
     new_state.guard = state.guard;
+    state.merged_guard = {};
     new_state.reachable = false;
     goto_state_list.emplace_back(state.source, std::move(new_state));
   };
@@ -663,6 +669,7 @@ merge_state_guards(goto_statet &goto_state, goto_symex_statet &state)
     state.guard.disjunction_may_simplify(goto_state.guard))
   {
     state.guard |= goto_state.guard;
+    state.merged_guard = {};
     return std::move(state.guard);
   }
   else if(!state.reachable && goto_state.reachable)
@@ -715,6 +722,7 @@ void goto_symext::merge_goto(
 
   // Save the new state guard
   state.guard = std::move(new_guard);
+  state.merged_guard = {};
 }
 
 /// Helper function for \c phi_function which merges the names of an identifier
@@ -846,6 +854,7 @@ static void merge_names(
               << messaget::eom;
     });
 
+  optionalt<irept> fake_merged_guard = {};
   target.assignment(
     true_exprt(),
     new_lhs,
@@ -853,7 +862,8 @@ static void merge_names(
     new_lhs.get_original_expr(),
     rhs,
     dest_state.source,
-    symex_targett::assignment_typet::PHI);
+    symex_targett::assignment_typet::PHI,
+    fake_merged_guard);
 }
 
 void goto_symext::phi_function(

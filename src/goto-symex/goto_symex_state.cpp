@@ -473,7 +473,8 @@ bool goto_symex_statet::l2_thread_read_encoding(
       ssa_l2.get_original_expr(),
       tmp,
       source,
-      symex_targett::assignment_typet::PHI);
+      symex_targett::assignment_typet::PHI,
+      merged_guard);
 
     INVARIANT(!check_renaming(ssa_l2), "expr should be renamed to L2");
     expr = std::move(ssa_l2);
@@ -499,7 +500,8 @@ bool goto_symex_statet::l2_thread_read_encoding(
   // and record that
   INVARIANT_STRUCTURED(
     symex_target!=nullptr, nullptr_exceptiont, "symex_target is null");
-  symex_target->shared_read(guard_as_expr, expr, atomic_section_id, source);
+  symex_target->shared_read(guard_as_expr, expr, atomic_section_id, source,
+                            merged_guard);
 
   return true;
 }
@@ -554,7 +556,8 @@ bool goto_symex_statet::l2_thread_write_encoding(
     guard.as_expr(),
     expr,
     atomic_section_id,
-    source);
+    source,
+    merged_guard);
 
   // do we have threads?
   return threads.size() > 1;

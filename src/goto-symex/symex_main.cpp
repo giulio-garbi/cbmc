@@ -194,7 +194,8 @@ void goto_symext::vcc(
   const exprt guarded_condition = state.guard.guard_expr(condition);
 
   state.remaining_vccs++;
-  target.assertion(state.guard.as_expr(), guarded_condition, msg, state.source);
+  target.assertion(state.guard.as_expr(), guarded_condition, msg, state.source,
+                   state.merged_guard);
 }
 
 void goto_symext::symex_assume(statet &state, const exprt &cond)
@@ -233,7 +234,8 @@ void goto_symext::symex_assume_l2(statet &state, const exprt &cond)
   if(state.threads.size()==1)
   {
     exprt tmp = state.guard.guard_expr(rewritten_cond);
-    target.assumption(state.guard.as_expr(), tmp, state.source);
+    target.assumption(state.guard.as_expr(), tmp, state.source,
+                      state.merged_guard);
   }
   // symex_target_equationt::convert_assertions would fail to
   // consider assumptions of threads that have a thread-id above that
@@ -293,6 +295,7 @@ switch_to_thread(goto_symex_statet &state, const unsigned int thread_nb)
   state.source.function_id = state.threads[thread_nb].function_id;
 
   state.guard = state.threads[thread_nb].guard;
+  state.merged_guard = {};
   // A thread's initial state is certainly reachable:
   state.reachable = true;
 }
@@ -634,7 +637,8 @@ void goto_symext::execute_next_instruction(
   {
   case SKIP:
     if(state.reachable)
-      target.location(state.guard.as_expr(), state.source);
+      target.location(state.guard.as_expr(), state.source,
+                      state.merged_guard);
     symex_transition(state);
     break;
 
@@ -647,7 +651,8 @@ void goto_symext::execute_next_instruction(
 
   case LOCATION:
     if(state.reachable)
-      target.location(state.guard.as_expr(), state.source);
+      target.location(state.guard.as_expr(), state.source,
+                      state.merged_guard);
     symex_transition(state);
     break;
 

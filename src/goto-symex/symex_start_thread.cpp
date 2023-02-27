@@ -30,7 +30,8 @@ void goto_symext::symex_start_thread(statet &state)
       state.source.pc->source_location());
 
   // record this
-  target.spawn(state.guard.as_expr(), state.source);
+  target.spawn(state.guard.as_expr(), state.source,
+               state.merged_guard);
 
   const goto_programt::instructiont &instruction=*state.source.pc;
 
@@ -107,7 +108,8 @@ void goto_symext::symex_start_thread(statet &state)
     {
       state.source.thread_nr = new_thread_nr;
       target.shared_write(
-        state.guard.as_expr(), to_ssa_expr(l2_lhs), 0, state.source);
+        state.guard.as_expr(), to_ssa_expr(l2_lhs), 0, state.source,
+        state.merged_guard);
       state.source.thread_nr = current_thread_nr;
     }
   }

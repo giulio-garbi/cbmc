@@ -228,6 +228,7 @@ void symex_assignt::assign_non_struct_symbol(
       ? symex_targett::assignment_typet::HIDDEN
       : assignment_type;
 
+  optionalt<irept> fake_merged_guard = {};
   target.assignment(
     make_and(state.guard.as_expr(), conjunction(guard)),
     l2_lhs,
@@ -235,7 +236,8 @@ void symex_assignt::assign_non_struct_symbol(
     get_original_name(l2_full_lhs),
     assignment.rhs,
     state.source,
-    current_assignment_type);
+    current_assignment_type,
+      fake_merged_guard);
 
   const ssa_exprt &l1_lhs = assignment.lhs;
   if(state.field_sensitivity.is_divisible(l1_lhs, false))

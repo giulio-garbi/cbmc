@@ -56,6 +56,7 @@ public:
   // is an else branch then instructions on it will be guarded by the negation
   // of the condition of the if).
   guardt guard;
+  optionalt<irept> merged_guard;
 
   /// Is this code reachable? If not we can take shortcuts such as not entering
   /// function calls, but we still conduct guard arithmetic as usual.
@@ -83,7 +84,7 @@ public:
   goto_statet(goto_statet &&other) = default;
 
   explicit goto_statet(guard_managert &guard_manager)
-    : guard(true_exprt(), guard_manager), reachable(true)
+    : guard(true_exprt(), guard_manager), merged_guard(), reachable(true)
   {
   }
 

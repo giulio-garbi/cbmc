@@ -334,7 +334,8 @@ void field_sensitivityt::field_assignments_rec(
       ssa_lhs.get_original_expr(),
       ssa_rhs,
       state.source,
-      symex_targett::assignment_typet::STATE);
+      symex_targett::assignment_typet::STATE,
+      state.merged_guard);
   }
   else if(
     ssa_rhs.type().id() == ID_struct || ssa_rhs.type().id() == ID_struct_tag)
