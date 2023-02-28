@@ -528,6 +528,7 @@ void goto_symext::symex_goto(statet &state)
         state.guard.add(guard_expr);
       else
         state.guard.add(boolean_negate(guard_expr));
+      state.merged_guard = {};
     }
     else
     {
@@ -542,6 +543,8 @@ void goto_symext::symex_goto(statet &state)
         state.guard.add(guard_expr);
         new_state.guard.add(boolean_negate(guard_expr));
       }
+      state.merged_guard = {};
+      new_state.merged_guard = {};
     }
   }
 }
@@ -592,6 +595,7 @@ void goto_symext::symex_unreachable_goto(statet &state)
     }
 
     state.guard.add(false_exprt());
+    state.merged_guard = {};
   }
   else
   {
@@ -614,6 +618,7 @@ void goto_symext::symex_unreachable_goto(statet &state)
       // Assume branch taken:
       queue_unreachable_state_at_target();
       state.guard.add(false_exprt());
+      state.merged_guard = {};
     }
   }
 

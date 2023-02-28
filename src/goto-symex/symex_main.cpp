@@ -244,7 +244,10 @@ void goto_symext::symex_assume_l2(statet &state, const exprt &cond)
   // x=0;                   assume(x==1);
   // assert(x!=42);         x=42;
   else
+  {
     state.guard.add(rewritten_cond);
+    state.merged_guard = {};
+  }
 
   if(state.atomic_section_id!=0 &&
      state.guard.is_false())

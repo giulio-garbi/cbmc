@@ -106,14 +106,13 @@ protected:
 class merge_irept
 {
 public:
-  void operator()(irept &, const bool);
+  void operator()(irept &);
 
 protected:
   typedef std::unordered_set<irept, irep_hash> irep_storet;
   irep_storet irep_store;
-  optionalt<irept> cache;
 
-  const irept &merged(const irept &irep, const bool use_cache);
+  const irept &merged(const irept &irep);
 };
 
 class merge_full_irept

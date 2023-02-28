@@ -722,7 +722,7 @@ void symex_target_equationt::convert_function_calls(
           symbol_exprt symbol(identifier, arg.type());
 
           equal_exprt eq(arg, symbol);
-          merge_irep(eq, false);
+          merge_irep(eq);
 
           decision_procedure.set_to(eq, true);
           conjuncts.push_back(eq);
@@ -760,7 +760,7 @@ void symex_target_equationt::convert_io(decision_proceduret &decision_procedure)
           symbol_exprt symbol(identifier, arg.type());
 
           equal_exprt eq(arg, symbol);
-          merge_irep(eq, false);
+          merge_irep(eq);
 
           decision_procedure.set_to(eq, true);
           conjuncts.push_back(eq);
@@ -784,20 +784,20 @@ void symex_target_equationt::convert_io(decision_proceduret &decision_procedure)
 void symex_target_equationt::merge_ireps(SSA_stept &SSA_step, bool is_guard_merged)
 {
   if(!is_guard_merged)
-    merge_irep(SSA_step.guard, true);
+    merge_irep(SSA_step.guard);
 
-  merge_irep(SSA_step.ssa_lhs, false);
-  merge_irep(SSA_step.ssa_full_lhs, false);
-  merge_irep(SSA_step.original_full_lhs, false);
-  merge_irep(SSA_step.ssa_rhs, false);
+  merge_irep(SSA_step.ssa_lhs);
+  merge_irep(SSA_step.ssa_full_lhs);
+  merge_irep(SSA_step.original_full_lhs);
+  merge_irep(SSA_step.ssa_rhs);
 
-  merge_irep(SSA_step.cond_expr, false);
+  merge_irep(SSA_step.cond_expr);
 
   for(auto &step : SSA_step.io_args)
-    merge_irep(step, false);
+    merge_irep(step);
 
   for(auto &arg : SSA_step.ssa_function_arguments)
-    merge_irep(arg, false);
+    merge_irep(arg);
 
   // converted_io_args is merged in convert_io
 }
