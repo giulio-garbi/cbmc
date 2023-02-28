@@ -80,8 +80,7 @@ public:
   virtual void dead(
     const exprt &guard,
     const ssa_exprt &ssa_lhs,
-    const sourcet &source,
-    optionalt<exprt>& merged_guard);
+    const sourcet &source);
 
   /// \copydoc symex_targett::function_call()
   virtual void function_call(

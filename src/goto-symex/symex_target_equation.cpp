@@ -160,11 +160,12 @@ void symex_target_equationt::assignment(
                                               ssa_rhs,
                                               assignment_type});
 
-  merge_ireps(SSA_steps.back(), merged_guard.has_value());
+  SSA_stept &SSA_step = SSA_steps.back();
+  merge_ireps(SSA_step, merged_guard.has_value());
   if(merged_guard)
-    SSA_steps.back().guard = *merged_guard;
+    SSA_step.guard = *merged_guard;
   else
-    merged_guard = SSA_steps.back().guard;
+    merged_guard = SSA_step.guard;
 }
 
 void symex_target_equationt::decl(
@@ -201,8 +202,7 @@ void symex_target_equationt::decl(
 void symex_target_equationt::dead(
   const exprt &,
   const ssa_exprt &,
-  const sourcet &,
-  optionalt<exprt>& merged_guard)
+  const sourcet &)
 {
   // we currently don't record these
 }

@@ -150,8 +150,7 @@ public:
   virtual void dead(
     const exprt &guard,
     const ssa_exprt &ssa_lhs,
-    const sourcet &source,
-    optionalt<exprt>& merged_guard)=0;
+    const sourcet &source)=0;
 
   /// Record a function call.
   /// \param guard: Precondition for calling a function
