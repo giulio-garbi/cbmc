@@ -783,13 +783,57 @@ void symex_target_equationt::convert_io(decision_proceduret &decision_procedure)
 /// \param SSA_step The step you want to have shared values.
 void symex_target_equationt::merge_ireps(SSA_stept &SSA_step, bool is_guard_merged)
 {
+  /*static optionalt<exprt> old_guard = {};
+  static optionalt<exprt> old_lhs = {};
+  static optionalt<exprt> old_rhs = {};
+  static std::chrono::nanoseconds cum_guard, cum_lhs, cum_rhs, avg_guard, avg_lhs, avg_rhs;
+  static int cnt_guard, cnt_lhs, cnt_rhs;*/
   if(!is_guard_merged)
     merge_irep(SSA_step.guard);
+
+  /*if(old_guard){
+    auto start = std::chrono::high_resolution_clock::now();
+    bool eq = SSA_step.guard == *old_guard;
+    auto stop = std::chrono::high_resolution_clock::now();
+    cum_guard += eq?stop-start:stop-start;
+    cnt_guard++;
+    avg_guard = cum_guard/cnt_guard;
+    if(cnt_guard%100000 == 0)
+    {
+      avg_guard = cum_guard / cnt_guard;
+      log.warning() << cnt_guard << " Guard ns: " << avg_guard.count() << " Lhs ns: " << avg_lhs.count() << " Rhs ns: " << avg_rhs.count() << log.eom;
+    }
+  }
+  old_guard = SSA_step.guard;
+
+  if(old_lhs){
+    auto start = std::chrono::high_resolution_clock::now();
+    bool eq = SSA_step.ssa_lhs == *old_lhs;
+    auto stop = std::chrono::high_resolution_clock::now();
+    cum_lhs += eq?stop-start:stop-start;
+    cnt_lhs++;
+    avg_lhs = cum_lhs/cnt_lhs;
+    if(cnt_lhs%100000 == 0)
+      avg_lhs = cum_lhs/cnt_lhs;
+  }
+  old_lhs = SSA_step.ssa_lhs;*/
 
   merge_irep(SSA_step.ssa_lhs);
   merge_irep(SSA_step.ssa_full_lhs);
   merge_irep(SSA_step.original_full_lhs);
   merge_irep(SSA_step.ssa_rhs);
+
+  /*if(old_rhs){
+    auto start = std::chrono::high_resolution_clock::now();
+    bool eq = SSA_step.ssa_rhs == *old_rhs;
+    auto stop = std::chrono::high_resolution_clock::now();
+    cum_rhs += eq?stop-start:stop-start;
+    cnt_rhs++;
+    avg_rhs = cum_rhs/cnt_rhs;
+    if(cnt_rhs%100000 == 0)
+      avg_rhs = cum_rhs/cnt_rhs;
+  }
+  old_rhs = SSA_step.ssa_rhs;*/
 
   merge_irep(SSA_step.cond_expr);
 
