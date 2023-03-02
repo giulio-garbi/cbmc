@@ -91,25 +91,29 @@ void goto_symext::symex_add_bits(
   mp_integer w_mpint;
   to_integer(to_constant_expr(w), w_mpint);
   std::size_t w_ = w_mpint.to_long();
-  if(c_sign){
-    const signedbv_typet bvtype = signedbv_typet(w_);
-    const signedbv_typet bvtype1 = signedbv_typet(w_+1);
-    const auto a_bits = extractbits_exprt{a_clean, w_-1, 0, bvtype};
-    const auto b_bits = extractbits_exprt{b_clean, w_-1, 0, bvtype};
-    const auto rhs = plus_with_overflow_exprt{a_bits, b_bits, bvtype1};
-    const auto aux = get_fresh_aux_symbol(bvtype1, "aux_add_bits","aux_add_bits",state.source.pc->source_location(),ID_C,state.symbol_table).symbol_expr();
-    symex_assign(state, aux, rhs, false);
-    symex_assign(state, c_deref, make_byte_update(c_deref, from_integer(0, c_index_type()), extractbits_exprt{aux, w_-1, 0, bvtype}), false);
-    symex_assign(state, o_deref, make_byte_update(o_deref, from_integer(0, c_index_type()), extractbit_exprt{aux, w_}), false);
-  } else {
-    const unsignedbv_typet bvtype = unsignedbv_typet(w_);
-    const unsignedbv_typet bvtype1 = unsignedbv_typet(w_+1);
-    const auto a_bits = extractbits_exprt{a_clean, w_-1, 0, bvtype};
-    const auto b_bits = extractbits_exprt{b_clean, w_-1, 0, bvtype};
-    const auto rhs = plus_with_overflow_exprt{a_bits, b_bits, bvtype1};
-    const auto aux = get_fresh_aux_symbol(bvtype1, "aux_add_bits","aux_add_bits",state.source.pc->source_location(),ID_C,state.symbol_table).symbol_expr();
-    symex_assign(state, aux, rhs, false);
-    symex_assign(state, c_deref, make_byte_update(c_deref, from_integer(0, c_index_type()), extractbits_exprt{aux, w_-1, 0, bvtype}), false);
-    symex_assign(state, o_deref, make_byte_update(o_deref, from_integer(0, c_index_type()), extractbit_exprt{aux, w_}), false);
-  }
+  const typet bvtype =
+    c_sign ? (typet) signedbv_typet(w_) : unsignedbv_typet(w_);
+  const auto a_bits = extractbits_exprt{a_clean, w_-1, 0, bvtype};
+  const auto b_bits = extractbits_exprt{b_clean, w_-1, 0, bvtype};
+  exprt overflow_with_result = overflow_result_exprt{a_bits, ID_plus, b_bits};
+  overflow_with_result.add_source_location() =
+    state.source.pc->source_location();
+  const struct_typet::componentst &result_comps =
+    to_struct_type(overflow_with_result.type()).components();
+  symex_assign(
+    state,
+    c_deref,
+    make_byte_update(
+      c_deref,
+      from_integer(0, c_index_type()),
+      member_exprt{overflow_with_result,result_comps[0]}),
+    false);
+  symex_assign(
+    state,
+    o_deref,
+    make_byte_update(
+      o_deref,
+      from_integer(0, c_index_type()),
+      member_exprt{overflow_with_result, result_comps[1]}),
+    false);
 }
