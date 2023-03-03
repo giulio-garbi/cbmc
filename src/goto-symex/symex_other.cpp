@@ -48,10 +48,16 @@ void goto_symext::havoc_rec(
 
     guardt guard_t=state.guard;
     guard_t.add(if_expr.cond());
+    auto guard_t_expr = guard_t.as_expr();
+    target.merge_irep(guard_t_expr);
+    guard_t = guard_exprt(guard_t_expr, state.guard_manager);
     havoc_rec(state, guard_t, if_expr.true_case());
 
     guardt guard_f=state.guard;
     guard_f.add(not_exprt(if_expr.cond()));
+    auto guard_f_expr = guard_f.as_expr();
+    target.merge_irep(guard_f_expr);
+    guard_f = guard_exprt(guard_f_expr, state.guard_manager);
     havoc_rec(state, guard_f, if_expr.false_case());
   }
   else if(dest.id()==ID_typecast)

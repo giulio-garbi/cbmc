@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <goto-programs/goto_program.h>
 
+#include <util/merge_irep.h>
 #include "renamed.h"
 
 class ssa_exprt;
@@ -75,11 +76,14 @@ public:
     GUARD,
   };
 
+  merge_irept merge_irep;
+
   /// Read from a shared variable \p ssa_object (which is both the left- and the
   /// right--hand side of assignment): we effectively assign the value stored in
   /// \p ssa_object by another thread to \p ssa_object in the memory scope of
   /// this thread.
   /// \param guard: Precondition for this read event
+  /// \pre guard is merged
   /// \param ssa_object: Variable to be read from
   /// \param atomic_section_id: ID of the atomic section in which this read
   ///  takes place (if any)
@@ -93,6 +97,7 @@ public:
   /// Write to a shared variable \p ssa_object: we effectively assign a value
   /// from this thread to be visible by other threads.
   /// \param guard: Precondition for this write event
+  /// \pre guard is merged
   /// \param ssa_object: Variable to be written to
   /// \param atomic_section_id: ID of the atomic section in which this write
   ///  takes place (if any)
@@ -105,6 +110,7 @@ public:
 
   /// Write to a local variable. The `cond_expr` is _lhs==rhs_.
   /// \param guard: Precondition for this read event
+  /// \pre guard is merged
   /// \param ssa_lhs: Variable to be written to, must be a symbol (and not nil)
   /// \param ssa_full_lhs: Full left-hand side with symex level annotations
   /// \param original_full_lhs: Full left-hand side without symex level
@@ -125,6 +131,7 @@ public:
 
   /// Declare a fresh variable. The `cond_expr` is _lhs==lhs_.
   /// \param guard: Precondition for a declaration of this variable
+  /// \pre guard is merged
   /// \param ssa_lhs: Variable to be declared, must be symbol (and not nil)
   /// \param initializer: Initial value
   /// \param source: Pointer to location in the input GOTO program of this
@@ -140,6 +147,7 @@ public:
 
   /// Remove a variable from the scope.
   /// \param guard: Precondition for removal of this variable
+  /// \pre guard is merged
   /// \param ssa_lhs: Variable to be removed, must be symbol
   /// \param source: Pointer to location in the input GOTO program of this
   ///  removal
@@ -150,6 +158,7 @@ public:
 
   /// Record a function call.
   /// \param guard: Precondition for calling a function
+  /// \pre guard is merged
   /// \param function_id: Name of the function
   /// \param ssa_function_arguments: Vector of arguments in SSA form
   /// \param source: To location in the input GOTO program of this
@@ -164,6 +173,7 @@ public:
 
   /// Record return from a function.
   /// \param guard: Precondition for returning from a function
+  /// \pre guard is merged
   /// \param function_id: Name of the function from which we return
   /// \param source: Pointer to location in the input GOTO program of this
   /// \param hidden: Should this step be recorded as hidden?
@@ -176,6 +186,7 @@ public:
 
   /// Record a location.
   /// \param guard: Precondition for reaching this location
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program to be
   ///  recorded
   virtual void location(
@@ -184,6 +195,7 @@ public:
 
   /// Record an output.
   /// \param guard: Precondition for writing to the output
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program of this
   ///  output
   /// \param output_id: Name of the output
@@ -196,6 +208,7 @@ public:
 
   /// Record formatted output.
   /// \param guard: Precondition for writing to the output
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program of this
   ///  output
   /// \param output_id: Name of the output
@@ -210,6 +223,7 @@ public:
 
   /// Record an input.
   /// \param guard: Precondition for reading from the input
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program of this
   ///  input
   /// \param input_id: Name of the input
@@ -222,6 +236,7 @@ public:
 
   /// Record an assumption.
   /// \param guard: Precondition for reaching this assumption
+  /// \pre guard is merged
   /// \param cond: Condition this assumption represents
   /// \param source: Pointer to location in the input GOTO program of this
   ///  assumption
@@ -232,6 +247,7 @@ public:
 
   /// Record an assertion.
   /// \param guard: Precondition for reaching this assertion
+  /// \pre guard is merged
   /// \param cond: Condition this assertion represents
   /// \param msg: The message associated with this assertion
   /// \param source: Pointer to location in the input GOTO program of this
@@ -244,6 +260,7 @@ public:
 
   /// Record a goto instruction.
   /// \param guard: Precondition for reaching this goto instruction
+  /// \pre guard is merged
   /// \param cond: Condition under which this goto should be taken
   /// \param source: Pointer to location in the input GOTO program of this
   ///  goto instruction
@@ -264,6 +281,7 @@ public:
 
   /// Record spawning a new thread
   /// \param guard: Precondition for reaching spawning a new thread
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program where a new
   ///  thread is to be spawned
   virtual void spawn(
@@ -272,6 +290,7 @@ public:
 
   /// Record creating a memory barrier
   /// \param guard: Precondition for reaching this barrier
+  /// \pre guard is merged
   /// \param source: Pointer to location in the input GOTO program where a new
   ///  barrier is created
   virtual void memory_barrier(
@@ -280,6 +299,7 @@ public:
 
   /// Record a beginning of an atomic section
   /// \param guard: Precondition for reaching this atomic section
+  /// \pre guard is merged
   /// \param atomic_section_id: Identifier for this atomic section
   /// \param source: Pointer to location in the input GOTO program where an
   ///  atomic section begins
@@ -290,6 +310,7 @@ public:
 
   /// Record ending an atomic section
   /// \param guard: Precondition for reaching the end of this atomic section
+  /// \pre guard is merged
   /// \param atomic_section_id: Identifier for this atomic section
   /// \param source: Pointer to location in the input GOTO program where an
   ///  atomic section ends
