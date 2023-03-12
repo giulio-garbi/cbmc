@@ -913,6 +913,21 @@ private:
     const irep_idt &function_identifier,
     goto_symext::statet &state,
     const goto_functionst::goto_functiont &goto_function);
+  void symex_binary_op_bits(
+    goto_symex_statet &state,
+    irep_idt operand,
+    const exprt::operandst &arguments);
+  void
+  symex_sub_bits(goto_symex_statet &state, const exprt::operandst &arguments);
+  void
+  symex_mult_bits(goto_symex_statet &state, const exprt::operandst &arguments);
+  void
+  symex_shl_bits(goto_symex_statet &state, const exprt::operandst &arguments);
+  void
+  symex_div_bits(goto_symex_statet &state, const exprt::operandst &arguments);
+  void symex_unary_minus_bits(
+    goto_symex_statet &state,
+    const exprt::operandst &arguments);
 };
 
 /// Transition to the next instruction, which increments the internal program
