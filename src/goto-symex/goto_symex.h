@@ -928,6 +928,13 @@ private:
   void symex_unary_minus_bits(
     goto_symex_statet &state,
     const exprt::operandst &arguments);
+  void symex_binary_op_bits_no_overflow(
+    goto_symex_statet &state,
+    irep_idt operand,
+    const exprt::operandst &arguments);
+  void symex_assign_bits(
+    goto_symex_statet &state,
+    const exprt::operandst &arguments);
 };
 
 /// Transition to the next instruction, which increments the internal program

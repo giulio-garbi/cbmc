@@ -62,24 +62,48 @@ integer_bitvector_typet compute_binary_op_type(const exprt& a, const exprt& b, c
   }
 }
 
-void check_destination_ref_overflow_ref_width
-  (const exprt &dest, const exprt &of, const exprt &w){
+void check_destination_ref(const exprt &dest){
   typet dest_type = dest.type();
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     dest.id() == ID_pointer,
     "destination requires a pointer expression",
     irep_pretty_diagnosticst{dest_type});
+}
 
+void check_destination_deref(const exprt &c_deref){
+  DATA_INVARIANT_WITH_DIAGNOSTICS(
+    is_assignable(c_deref),
+    "destination requires a pointer to an assignable",
+    irep_pretty_diagnosticst{c_deref});
+}
+
+void check_overflow_ref(const exprt &of){
   typet of_type = of.type();
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     of_type.id() == ID_pointer,
     "overflow requires a pointer expression",
     irep_pretty_diagnosticst{of_type});
+}
 
+void check_overflow_deref(const exprt &o_deref){
+  DATA_INVARIANT_WITH_DIAGNOSTICS(
+    is_assignable(o_deref),
+    "overflow requires a pointer to an assignable",
+    irep_pretty_diagnosticst{o_deref});
+}
+
+void check_width(const exprt &w){
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     w.id() == ID_constant,
     "bitwidth must be an integer constant",
     irep_pretty_diagnosticst{w});
+}
+
+void check_destination_ref_overflow_ref_width
+  (const exprt &dest, const exprt &of, const exprt &w){
+  check_destination_ref(dest);
+  check_overflow_ref(of);
+  check_width(w);
 }
 
 void goto_symext::symex_binary_op_bits(
@@ -111,17 +135,11 @@ void goto_symext::symex_binary_op_bits(
 
   // get the symbol to write on
   const auto c_deref = deref_expr(c);
-  DATA_INVARIANT_WITH_DIAGNOSTICS(
-    is_assignable(c_deref),
-    "destination requires a pointer to an assignable",
-    irep_pretty_diagnosticst{c_deref});
+  check_destination_deref(c_deref);
 
   // get the overflow bit
   const auto o_deref = deref_expr(o);
-  DATA_INVARIANT_WITH_DIAGNOSTICS(
-    is_assignable(o_deref),
-    "overflow requires a pointer to an assignable",
-    irep_pretty_diagnosticst{o_deref});
+  check_overflow_deref(o_deref);
 
   const auto bvtype = compute_binary_op_type(a, b, w_);
   const auto a_bits = cut_bit_representation(a, bvtype);
@@ -238,17 +256,11 @@ void goto_symext::symex_unary_minus_bits(
 
   // get the symbol to write on
   const auto c_deref = deref_expr(c);
-  DATA_INVARIANT_WITH_DIAGNOSTICS(
-    is_assignable(c_deref),
-    "destination requires a pointer to an assignable",
-    irep_pretty_diagnosticst{c_deref});
+  check_destination_deref(c_deref);
 
   // get the overflow bit
   const auto o_deref = deref_expr(o);
-  DATA_INVARIANT_WITH_DIAGNOSTICS(
-    is_assignable(o_deref),
-    "overflow requires a pointer to an assignable",
-    irep_pretty_diagnosticst{o_deref});
+  check_overflow_deref(o_deref);
 
   const auto a_bits = cut_bit_representation(a, signedbv_typet(w_));
   exprt overflow_with_result = overflow_result_exprt{a_bits, ID_unary_minus};
@@ -272,4 +284,79 @@ void goto_symext::symex_unary_minus_bits(
       from_integer(0, c_index_type()),
       member_exprt{overflow_with_result, result_comps[1]}),
     false);
+}
+
+void goto_symext::symex_assign_bits(
+  goto_symex_statet &state,
+  const exprt::operandst &arguments)
+{
+  // parse set_field call
+  INVARIANT(
+    arguments.size() == 3, CPROVER_PREFIX "this operation requires 3 arguments");
+
+  const exprt& a = arguments[0];
+  const exprt& c = arguments[1];
+  const exprt& w = arguments[2];
+  check_destination_ref(c);
+  check_width(w);
+
+  mp_integer w_mpint;
+  to_integer(to_constant_expr(w), w_mpint);
+  std::size_t w_ = w_mpint.to_long();
+
+  // get the symbol to write on
+  const auto c_deref = deref_expr(c);
+  check_destination_deref(c_deref);
+
+  const auto a_bits = cut_bit_representation(a, signedbv_typet(w_));
+  symex_assign(
+    state,
+    c_deref,
+    make_byte_update(
+      c_deref,
+      from_integer(0, c_index_type()),
+      a_bits),
+    false);
+}
+
+void goto_symext::symex_binary_op_bits_no_overflow(
+  goto_symex_statet &state,
+  irep_idt operand,
+  const exprt::operandst &arguments)
+{
+  // parse set_field call
+  INVARIANT(
+    arguments.size() == 4, CPROVER_PREFIX "this operation requires 4 arguments");
+
+  const exprt& a = arguments[0];
+  const exprt& b = arguments[1];
+  const exprt& c = arguments[2];
+  const exprt& w = arguments[3];
+
+  check_destination_ref(c);
+  check_width(w);
+
+  mp_integer w_mpint;
+  to_integer(to_constant_expr(w), w_mpint);
+  std::size_t w_ = w_mpint.to_long();
+
+
+  // get the symbol to write on
+  const auto c_deref = deref_expr(c);
+  check_destination_deref(c_deref);
+
+  const auto bvtype = compute_binary_op_type(a, b, w_);
+  const auto a_bits = cut_bit_representation(a, bvtype);
+  const auto b_bits = cut_bit_representation(b, bvtype);
+  {
+    exprt operation = binary_exprt{a_bits, operand, b_bits};
+    symex_assign(
+      state,
+      c_deref,
+      make_byte_update(
+        c_deref,
+        from_integer(0, c_index_type()),
+        binary_exprt{a_bits, operand, b_bits}),
+      false);
+  }
 }
