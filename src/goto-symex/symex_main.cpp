@@ -244,9 +244,7 @@ void goto_symext::symex_assume_l2(statet &state, const exprt &cond)
   else
   {
     state.guard.add(rewritten_cond);
-    auto guard_expr = state.guard.as_expr();
-    target.merge_irep(guard_expr);
-    state.guard = guard_exprt(guard_expr, state.guard_manager);
+    state.guard.merge_guard(target.merge_irep);
   }
 
   if(state.atomic_section_id!=0 &&

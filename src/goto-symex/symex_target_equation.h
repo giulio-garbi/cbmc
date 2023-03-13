@@ -17,7 +17,6 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <list>
 
 #include <util/invariant.h>
-#include <util/merge_irep.h>
 #include <util/message.h>
 #include <util/narrow.h>
 

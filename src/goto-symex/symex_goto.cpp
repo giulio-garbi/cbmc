@@ -537,13 +537,9 @@ void goto_symext::symex_goto(statet &state)
         state.guard.add(guard_expr);
         new_state.guard.add(boolean_negate(guard_expr));
       }
-      auto new_state_guard_expr = new_state.guard.as_expr();
-      target.merge_irep(new_state_guard_expr);
-      new_state.guard = guard_exprt(new_state_guard_expr, state.guard_manager);
+      new_state.guard.merge_guard(target.merge_irep);
     }
-    auto state_guard_expr = state.guard.as_expr();
-    target.merge_irep(state_guard_expr);
-    state.guard = guard_exprt(state_guard_expr, state.guard_manager);
+    state.guard.merge_guard(target.merge_irep);
   }
 }
 
@@ -671,9 +667,7 @@ static guardt merge_state_guards(
     state.guard.disjunction_may_simplify(goto_state.guard))
   {
     state.guard |= goto_state.guard;
-    auto guard_expr = state.guard.as_expr();
-    merge_irep(guard_expr);
-    state.guard = guard_exprt(guard_expr, state.guard_manager);
+    state.guard.merge_guard(merge_irep);
     return std::move(state.guard);
   }
   else if(!state.reachable && goto_state.reachable)
