@@ -697,8 +697,6 @@ void symex_target_equationt::convert_io(decision_proceduret &decision_procedure)
 /// \param SSA_step The step you want to have shared values.
 void symex_target_equationt::merge_ireps(SSA_stept &SSA_step)
 {
-  merge_irep(SSA_step.guard);
-
   merge_irep(SSA_step.ssa_lhs);
   merge_irep(SSA_step.ssa_full_lhs);
   merge_irep(SSA_step.original_full_lhs);
