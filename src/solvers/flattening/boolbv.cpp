@@ -8,8 +8,6 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "boolbv.h"
 
-#include <algorithm>
-
 #include <util/arith_tools.h>
 #include <util/bitvector_expr.h>
 #include <util/bitvector_types.h>
@@ -23,6 +21,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/string_constant.h>
 
 #include <solvers/floatbv/float_utils.h>
+
+#include <algorithm>
 
 endianness_mapt boolbvt::endianness_map(const typet &type) const
 {
@@ -124,8 +124,6 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
           expr.id()=="no-overflow-plus" ||
           expr.id()=="no-overflow-minus")
     return convert_add_sub(expr);
-  else if(expr.id()==ID_plus_with_overflow)
-    return convert_add_with_overflow(expr);
   else if(expr.id() == ID_mult)
     return convert_mult(to_mult_expr(expr));
   else if(expr.id()==ID_div)

@@ -313,6 +313,9 @@ protected:
   asm_label_mapt asm_label_map;
 
   void apply_asm_label(const irep_idt &asm_label, symbolt &symbol);
+  exprt typecheck_binary_bitwidth_overflow(
+    side_effect_expr_function_callt &expr,
+    const irep_idt &arith_op);
 };
 
 class already_typechecked_exprt : public expr_protectedt

@@ -13,6 +13,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "boolbv.h"
 
+#include "ansi-c/c_expr.h"
+
 static bvt mult_overflow_result(
   propt &prop,
   const bvt &bv0,

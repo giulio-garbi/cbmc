@@ -3646,10 +3646,61 @@ exprt c_typecheck_baset::do_special_functions(
 
     return std::move(bitreverse);
   }
+  /*else if(identifier == CPROVER_PREFIX"add_bits_overflow")
+    return typecheck_binary_bitwidth_overflow(expr, ID_plus);
+  else if(identifier == CPROVER_PREFIX"sub_bits_overflow")
+    return typecheck_binary_bitwidth_overflow(expr, ID_minus);
+  else if(identifier == CPROVER_PREFIX"mul_bits_overflow")
+    return typecheck_binary_bitwidth_overflow(expr, ID_mult);
+  else if(identifier == CPROVER_PREFIX"div_bits_overflow")
+    return typecheck_binary_bitwidth_overflow(expr, ID_div);
+  else if(identifier == CPROVER_PREFIX"shl_bits_overflow")
+    return typecheck_binary_bitwidth_overflow(expr, ID_shl);*/
   else
     return nil_exprt();
   // NOLINTNEXTLINE(readability/fn_size)
 }
+
+/*
+exprt c_typecheck_baset::typecheck_binary_bitwidth_overflow(
+  side_effect_expr_function_callt &expr,
+  const irep_idt &arith_op)
+{
+  const irep_idt &identifier = to_symbol_expr(expr.function()).get_identifier();
+
+  // check function signature
+  if(expr.arguments().size() != 5)
+  {
+    std::ostringstream error_message;
+    error_message << identifier << " takes exactly 5 arguments, but "
+                  << expr.arguments().size() << " were provided";
+    throw invalid_source_file_exceptiont{
+      error_message.str(), expr.source_location()};
+  }
+
+  typecheck_function_call_arguments(expr);
+
+  auto a = expr.arguments()[0];
+  auto b = expr.arguments()[1];
+  auto dest = expr.arguments()[2];
+  auto of = expr.arguments()[3];
+  auto w = expr.arguments()[4];
+
+  // TODO typecheck
+
+  mp_integer w_mpint;
+  to_integer(to_constant_expr(w), w_mpint);
+  std::size_t w_ = w_mpint.to_long();
+
+  return binary_bitwidth_overflowt{identifier,
+                                   arith_op,
+                                    std::move(a),
+                                    std::move(b),
+                                    std::move(dest),
+                                    std::move(of),
+                                    w_,
+                                    expr.source_location()};
+}*/
 
 exprt c_typecheck_baset::typecheck_builtin_overflow(
   side_effect_expr_function_callt &expr,

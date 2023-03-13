@@ -14,6 +14,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/std_code.h>
 
+#include <utility>
+
 /// \brief Shuffle elements of one or two vectors, modelled after Clang's
 /// __builtin_shufflevector.
 class shuffle_vector_exprt : public multi_ary_exprt
@@ -199,6 +201,120 @@ inline side_effect_expr_overflowt &to_side_effect_expr_overflow(exprt &expr)
     side_effect_expr.get_statement() == ID_overflow_minus);
   return static_cast<side_effect_expr_overflowt &>(side_effect_expr);
 }
+
+/*
+/// \brief A function call that sets \c *of to true iff the result of performing
+/// operation \c op on operands \c a and \c b lowest \c w bits in
+/// infinite-precision arithmetic exceeds \c w bits. The result of the operation
+/// is stored in the object pointed to by \c dest.
+class binary_bitwidth_overflowt : public side_effect_expr_function_callt
+{
+public:
+  binary_bitwidth_overflowt(
+    exprt identifier,
+    irep_idt op,
+    exprt a,
+    exprt b,
+    exprt dest,
+    exprt of,
+    size_t w,
+    const source_locationt &loc)
+    : side_effect_expr_function_callt(
+        std::move(identifier),
+        {std::move(a), std::move(b), std::move(dest), std::move(of)},
+        empty_typet{},
+        loc), op(std::move(op)), w(w)
+  {
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  exprt &b()
+  {
+    return op1();
+  }
+
+  const exprt &b() const
+  {
+    return op1();
+  }
+
+  exprt &dest()
+  {
+    return op2();
+  }
+
+  const exprt &dest() const
+  {
+    return op2();
+  }
+
+  exprt &of()
+  {
+    return op3();
+  }
+
+  const exprt &of() const
+  {
+    return op3();
+  }
+
+  size_t &width()
+  {
+    return w;
+  }
+
+  const size_t &width() const
+  {
+    return w;
+  }
+
+protected:
+  irep_idt op;
+  size_t w;
+};
+
+template <>
+inline bool can_cast_expr<binary_bitwidth_overflowt>(const exprt &base)
+{
+  if(base.id() != ID_function_call)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr_function_call(base).get_statement();
+  return statement == ID_binary_bitwidth_overflow;
+}
+
+/// \brief Cast an exprt to a \ref binary_bitwidth_overflowt
+///
+/// \a expr must be known to be \ref binary_bitwidth_overflowt.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref binary_bitwidth_overflowt
+inline const binary_bitwidth_overflowt &
+to_binary_bitwidth_overflow(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_binary_bitwidth_overflow);
+  return static_cast<const binary_bitwidth_overflowt &>(side_effect_expr);
+}
+
+/// \copydoc to_binary_bitwidth_overflow(const exprt &)
+inline binary_bitwidth_overflowt &to_binary_bitwidth_overflow(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_binary_bitwidth_overflow);
+  return static_cast<binary_bitwidth_overflowt &>(side_effect_expr);
+}*/
 
 /// \brief A class for an expression that indicates a history variable
 class history_exprt : public unary_exprt
