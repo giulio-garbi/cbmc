@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/message.h>
 
+#include "bitvector_types.h"
 #include "complexity_limiter.h"
 #include "symex_config.h"
 #include "symex_target_equation.h"
@@ -935,6 +936,15 @@ private:
   void symex_assign_bits(
     goto_symex_statet &state,
     const exprt::operandst &arguments);
+  void symex_add_sub_with_overflow(
+    goto_symex_statet &state,
+    const exprt &a_bits,
+    irep_idt operand,
+    const exprt &b_bits,
+    const exprt &c_deref,
+    const exprt &o_deref,
+    const integer_bitvector_typet &original_type,
+    const integer_bitvector_typet &abstract_type);
 };
 
 /// Transition to the next instruction, which increments the internal program

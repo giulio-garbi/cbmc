@@ -106,6 +106,58 @@ void check_destination_ref_overflow_ref_width
   check_width(w);
 }
 
+void goto_symext::symex_add_sub_with_overflow(goto_symex_statet &state,
+  const exprt &a_bits, irep_idt operand, const exprt &b_bits,
+  const exprt& c_deref, const exprt& o_deref,
+  const integer_bitvector_typet& original_type,
+  const integer_bitvector_typet& abstract_type){
+  if(abstract_type.get_width() < original_type.get_width())
+  {
+    exprt overflow_with_result = overflow_result_exprt{a_bits, operand, b_bits};
+    overflow_with_result.add_source_location() =
+      state.source.pc->source_location();
+    const struct_typet::componentst &result_comps =
+      to_struct_type(overflow_with_result.type()).components();
+    auto const &helper_symbol = get_fresh_aux_symbol(
+                                  overflow_with_result.type(),
+                                  "symex",
+                                  "binary_op_bits_helper",
+                                  overflow_with_result.source_location(),
+                                  language_mode,
+                                  ns,
+                                  state.symbol_table)
+                                  .symbol_expr();
+    symex_assign(state, helper_symbol, overflow_with_result, false);
+    symex_assign(
+      state,
+      c_deref,
+      make_byte_update(
+        c_deref,
+        from_integer(0, c_index_type()),
+        member_exprt{helper_symbol, result_comps[0]}),
+      false);
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        extractbit_exprt{member_exprt{helper_symbol, result_comps[1]}, 0}),
+      false);
+  } else {
+    symex_assign(
+      state,
+      c_deref,
+      binary_exprt{a_bits, operand, b_bits},
+      false);
+    symex_assign(
+      state,
+      o_deref,
+      from_integer(0, o_deref.type()),
+      false);
+  }
+}
+
 void goto_symext::symex_binary_op_bits(
   goto_symex_statet &state,
   irep_idt operand,
@@ -141,10 +193,16 @@ void goto_symext::symex_binary_op_bits(
   const auto o_deref = deref_expr(o);
   check_overflow_deref(o_deref);
 
-  const auto bvtype = compute_binary_op_type(a, b, w_);
+  PRECONDITION(type_try_dynamic_cast<integer_bitvector_typet>(c_deref.type()));
+  const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
+
+  const auto bvtype = compute_binary_op_type(a, b, std::min(w_, c_deref_type.get_width()));
   const auto a_bits = cut_bit_representation(a, bvtype);
   const auto b_bits = cut_bit_representation(b, bvtype);
-  if(operand == ID_div){
+  if(operand == ID_plus || operand == ID_minus){
+    symex_add_sub_with_overflow(state, a_bits, operand, b_bits, c_deref, o_deref, c_deref_type, bvtype);
+  }
+  else if(operand == ID_div){
 
     if(to_integer_bitvector_type(bvtype).smallest() < 0){
       symex_assign(
@@ -154,7 +212,7 @@ void goto_symext::symex_binary_op_bits(
           o_deref,
           from_integer(0, c_index_type()),
           and_exprt{
-            equal_exprt{a_bits, from_integer(bvtype.largest(), bvtype)},
+            equal_exprt{a_bits, bvtype.smallest_expr()},
             equal_exprt{b_bits, from_integer(-1, bvtype)}
           }),
         false);
@@ -177,7 +235,7 @@ void goto_symext::symex_binary_op_bits(
         div_exprt{a_bits, b_bits}),
       false);
   } else {
-    exprt overflow_with_result = overflow_result_exprt{a_bits, operand, b_bits};
+    auto overflow_with_result = overflow_result_exprt{a_bits, operand, b_bits};
     overflow_with_result.add_source_location() =
       state.source.pc->source_location();
     const struct_typet::componentst &result_comps =
