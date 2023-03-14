@@ -333,28 +333,44 @@ void goto_symext::symex_unary_minus_bits(
   const auto o_deref = deref_expr(o);
   check_overflow_deref(o_deref);
 
+  const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
   const auto a_bits = cut_bit_representation(a, signedbv_typet(w_));
-  exprt overflow_with_result = overflow_result_exprt{a_bits, ID_unary_minus};
-  overflow_with_result.add_source_location() =
-    state.source.pc->source_location();
-  const struct_typet::componentst &result_comps =
-    to_struct_type(overflow_with_result.type()).components();
-  symex_assign(
-    state,
-    c_deref,
-    make_byte_update(
+
+  if(w_ < c_deref_type.get_width())
+  {
+    exprt overflow_with_result = overflow_result_exprt{a_bits, ID_unary_minus};
+    overflow_with_result.add_source_location() =
+      state.source.pc->source_location();
+    const struct_typet::componentst &result_comps =
+      to_struct_type(overflow_with_result.type()).components();
+    symex_assign(
+      state,
       c_deref,
-      from_integer(0, c_index_type()),
-      member_exprt{overflow_with_result, result_comps[0]}),
-    false);
-  symex_assign(
-    state,
-    o_deref,
-    make_byte_update(
+      make_byte_update(
+        c_deref,
+        from_integer(0, c_index_type()),
+        member_exprt{overflow_with_result, result_comps[0]}),
+      false);
+    symex_assign(
+      state,
       o_deref,
-      from_integer(0, c_index_type()),
-      member_exprt{overflow_with_result, result_comps[1]}),
-    false);
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        member_exprt{overflow_with_result, result_comps[1]}),
+      false);
+  } else {
+    symex_assign(
+      state,
+      c_deref,
+      unary_minus_exprt{a_bits},
+      false);
+    symex_assign(
+      state,
+      o_deref,
+      from_integer(0, o_deref.type()),
+      false);
+  }
 }
 
 void goto_symext::symex_assign_bits(

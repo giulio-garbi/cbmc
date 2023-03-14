@@ -241,6 +241,11 @@ void goto_symext::symex_function_call_symbol(
     symex_binary_op_bits(state,ID_div,arguments);
     symex_transition(state);
   }
+  else if(identifier == CPROVER_PREFIX "unary_minus_bits_overflow")
+  {
+    symex_unary_minus_bits(state, arguments);
+    symex_transition(state);
+  }
   else
   {
     symex_function_call_post_clean(
