@@ -65,7 +65,7 @@ integer_bitvector_typet compute_binary_op_type(const exprt& a, const exprt& b, c
 void check_destination_ref(const exprt &dest){
   typet dest_type = dest.type();
   DATA_INVARIANT_WITH_DIAGNOSTICS(
-    dest.id() == ID_pointer,
+    dest_type.id() == ID_pointer || dest_type.id() == ID_address_of,
     "destination requires a pointer expression",
     irep_pretty_diagnosticst{dest_type});
 }
@@ -80,7 +80,7 @@ void check_destination_deref(const exprt &c_deref){
 void check_overflow_ref(const exprt &of){
   typet of_type = of.type();
   DATA_INVARIANT_WITH_DIAGNOSTICS(
-    of_type.id() == ID_pointer,
+    of_type.id() == ID_pointer || of_type.id() == ID_address_of,
     "overflow requires a pointer expression",
     irep_pretty_diagnosticst{of_type});
 }
@@ -182,13 +182,26 @@ void goto_symext::symex_binary_op_bits(
       state.source.pc->source_location();
     const struct_typet::componentst &result_comps =
       to_struct_type(overflow_with_result.type()).components();
+    auto const &helper_symbol = get_fresh_aux_symbol(
+      overflow_with_result.type(),
+      "symex",
+      "binary_op_bits_helper",
+      overflow_with_result.source_location(),
+      language_mode,
+      ns,
+      state.symbol_table).symbol_expr();
+    symex_assign(
+      state,
+      helper_symbol,
+      overflow_with_result,
+      false);
     symex_assign(
       state,
       c_deref,
       make_byte_update(
         c_deref,
         from_integer(0, c_index_type()),
-        member_exprt{overflow_with_result, result_comps[0]}),
+        cut_bit_representation(member_exprt{helper_symbol, result_comps[0]}, bvtype)),
       false);
     symex_assign(
       state,
@@ -196,7 +209,7 @@ void goto_symext::symex_binary_op_bits(
       make_byte_update(
         o_deref,
         from_integer(0, c_index_type()),
-        member_exprt{overflow_with_result, result_comps[1]}),
+        extractbit_exprt{member_exprt{helper_symbol, result_comps[1]}, 0}),
       false);
   }
 }

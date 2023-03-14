@@ -221,9 +221,24 @@ void goto_symext::symex_function_call_symbol(
     symex_set_field(state, cleaned_arguments);
     symex_transition(state);
   }
-  else if(identifier == CPROVER_PREFIX "add_bits")
+  else if(identifier == CPROVER_PREFIX "add_bits_overflow")
   {
-    symex_add_bits(state, cleaned_arguments);
+    symex_binary_op_bits(state,ID_plus,arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "sub_bits_overflow")
+  {
+    symex_binary_op_bits(state,ID_minus,arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "mul_bits_overflow")
+  {
+    symex_binary_op_bits(state,ID_mult,arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "div_bits_overflow")
+  {
+    symex_binary_op_bits(state,ID_div,arguments);
     symex_transition(state);
   }
   else
