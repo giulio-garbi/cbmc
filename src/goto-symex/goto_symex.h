@@ -877,10 +877,6 @@ protected:
     goto_symex_statet &state,
     const exprt::operandst &arguments);
 
-  void symex_add_bits(
-    goto_symex_statet &state,
-    const exprt::operandst &arguments);
-
   void symex_field_local_init(
     goto_symex_statet &state,
     const ssa_exprt &expr);
@@ -918,14 +914,6 @@ private:
     goto_symex_statet &state,
     irep_idt operand,
     const exprt::operandst &arguments);
-  void
-  symex_sub_bits(goto_symex_statet &state, const exprt::operandst &arguments);
-  void
-  symex_mult_bits(goto_symex_statet &state, const exprt::operandst &arguments);
-  void
-  symex_shl_bits(goto_symex_statet &state, const exprt::operandst &arguments);
-  void
-  symex_div_bits(goto_symex_statet &state, const exprt::operandst &arguments);
   void symex_unary_minus_bits(
     goto_symex_statet &state,
     const exprt::operandst &arguments);
@@ -945,6 +933,18 @@ private:
     const exprt &o_deref,
     const integer_bitvector_typet &original_type,
     const integer_bitvector_typet &abstract_type);
+  void symex_unary_op_bits_no_overflow(
+    goto_symex_statet &state,
+    irep_idt operand,
+    const exprt::operandst &arguments);
+  void symex_nz_bits(
+    const exprt &lhs,
+    goto_symex_statet &state,
+    const exprt::operandst &arguments);
+  void symex_comparison_op_bits(
+    goto_symex_statet &state,
+    irep_idt operand,
+    const exprt::operandst &arguments);
 };
 
 /// Transition to the next instruction, which increments the internal program
