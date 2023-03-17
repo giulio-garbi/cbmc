@@ -231,6 +231,11 @@ void goto_symext::symex_function_call_symbol(
     symex_binary_op_bits(state,ID_plus,cleaned_arguments);
     symex_transition(state);
   }
+  else if(identifier == CPROVER_PREFIX "add_bits_overflow_only")
+  {
+    symex_binary_op_overflow_only(state,ID_plus,cleaned_arguments);
+    symex_transition(state);
+  }
   else if(identifier == CPROVER_PREFIX "sub_bits")
   {
     symex_binary_op_bits_no_overflow(state,ID_minus,cleaned_arguments);
@@ -239,6 +244,11 @@ void goto_symext::symex_function_call_symbol(
   else if(identifier == CPROVER_PREFIX "sub_bits_overflow")
   {
     symex_binary_op_bits(state,ID_minus,cleaned_arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "sub_bits_overflow_only")
+  {
+    symex_binary_op_overflow_only(state,ID_minus,cleaned_arguments);
     symex_transition(state);
   }
   else if(identifier == CPROVER_PREFIX "mul_bits")
@@ -251,6 +261,11 @@ void goto_symext::symex_function_call_symbol(
     symex_binary_op_bits(state,ID_mult,cleaned_arguments);
     symex_transition(state);
   }
+  else if(identifier == CPROVER_PREFIX "mul_bits_overflow_only")
+  {
+    symex_binary_op_overflow_only(state,ID_mult,cleaned_arguments);
+    symex_transition(state);
+  }
   else if(identifier == CPROVER_PREFIX "div_bits")
   {
     symex_binary_op_bits_no_overflow(state,ID_div,cleaned_arguments);
@@ -261,6 +276,11 @@ void goto_symext::symex_function_call_symbol(
     symex_binary_op_bits(state,ID_div,cleaned_arguments);
     symex_transition(state);
   }
+  else if(identifier == CPROVER_PREFIX "div_bits_overflow_only")
+  {
+    symex_binary_op_overflow_only(state,ID_div,cleaned_arguments);
+    symex_transition(state);
+  }
   else if(identifier == CPROVER_PREFIX "shl_bits")
   {
     symex_binary_op_bits_no_overflow(state,ID_shl,cleaned_arguments);
@@ -269,6 +289,11 @@ void goto_symext::symex_function_call_symbol(
   else if(identifier == CPROVER_PREFIX "shl_bits_overflow")
   {
     symex_binary_op_bits(state,ID_shl,cleaned_arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "shl_bits_overflow_only")
+  {
+    symex_binary_op_overflow_only(state,ID_shl,cleaned_arguments);
     symex_transition(state);
   }
   else if(identifier == CPROVER_PREFIX "unary_minus_bits_overflow")
@@ -333,7 +358,7 @@ void goto_symext::symex_function_call_symbol(
   }
   else if(identifier == CPROVER_PREFIX "shr_bits")
   {
-    symex_binary_op_bits_no_overflow(state,ID_shr,cleaned_arguments);
+    symex_binary_op_bits_no_overflow(state,ID_ashr,cleaned_arguments);
     symex_transition(state);
   }
   else if(identifier == CPROVER_PREFIX "compl_bits")
@@ -349,6 +374,11 @@ void goto_symext::symex_function_call_symbol(
   else if(identifier == CPROVER_PREFIX "nz_bits")
   {
     symex_nz_bits(cleaned_lhs, state,cleaned_arguments);
+    symex_transition(state);
+  }
+  else if(identifier == CPROVER_PREFIX "cut_bits")
+  {
+    symex_cut_bits(cleaned_lhs, state,cleaned_arguments);
     symex_transition(state);
   }
   else

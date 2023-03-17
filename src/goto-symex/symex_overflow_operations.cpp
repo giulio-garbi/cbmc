@@ -284,6 +284,108 @@ void goto_symext::symex_binary_op_bits(
   }
 }
 
+void goto_symext::symex_binary_op_overflow_only(
+  goto_symex_statet &state,
+  irep_idt operand,
+  const exprt::operandst &arguments)
+{
+  INVARIANT(
+    operand == ID_plus || operand == ID_minus || operand == ID_mult ||
+      operand == ID_shl || operand == ID_div,
+    "symex_add_sub_mul_shl_bits only supports binary +, -, *, <<, /");
+
+  // parse set_field call
+  INVARIANT(
+    arguments.size() == 4, CPROVER_PREFIX "this operation requires 4 arguments");
+
+  const exprt& a = arguments[0];
+  const exprt& b = arguments[1];
+  const exprt& o = arguments[2];
+  const exprt& w = arguments[3];
+
+  check_overflow_ref(o);
+  check_width(w);
+
+  mp_integer w_mpint;
+  to_integer(to_constant_expr(w), w_mpint);
+  std::size_t w_ = w_mpint.to_long();
+
+  // get the overflow bit
+  const auto o_deref = deref_expr(o);
+  check_overflow_deref(o_deref);
+
+  const auto bvtype = compute_binary_op_type(a, b, w_);
+
+  if((operand == ID_div && to_integer_bitvector_type(bvtype).smallest() >= 0)){
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        from_integer(0, o_deref.type())),
+      false);
+    return;
+  }
+
+  const auto a_bits = cut_bit_representation(a, bvtype);
+  const auto b_bits = cut_bit_representation(b, bvtype);
+  if(operand == ID_plus){
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        extractbit_exprt{plus_overflow_exprt{a_bits, b_bits}, 0}),
+      false);
+  }
+  else if(operand == ID_plus){
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        extractbit_exprt{minus_overflow_exprt{a_bits, b_bits}, 0}),
+      false);
+  }
+  else if(operand == ID_mult){
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        extractbit_exprt{mult_overflow_exprt{a_bits, b_bits}, 0}),
+      false);
+  }
+  else if(operand == ID_shl){
+    symex_assign(
+      state,
+      o_deref,
+      make_byte_update(
+        o_deref,
+        from_integer(0, c_index_type()),
+        extractbit_exprt{shl_overflow_exprt{a_bits, b_bits}, 0}),
+      false);
+  }
+  else if(operand == ID_div){
+    symex_assign(
+      state,
+      o_deref,
+      typecast_exprt(
+        and_exprt{
+          equal_exprt{a_bits, bvtype.smallest_expr()},
+          equal_exprt{b_bits, from_integer(-1, bvtype)}
+        }, o_deref.type()),
+      false);
+  }
+  else{
+    UNREACHABLE;
+  }
+}
+
 void goto_symext::symex_unary_minus_bits(
   goto_symex_statet &state,
   const exprt::operandst &arguments)
@@ -439,6 +541,41 @@ void goto_symext::symex_nz_bits(
   }
 }
 
+void goto_symext::symex_cut_bits(
+  const exprt &lhs,
+  goto_symex_statet &state,
+  const exprt::operandst &arguments)
+{
+  // parse set_field call
+  INVARIANT(
+    arguments.size() == 2, CPROVER_PREFIX "this operation requires 2 arguments");
+
+  const exprt& a = arguments[0];
+  const exprt& w = arguments[1];
+  check_width(w);
+
+  mp_integer w_mpint;
+  to_integer(to_constant_expr(w), w_mpint);
+  std::size_t w_ = w_mpint.to_long();
+
+  const auto a_type = to_integer_bitvector_type(a.type());
+
+  if(w_ < a_type.get_width()){
+    const auto bvtype = compute_unary_op_type(lhs, w_);
+    symex_assign(
+      state,
+      lhs,
+      cut_bit_representation(a, bvtype),
+      false);
+  } else {
+    symex_assign(
+      state,
+      lhs,
+      a,
+      false);
+  }
+}
+
 void goto_symext::symex_binary_op_bits_no_overflow(
   goto_symex_statet &state,
   irep_idt operand,
@@ -467,9 +604,10 @@ void goto_symext::symex_binary_op_bits_no_overflow(
 
   const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
 
-  const auto bvtype = compute_binary_op_type(a, b, w_);
-  const auto a_bits = cut_bit_representation(a, bvtype);
-  const auto b_bits = cut_bit_representation(b, bvtype);
+  const bool is_ashr = operand == ID_ashr;
+  const auto bvtype = is_ashr?signedbv_typet{w_}:compute_binary_op_type(a, b, w_);
+  const auto a_bits = is_ashr?typecast_exprt{cut_bit_representation(a, bvtype), bvtype}:cut_bit_representation(a, bvtype);
+  const auto b_bits = is_ashr?typecast_exprt{cut_bit_representation(b, bvtype), bvtype}:cut_bit_representation(b, bvtype);
   if(w_ < c_deref_type.get_width()){
     symex_assign(
       state,
@@ -526,13 +664,13 @@ void goto_symext::symex_comparison_op_bits(
       make_byte_update(
         c_deref,
         from_integer(0, c_index_type()),
-        typecast_exprt{binary_exprt{a_bits, operand, b_bits}, bvtype}),
+        typecast_exprt{binary_relation_exprt{a_bits, operand, b_bits}, bvtype}),
       false);
   } else {
     symex_assign(
       state,
       c_deref,
-      typecast_exprt{binary_exprt{a_bits, operand, b_bits}, c_deref_type},
+      typecast_exprt{binary_relation_exprt{a_bits, operand, b_bits}, c_deref_type},
       false);
   }
 }

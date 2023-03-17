@@ -945,6 +945,14 @@ private:
     goto_symex_statet &state,
     irep_idt operand,
     const exprt::operandst &arguments);
+  void symex_cut_bits(
+    const exprt &lhs,
+    goto_symex_statet &state,
+    const exprt::operandst &arguments);
+  void symex_binary_op_overflow_only(
+    goto_symex_statet &state,
+    irep_idt operand,
+    const exprt::operandst &arguments);
 };
 
 /// Transition to the next instruction, which increments the internal program
