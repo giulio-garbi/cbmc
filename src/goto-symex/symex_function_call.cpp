@@ -376,11 +376,6 @@ void goto_symext::symex_function_call_symbol(
     symex_nz_bits(cleaned_lhs, state,cleaned_arguments);
     symex_transition(state);
   }
-  else if(identifier == CPROVER_PREFIX "cut_bits")
-  {
-    symex_cut_bits(cleaned_lhs, state,cleaned_arguments);
-    symex_transition(state);
-  }
   else
   {
     symex_function_call_post_clean(

@@ -541,41 +541,6 @@ void goto_symext::symex_nz_bits(
   }
 }
 
-void goto_symext::symex_cut_bits(
-  const exprt &lhs,
-  goto_symex_statet &state,
-  const exprt::operandst &arguments)
-{
-  // parse set_field call
-  INVARIANT(
-    arguments.size() == 2, CPROVER_PREFIX "this operation requires 2 arguments");
-
-  const exprt& a = arguments[0];
-  const exprt& w = arguments[1];
-  check_width(w);
-
-  mp_integer w_mpint;
-  to_integer(to_constant_expr(w), w_mpint);
-  std::size_t w_ = w_mpint.to_long();
-
-  const auto a_type = to_integer_bitvector_type(a.type());
-
-  if(w_ < a_type.get_width()){
-    const auto bvtype = compute_unary_op_type(lhs, w_);
-    symex_assign(
-      state,
-      lhs,
-      cut_bit_representation(a, bvtype),
-      false);
-  } else {
-    symex_assign(
-      state,
-      lhs,
-      a,
-      false);
-  }
-}
-
 void goto_symext::symex_binary_op_bits_no_overflow(
   goto_symex_statet &state,
   irep_idt operand,

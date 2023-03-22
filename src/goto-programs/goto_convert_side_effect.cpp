@@ -365,9 +365,16 @@ void goto_convertt::remove_function_call(
 {
   if(!result_is_used)
   {
-    code_function_callt call(expr.function(), expr.arguments());
-    call.add_source_location()=expr.source_location();
-    convert_function_call(call, dest, mode);
+    if(expr.function().id() == ID_symbol && id2string(to_symbol_expr(expr.function()).get_identifier()) == CPROVER_PREFIX "cut_bits"){
+      clean_expr(expr.arguments()[0], dest, mode, false);
+      clean_expr(expr.arguments()[1], dest, mode, false);
+    }
+    else
+    {
+      code_function_callt call(expr.function(), expr.arguments());
+      call.add_source_location() = expr.source_location();
+      convert_function_call(call, dest, mode);
+    }
     expr.make_nil();
     return;
   }
@@ -388,9 +395,18 @@ void goto_convertt::remove_function_call(
     new_symbol_mode = symbol.mode;
 
     if(id2string(symbol.base_name) == CPROVER_PREFIX "cut_bits"){
+      clean_expr(expr.arguments()[0], dest, mode);
+      clean_expr(expr.arguments()[1], dest, mode);
       const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
       const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
-      return_type = typeArg.get_width() <= w ? typeArg : (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
+      if(typeArg.get_width() <= w){
+        expr.swap(expr.arguments()[0]);
+      } else {
+        const auto new_type = (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
+        auto x = extractbits_exprt{expr.arguments()[0], new_type.get_width()-1, 0, new_type};
+        expr.swap(x);
+      }
+      return;
     }
   }
 

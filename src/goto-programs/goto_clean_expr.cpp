@@ -17,6 +17,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_expr.h>
 #include <util/symbol.h>
 
+#include <util/cprover_prefix.h>
+
 symbol_exprt goto_convertt::make_compound_literal(
   const exprt &expr,
   goto_programt &dest,
@@ -336,11 +338,19 @@ void goto_convertt::clean_expr(
   {
     typecast_exprt &typecast = to_typecast_expr(expr);
 
+    bool should_remove_cast = false;
+    if(const auto side_effect = expr_try_dynamic_cast<side_effect_expr_function_callt>(typecast.op())){
+      if(const auto func_symbol = expr_try_dynamic_cast<symbol_exprt>(side_effect->function())){
+        should_remove_cast = id2string(func_symbol->get_identifier()) == CPROVER_PREFIX "cut_bits";
+      }
+    }
     // preserve 'result_is_used'
     clean_expr(typecast.op(), dest, mode, result_is_used);
 
     if(typecast.op().is_nil())
       expr.make_nil();
+    else if(should_remove_cast)
+      expr.swap(typecast.op());
 
     return;
   }
