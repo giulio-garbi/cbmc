@@ -22,6 +22,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <ansi-c/c_expr.h>
 
+#include <util/cprover_prefix.h>
+
 bool goto_convertt::has_function_call(const exprt &expr)
 {
   for(const auto &op : expr.operands())
@@ -374,6 +376,7 @@ void goto_convertt::remove_function_call(
   std::string new_base_name = "return_value";
   irep_idt new_symbol_mode = mode;
 
+  auto return_type = expr.type();
   if(expr.function().id() == ID_symbol)
   {
     const irep_idt &identifier =
@@ -383,10 +386,16 @@ void goto_convertt::remove_function_call(
     new_base_name+='_';
     new_base_name+=id2string(symbol.base_name);
     new_symbol_mode = symbol.mode;
+
+    if(id2string(symbol.base_name) == CPROVER_PREFIX "cut_bits"){
+      const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
+      const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
+      return_type = typeArg.get_width() <= w ? typeArg : (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
+    }
   }
 
   const symbolt &new_symbol = get_fresh_aux_symbol(
-    expr.type(),
+    return_type,
     tmp_symbol_prefix,
     new_base_name,
     expr.find_source_location(),
