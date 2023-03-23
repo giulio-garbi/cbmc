@@ -2057,9 +2057,12 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
   // f_op is not yet typechecked, in contrast to the other arguments.
   // This is a big special case!
 
+  bool isCutExpr = false;
+
   if(f_op.id()==ID_symbol)
   {
     irep_idt identifier=to_symbol_expr(f_op).get_identifier();
+    isCutExpr = (identifier==CPROVER_PREFIX "cut_bits");
 
     asm_label_mapt::const_iterator entry=
       asm_label_map.find(identifier);
@@ -2205,6 +2208,8 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
            identifier=="valloc")
         {
           guessed_return_type = pointer_type(void_type()); // void *
+        } else if (identifier==CPROVER_PREFIX "nz_bits"){
+          guessed_return_type = bool_typet();
         }
 
         symbolt new_symbol{
@@ -2301,7 +2306,18 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
   if(tmp.is_not_nil())
     expr.swap(tmp);
   else
+  {
     typecheck_function_call_arguments(expr);
+    if(isCutExpr){
+      const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
+      const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
+      if(typeArg.get_width() <= w){
+        expr.type() = typeArg;
+      } else {
+        expr.type() = (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
+      }
+    }
+  }
 }
 
 exprt c_typecheck_baset::do_special_functions(

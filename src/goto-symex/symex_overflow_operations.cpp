@@ -619,24 +619,43 @@ void goto_symext::symex_comparison_op_bits(
 
   const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
 
-  const auto bvtype = compute_binary_op_type(a, b, w_);
-  const auto a_bits = cut_bit_representation(a, bvtype);
-  const auto b_bits = cut_bit_representation(b, bvtype);
-  if(w_ < c_deref_type.get_width()){
+  if(a.type().id() == ID_bool && b.type().id() == ID_bool){
+    const auto bvtype = compute_unary_op_type(c_deref, w_);
     symex_assign(
       state,
       c_deref,
       make_byte_update(
         c_deref,
         from_integer(0, c_index_type()),
-        typecast_exprt{binary_relation_exprt{a_bits, operand, b_bits}, bvtype}),
+        typecast_exprt{binary_relation_exprt{a, operand, b}, bvtype}),
       false);
-  } else {
-    symex_assign(
-      state,
-      c_deref,
-      typecast_exprt{binary_relation_exprt{a_bits, operand, b_bits}, c_deref_type},
-      false);
+  }
+  else
+  {
+    const auto bvtype = compute_binary_op_type(a, b, w_);
+    const auto a_bits = cut_bit_representation(a, bvtype);
+    const auto b_bits = cut_bit_representation(b, bvtype);
+    if(w_ < c_deref_type.get_width())
+    {
+      symex_assign(
+        state,
+        c_deref,
+        make_byte_update(
+          c_deref,
+          from_integer(0, c_index_type()),
+          typecast_exprt{
+            binary_relation_exprt{a_bits, operand, b_bits}, bvtype}),
+        false);
+    }
+    else
+    {
+      symex_assign(
+        state,
+        c_deref,
+        typecast_exprt{
+          binary_relation_exprt{a_bits, operand, b_bits}, c_deref_type},
+        false);
+    }
   }
 }
 

@@ -413,19 +413,33 @@ void goto_convertt::remove_function_call(
     else if(id2string(symbol.base_name) == CPROVER_PREFIX "nz_bits"){
       clean_expr(expr.arguments()[0], dest, mode);
       clean_expr(expr.arguments()[1], dest, mode);
-      const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
-      const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
-      if(typeArg.get_width() <= w){
-        auto nz = notequal_exprt{
-          expr.arguments()[0],
-          from_integer(0, typeArg)};
+      if(type_try_dynamic_cast<c_bool_typet>(expr.arguments()[0].type())){
+        auto nz = bitnot_exprt{expr.arguments()[0]};
         expr.swap(nz);
-      } else {
-        const auto new_type = (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
-        auto nz = notequal_exprt{
-          extractbits_exprt{expr.arguments()[0], new_type.get_width()-1, 0, new_type},
-          from_integer(0, new_type)};
-        expr.swap(nz);
+      }
+      else
+      {
+        const size_t w =
+          stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
+        const auto typeArg =
+          to_integer_bitvector_type(expr.arguments()[0].type());
+        if(typeArg.get_width() <= w)
+        {
+          auto nz =
+            notequal_exprt{expr.arguments()[0], from_integer(0, typeArg)};
+          expr.swap(nz);
+        }
+        else
+        {
+          const auto new_type =
+            (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
+                                    : unsignedbv_typet{w});
+          auto nz = notequal_exprt{
+            extractbits_exprt{
+              expr.arguments()[0], new_type.get_width() - 1, 0, new_type},
+            from_integer(0, new_type)};
+          expr.swap(nz);
+        }
       }
       return;
     }
