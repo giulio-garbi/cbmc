@@ -22,6 +22,8 @@ Module: Symex Operations-With-Overflow Instrumentation
 // Get the new_type.get_width() LSBs of x. If x is shorter, add a cast so as
 // there are enough bits.
 exprt cut_bit_representation(const exprt& x, const integer_bitvector_typet& new_type){
+  if(x.type().id() == ID_bool)
+    return x;
   PRECONDITION(is_signed_or_unsigned_bitvector(x.type()));
   if(to_bitvector_type(x.type()).get_width() > new_type.get_width()){
     return extractbits_exprt{x, new_type.get_width()-1, 0, new_type};
@@ -474,29 +476,35 @@ void goto_symext::symex_assign_bits(
   // get the symbol to write on
   const auto c_deref = deref_expr(c);
   check_destination_deref(c_deref);
-
-  const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
-  if(w_ < c_deref_type.get_width()){
-    const auto bvtype = compute_unary_op_type(c_deref, w_);
-    const auto a_bits = cut_bit_representation(a, bvtype);
+  if(c_deref.type().id() == ID_bool || c_deref.type().id() == ID_c_bool){
     symex_assign(
       state,
       c_deref,
-      make_byte_update(
-        c_deref,
-        from_integer(0, c_index_type()),
-        a_bits),
+      typecast_exprt{a, c_deref.type()},
       false);
-  } else {
-    const auto a_bits = cut_bit_representation(a, c_deref_type);
-    symex_assign(
-      state,
-      c_deref,
-      make_byte_update(
+  }
+  else
+  {
+    const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
+    if(w_ < c_deref_type.get_width())
+    {
+      const auto bvtype = compute_unary_op_type(c_deref, w_);
+      const auto a_bits = cut_bit_representation(a, bvtype);
+      symex_assign(
+        state,
         c_deref,
-        from_integer(0, c_index_type()),
-        a_bits),
-      false);
+        make_byte_update(c_deref, from_integer(0, c_index_type()), a_bits),
+        false);
+    }
+    else
+    {
+      const auto a_bits = cut_bit_representation(a, c_deref_type);
+      symex_assign(
+        state,
+        c_deref,
+        make_byte_update(c_deref, from_integer(0, c_index_type()), a_bits),
+        false);
+    }
   }
 }
 
