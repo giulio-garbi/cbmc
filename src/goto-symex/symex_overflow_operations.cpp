@@ -575,27 +575,43 @@ void goto_symext::symex_binary_op_bits_no_overflow(
   const auto c_deref = deref_expr(c);
   check_destination_deref(c_deref);
 
-  const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
-
   const bool is_ashr = operand == ID_ashr;
+
   const auto bvtype = is_ashr?signedbv_typet{w_}:compute_binary_op_type(a, b, w_);
-  const auto a_bits = is_ashr?typecast_exprt{cut_bit_representation(a, bvtype), bvtype}:cut_bit_representation(a, bvtype);
-  const auto b_bits = is_ashr?typecast_exprt{cut_bit_representation(b, bvtype), bvtype}:cut_bit_representation(b, bvtype);
-  if(w_ < c_deref_type.get_width()){
-    symex_assign(
-      state,
-      c_deref,
-      make_byte_update(
+  const auto a_bits = (is_ashr?typecast_exprt{cut_bit_representation(a, bvtype), bvtype}:cut_bit_representation(a, bvtype));
+  const auto b_bits = (is_ashr?typecast_exprt{cut_bit_representation(b, bvtype), bvtype}:cut_bit_representation(b, bvtype));
+
+  {
+    const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
+    if(w_ < c_deref_type.get_width())
+    {
+      symex_assign(
+        state,
         c_deref,
-        from_integer(0, c_index_type()),
-        binary_exprt{a_bits, operand, b_bits}),
-      false);
+        make_byte_update(
+          c_deref,
+          from_integer(0, c_index_type()),
+          binary_exprt{a_bits, operand, b_bits}),
+        false);
+    }
+    else
+    {
+      symex_assign(
+        state,
+        c_deref,
+        typecast_exprt{binary_exprt{a_bits, operand, b_bits}, c_deref_type},
+        false);
+    }
+  }
+}
+
+exprt make_bool(const exprt &a, size_t w_){
+  if(a.type().id() == ID_bool){
+    return a;
+  } else if (a.type().id() == ID_c_bool){
+    return typecast_exprt{extractbit_exprt{a,0}, bool_typet{}};
   } else {
-    symex_assign(
-      state,
-      c_deref,
-      typecast_exprt{binary_exprt{a_bits, operand, b_bits}, c_deref_type},
-      false);
+    return typecast_exprt{cut_bit_representation(a, compute_unary_op_type(a, w_)), bool_typet{}};
   }
 }
 
@@ -623,11 +639,12 @@ void goto_symext::symex_comparison_op_bits(
 
   // get the symbol to write on
   const auto c_deref = deref_expr(c);
+
   check_destination_deref(c_deref);
 
   const auto c_deref_type = to_integer_bitvector_type(c_deref.type());
 
-  if(a.type().id() == ID_bool && b.type().id() == ID_bool){
+  if(a.type().id() == ID_bool || b.type().id() == ID_bool || a.type().id() == ID_c_bool || b.type().id() == ID_c_bool){
     const auto bvtype = compute_unary_op_type(c_deref, w_);
     symex_assign(
       state,
@@ -635,7 +652,7 @@ void goto_symext::symex_comparison_op_bits(
       make_byte_update(
         c_deref,
         from_integer(0, c_index_type()),
-        typecast_exprt{binary_relation_exprt{a, operand, b}, bvtype}),
+        typecast_exprt{binary_relation_exprt{make_bool(a, w_), operand, make_bool(b, w_)}, bvtype}),
       false);
   }
   else
