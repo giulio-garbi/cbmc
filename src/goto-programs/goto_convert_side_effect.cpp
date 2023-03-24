@@ -403,6 +403,10 @@ void goto_convertt::remove_function_call(
       const auto typeArgOrig = expr.arguments()[0].type();
       if(typeArgOrig.id() == ID_bool){
         expr.swap(expr.arguments()[0]);
+      } else if(typeArgOrig.id() == ID_c_bool){
+        auto x = extractbit_exprt{
+          expr.arguments()[0], 0};
+        expr.swap(x);
       } else
       {
         const auto typeArg = to_integer_bitvector_type(typeArgOrig);

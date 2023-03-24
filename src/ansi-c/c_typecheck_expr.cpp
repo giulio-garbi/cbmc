@@ -2313,6 +2313,8 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
       const auto typeArgOrig = expr.arguments()[0].type();
       if(typeArgOrig.id() == ID_bool){
         expr.type() = typeArgOrig;
+      } else if(typeArgOrig.id() == ID_c_bool){
+        expr.type() = unsignedbv_typet{1};
       } else
       {
         const auto typeArg = to_integer_bitvector_type(typeArgOrig);
