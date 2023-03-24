@@ -342,7 +342,7 @@ void goto_symext::symex_binary_op_overflow_only(
         extractbit_exprt{plus_overflow_exprt{a_bits, b_bits}, 0}),
       false);
   }
-  else if(operand == ID_plus){
+  else if(operand == ID_minus){
     symex_assign(
       state,
       o_deref,
