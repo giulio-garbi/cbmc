@@ -2310,11 +2310,22 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
     typecheck_function_call_arguments(expr);
     if(isCutExpr){
       const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
-      const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
-      if(typeArg.get_width() <= w){
-        expr.type() = typeArg;
-      } else {
-        expr.type() = (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
+      const auto typeArgOrig = expr.arguments()[0].type();
+      if(typeArgOrig.id() == ID_bool){
+        expr.type() = typeArgOrig;
+      } else
+      {
+        const auto typeArg = to_integer_bitvector_type(typeArgOrig);
+        if(typeArg.get_width() <= w)
+        {
+          expr.type() = typeArg;
+        }
+        else
+        {
+          expr.type() =
+            (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
+                                    : unsignedbv_typet{w});
+        }
       }
     }
   }

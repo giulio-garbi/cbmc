@@ -400,13 +400,25 @@ void goto_convertt::remove_function_call(
       clean_expr(expr.arguments()[0], dest, mode);
       clean_expr(expr.arguments()[1], dest, mode);
       const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
-      const auto typeArg = to_integer_bitvector_type(expr.arguments()[0].type());
-      if(typeArg.get_width() <= w){
+      const auto typeArgOrig = expr.arguments()[0].type();
+      if(typeArgOrig.id() == ID_bool){
         expr.swap(expr.arguments()[0]);
-      } else {
-        const auto new_type = (typeArg.smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w});
-        auto x = extractbits_exprt{expr.arguments()[0], new_type.get_width()-1, 0, new_type};
-        expr.swap(x);
+      } else
+      {
+        const auto typeArg = to_integer_bitvector_type(typeArgOrig);
+        if(typeArg.get_width() <= w)
+        {
+          expr.swap(expr.arguments()[0]);
+        }
+        else
+        {
+          const auto new_type =
+            (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
+                                    : unsignedbv_typet{w});
+          auto x = extractbits_exprt{
+            expr.arguments()[0], new_type.get_width() - 1, 0, new_type};
+          expr.swap(x);
+        }
       }
       return;
     }
@@ -416,6 +428,9 @@ void goto_convertt::remove_function_call(
       if(type_try_dynamic_cast<c_bool_typet>(expr.arguments()[0].type())){
         auto nz = typecast_exprt{expr.arguments()[0], bool_typet{}};
         expr.swap(nz);
+      }
+      else if(type_try_dynamic_cast<bool_typet>(expr.arguments()[0].type())){
+        expr.swap(expr.arguments()[0]);
       }
       else
       {
