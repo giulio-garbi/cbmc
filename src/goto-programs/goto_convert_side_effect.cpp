@@ -414,7 +414,7 @@ void goto_convertt::remove_function_call(
       clean_expr(expr.arguments()[0], dest, mode);
       clean_expr(expr.arguments()[1], dest, mode);
       if(type_try_dynamic_cast<c_bool_typet>(expr.arguments()[0].type())){
-        auto nz = bitnot_exprt{expr.arguments()[0]};
+        auto nz = typecast_exprt{expr.arguments()[0], bool_typet{}};
         expr.swap(nz);
       }
       else
