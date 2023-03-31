@@ -908,7 +908,7 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
   const bool sign_dest =
     !dest_deref ||
     (bool)(type_try_dynamic_cast<signedbv_typet>(dest_deref->type()));
-  const bool abstr_dest = width_dest > w;
+  const bool abstr_dest = true; //width_dest > w;
 
   const bool has_of_defined = op == ID_plus || op == ID_minus || op == ID_mult || op == ID_shl;
   if(!sign_a && !sign_b){
