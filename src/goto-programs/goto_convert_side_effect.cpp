@@ -911,6 +911,7 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
   const bool abstr_dest = true; //width_dest > w;
 
   const bool has_of_defined = op == ID_plus || op == ID_minus || op == ID_mult || op == ID_shl;
+  const bool is_relational = op == ID_equal || op == ID_notequal || op == ID_lt || op == ID_gt || op == ID_le || op == ID_ge;
   if(!sign_a && !sign_b){
     const auto wtype = std::max(std::max(width_a, width_b), width_dest);
     const auto type = unsignedbv_typet{wtype};
@@ -942,7 +943,8 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
           mode);
       }
     } else {
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
       if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
     }
   } if (!(sign_a && sign_b)) {
@@ -987,7 +989,8 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
         }
       }
     } else {
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
       if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
     }
   } else {
@@ -1020,7 +1023,8 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
       const auto type = signedbv_typet{wtype};
       const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
       const auto cast_b = typecast_exprt{cast_or_cut(b, b.type(), w), type};
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
       if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
     }
   }
