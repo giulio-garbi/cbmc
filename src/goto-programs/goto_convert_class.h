@@ -18,7 +18,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_code.h>
 
 #include "allocate_objects.h"
-#include "c_expr.h"
+#include <ansi-c/c_expr.h>
 #include "destructor_tree.h"
 #include "goto_program.h"
 
