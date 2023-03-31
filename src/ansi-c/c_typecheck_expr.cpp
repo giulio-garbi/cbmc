@@ -2042,6 +2042,69 @@ void c_typecheck_baset::typecheck_obeys_contract_call(
   expr.type() = bool_typet();
 }
 
+void c_typecheck_baset::binary_bitwidth_overflow_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 5)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 5 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[4].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "5th argument must be a constant" << eom;
+    throw 0;
+  }
+  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], expr.arguments()[2], expr.arguments()[3], to_string(to_constant_expr(expr.arguments()[4])),f_op.source_location()};
+  expr.swap(bbo);
+}
+
+void c_typecheck_baset::binary_bitwidth_overflow_only_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 4)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 4 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[3].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "4th argument must be a constant" << eom;
+    throw 0;
+  }
+  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], nil_exprt{}, expr.arguments()[3],to_string(to_constant_expr(expr.arguments()[4])),f_op.source_location()};
+  expr.swap(bbo);
+}
+
+void c_typecheck_baset::binary_bitwidth_no_overflow_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 4)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 4 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[3].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "4th argument must be a constant" << eom;
+    throw 0;
+  }
+  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], expr.arguments()[3], nil_exprt{}, to_string(to_constant_expr(expr.arguments()[4])),f_op.source_location()};
+  expr.swap(bbo);
+}
+
 void c_typecheck_baset::typecheck_side_effect_function_call(
   side_effect_expr_function_callt &expr)
 {
@@ -2077,6 +2140,110 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
       if(identifier == CPROVER_PREFIX "typed_target")
       {
         typecheck_typed_target_call(expr);
+      }
+      else if(identifier == CPROVER_PREFIX "add_bits_overflow"){
+        binary_bitwidth_overflow_op(ID_plus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "add_bits_overflow_only"){
+        binary_bitwidth_overflow_only_op(ID_plus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "add_bits"){
+        binary_bitwidth_no_overflow_op(ID_plus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "sub_bits_overflow"){
+        binary_bitwidth_overflow_op(ID_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "sub_bits_overflow_only"){
+        binary_bitwidth_overflow_only_op(ID_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "sub_bits"){
+        binary_bitwidth_no_overflow_op(ID_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "mul_bits_overflow"){
+        binary_bitwidth_overflow_op(ID_mult, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "mul_bits_overflow_only"){
+        binary_bitwidth_overflow_only_op(ID_mult, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "mul_bits"){
+        binary_bitwidth_no_overflow_op(ID_mult, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "div_bits_overflow"){
+        binary_bitwidth_overflow_op(ID_div, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "div_bits_overflow_only"){
+        binary_bitwidth_overflow_only_op(ID_div, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "div_bits"){
+        binary_bitwidth_no_overflow_op(ID_div, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "shl_bits_overflow"){
+        binary_bitwidth_overflow_op(ID_shl, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "shl_bits_overflow_only"){
+        binary_bitwidth_overflow_only_op(ID_shl, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "shl_bits"){
+        binary_bitwidth_no_overflow_op(ID_shl, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "or_bits"){
+        binary_bitwidth_no_overflow_op(ID_bitor, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "and_bits"){
+        binary_bitwidth_no_overflow_op(ID_bitand, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "xor_bits"){
+        binary_bitwidth_no_overflow_op(ID_bitxor, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "eq_bits"){
+        binary_bitwidth_no_overflow_op(ID_equal, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "neq_bits"){
+        binary_bitwidth_no_overflow_op(ID_notequal, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "lt_bits"){
+        binary_bitwidth_no_overflow_op(ID_lt, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "gt_bits"){
+        binary_bitwidth_no_overflow_op(ID_gt, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "le_bits"){
+        binary_bitwidth_no_overflow_op(ID_le, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "ge_bits"){
+        binary_bitwidth_no_overflow_op(ID_ge, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "shr_bits"){
+        binary_bitwidth_no_overflow_op(ID_shr, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "mod_bits"){
+        binary_bitwidth_no_overflow_op(ID_mod, expr);
+        return;
       }
       // Is this a builtin?
       else if(!builtin_factory(identifier, symbol_table, get_message_handler()))

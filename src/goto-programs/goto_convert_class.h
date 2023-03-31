@@ -18,6 +18,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_code.h>
 
 #include "allocate_objects.h"
+#include "c_expr.h"
 #include "destructor_tree.h"
 #include "goto_program.h"
 
@@ -699,6 +700,29 @@ protected:
     const irep_idt &mode);
 
   exprt get_array_argument(const exprt &src);
+  void remove_binary_bitwidth_overflow(
+    binary_bitwidth_overflowt &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
+  void binaryop_between_bools(
+    const exprt &a,
+    const irep_idt op,
+    const exprt &b,
+    const optionalt<exprt> &dest_deref,
+    const optionalt<exprt> &of_deref,
+    const size_t w,
+    goto_programt &dest,
+    const irep_idt &mode);
+  void binary_op_with_int(
+    const exprt &a,
+    const irep_idt op,
+    const exprt &b,
+    const optionalt<exprt> &dest_deref,
+    const optionalt<exprt> &of_deref,
+    const size_t w,
+    goto_programt &dest,
+    const irep_idt &mode);
 };
 
 #endif // CPROVER_GOTO_PROGRAMS_GOTO_CONVERT_CLASS_H

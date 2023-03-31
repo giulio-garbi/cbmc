@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/arith_tools.h>
 #include <util/bitvector_expr.h>
 #include <util/c_types.h>
+#include <util/cprover_prefix.h>
 #include <util/expr_util.h>
 #include <util/fresh_symbol.h>
 #include <util/mathematical_types.h>
@@ -22,7 +23,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <ansi-c/c_expr.h>
 
-#include <util/cprover_prefix.h>
+#include "byte_operators.h"
 
 bool goto_convertt::has_function_call(const exprt &expr)
 {
@@ -681,6 +682,384 @@ void goto_convertt::remove_statement_expression(
   static_cast<exprt &>(expr)=tmp_symbol_expr;
 }
 
+exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
+  unsignedbv_typet uw = unsignedbv_typet{w};
+  signedbv_typet sw = signedbv_typet{w};
+  if(type_try_dynamic_cast<bool_typet>(expr.type()) || type_try_dynamic_cast<c_bool_typet>(expr.type())){
+    if(type_try_dynamic_cast<bool_typet>(dest_type)){
+      if(expr.type().id() == ID_bool){
+        return expr;
+      } else {
+        return extractbit_exprt{expr, 0};
+      }
+    } else if(const auto u = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
+      if(u->get_width() <= w){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return typecast_exprt{expr, unsignedbv_typet{w}};
+      }
+    } else if(const auto s = type_try_dynamic_cast<signedbv_typet>(dest_type)){
+      if(s->get_width() <= w){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return typecast_exprt{expr, signedbv_typet{w}};
+      }
+    } else
+      UNHANDLED_CASE;
+  } else if(const auto ue = type_try_dynamic_cast<unsignedbv_typet>(expr.type())){
+    bool expr_short = ue->get_width() <= w;
+    if(type_try_dynamic_cast<bool_typet>(dest_type)){
+      if(expr_short){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+      }
+    } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
+      bool dest_short = ud->get_width() <= w;
+      if(!expr_short && !dest_short){
+        return extractbits_exprt{expr, w-1, 0, uw};
+      } else if(!expr_short && dest_short) {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+      } else if(expr_short && !dest_short) {
+        return typecast_exprt{expr, uw};
+      } else if(ue->get_width() != ud->get_width()){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return expr;
+      }
+    } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
+      bool dest_short = sd->get_width() <= w;
+      if(!expr_short && !dest_short){
+        return extractbits_exprt{expr, w-1, 0, sw};
+      } else if(!expr_short && dest_short) {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+      } else if(expr_short && !dest_short) {
+        return typecast_exprt{expr, sw};
+      } else{
+        return typecast_exprt{expr, dest_type};
+      }
+    } else
+      UNHANDLED_CASE;
+  } else if(const auto se = type_try_dynamic_cast<signedbv_typet>(expr.type())){
+    bool expr_short = se->get_width() <= w;
+    if(type_try_dynamic_cast<bool_typet>(dest_type)){
+      if(expr_short){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+      }
+    } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
+      bool dest_short = ud->get_width() <= w;
+      if(!expr_short && !dest_short){
+        return extractbits_exprt{expr, w-1, 0, uw};
+      } else if(!expr_short) {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+      } else if(!dest_short) {
+        return typecast_exprt{expr, uw};
+      } else {
+        return typecast_exprt{expr, dest_type};
+      }
+    } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
+      bool dest_short = sd->get_width() <= w;
+      if(!expr_short && !dest_short){
+        return extractbits_exprt{expr, w-1, 0, sw};
+      } else if(!expr_short) {
+        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+      } else if(!dest_short) {
+        return typecast_exprt{expr, sw};
+      } else if(se->get_width() != sd->get_width()){
+        return typecast_exprt{expr, dest_type};
+      } else {
+        return expr;
+      }
+    } else
+      UNHANDLED_CASE;
+  } else
+    UNHANDLED_CASE;
+}
+
+code_assignt assignment(const exprt& lhs, const exprt& rhs, const size_t w){
+  if(type_try_dynamic_cast<bool_typet>(lhs.type())){
+    if(type_try_dynamic_cast<bool_typet>(rhs.type())){
+      return code_assignt{lhs, rhs};
+    } else if(type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
+      return code_assignt{lhs,
+                          notequal_exprt{rhs, constant_exprt{"0",rhs.type()}}};
+    } else
+      UNHANDLED_CASE;
+  } else if(type_try_dynamic_cast<c_bool_typet>(lhs.type())){
+    if(type_try_dynamic_cast<bool_typet>(rhs.type())){
+      return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}}, typecast_exprt{rhs, unsignedbv_typet{1}})};
+    } else if(type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
+      return code_assignt{lhs,
+                          make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                           typecast_exprt{
+                                             notequal_exprt{rhs, constant_exprt{"0",rhs.type()}},
+                                             unsignedbv_typet{1}})};
+    } else
+      UNHANDLED_CASE;
+  } else if(const auto lbt = type_try_dynamic_cast<integer_bitvector_typet>(lhs.type())){
+    if(lbt->get_width() <= w){
+      if(type_try_dynamic_cast<bool_typet>(rhs.type())){
+        return code_assignt{lhs,
+                            make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                             typecast_exprt{rhs,*lbt})};
+      } else if(const auto rbt = type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
+        PRECONDITION(lbt->get_width() == rbt->get_width());
+        /*if(*lbt == *rbt)
+          return code_assignt{lhs, rhs};
+        else
+          return code_assignt{lhs, typecast_exprt{rhs, *lbt}};*/
+        return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                           rhs)};
+      } else
+        UNHANDLED_CASE;
+    } else {
+      auto wtype = lbt->smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w};
+      if(type_try_dynamic_cast<bool_typet>(rhs.type())){
+        return code_assignt{lhs,
+                            make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                             typecast_exprt{rhs,wtype})};
+      } else if(const auto rbt = type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
+        PRECONDITION(wtype.get_width() == rbt->get_width());
+        return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                                  rhs)};
+      } else
+        UNHANDLED_CASE;
+    }
+  } else
+    UNHANDLED_CASE;
+}
+
+void goto_convertt::binaryop_between_bools(const exprt &a, const irep_idt op, const exprt &b, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode){
+  PRECONDITION(a.type().id() == ID_bool && b.type().id() == ID_bool);
+  if(of_deref)
+    convert_assign(code_assignt{*of_deref, constant_exprt{"0", of_deref->type()}}, dest, mode);
+  if(dest_deref)
+  {
+    exprt res;
+    if(op == ID_plus || op == ID_or || op == ID_bitor)
+      res = or_exprt{a,b};
+    else if(op == ID_minus || op == ID_notequal || op == ID_xor || op == ID_bitxor)
+      res = xor_exprt{a,b};
+    else if(op == ID_mult || op == ID_and || op == ID_bitand)
+      res = and_exprt{a,b};
+    else if(op == ID_div || op == ID_shl)
+      res = a;
+    else if(op == ID_equal)
+      res = equal_exprt{a,b};
+    else if(op == ID_lt)
+      res = and_exprt{not_exprt{a},b};
+    else if(op == ID_gt || op == ID_shr)
+      res = and_exprt{not_exprt{b},a};
+    else if(op == ID_le)
+      res = or_exprt{not_exprt{a},b};
+    else if(op == ID_ge)
+      res = or_exprt{not_exprt{b},a};
+    else if(op == ID_mod)
+      res = constant_exprt{"0", bool_typet{}};
+    else
+      UNREACHABLE;
+
+    exprt rhs;
+    if(can_cast_type<bool_typet>(dest_deref->type())){
+      rhs = res;
+    } else if (can_cast_type<c_bool_typet>(dest_deref->type())){
+      rhs = make_byte_update(*dest_deref, constant_exprt{"0", unsignedbv_typet{1}}, res);
+    } else if (const auto udt = type_try_dynamic_cast<unsignedbv_typet>(dest_deref->type()))
+    {
+      if(udt->get_width() <= w)
+      {
+        rhs = typecast_exprt{res, *udt};
+      }
+      else
+      {
+        rhs = make_byte_update(
+          *dest_deref,
+          constant_exprt{"0", unsignedbv_typet{1}},
+          typecast_exprt{res, unsignedbv_typet{w}});
+      }
+    } else if (const auto sdt = type_try_dynamic_cast<signedbv_typet>(dest_deref->type()))
+    {
+      if(sdt->get_width() <= w)
+      {
+        rhs = typecast_exprt{res, *sdt};
+      }
+      else
+      {
+        rhs = make_byte_update(
+          *dest_deref,
+          constant_exprt{"0", unsignedbv_typet{1}},
+          typecast_exprt{res, signedbv_typet{w}});
+      }
+    }
+    convert_assign(code_assignt{*dest_deref, rhs}, dest, mode);
+  }
+}
+
+void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const exprt &b, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode){
+  //todo add locations e.g. overflow_with_result.add_source_location() = expr.source_location();
+  //todo expression without of
+  const size_t width_a = (a.type().id() == ID_bool || a.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(a.type()).get_width();
+  const size_t width_b = (b.type().id() == ID_bool || b.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(b.type()).get_width();
+  const size_t width_dest = (dest_deref->type().id() == ID_bool || dest_deref->type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(dest_deref->type()).get_width();
+  const bool sign_a = (type_try_dynamic_cast<signedbv_typet>(a.type()));
+  const bool sign_b = (type_try_dynamic_cast<signedbv_typet>(b.type()));
+  const bool sign_dest = (type_try_dynamic_cast<signedbv_typet>(dest_deref->type()));
+  const bool abstr_dest = width_dest > w;
+
+  const bool has_of_defined = op == ID_plus || op == ID_minus || op == ID_mult || op == ID_shl;
+  if(!sign_a && !sign_b){
+    const auto wtype = std::max(std::max(width_a, width_b), width_dest);
+    const auto type = unsignedbv_typet{wtype};
+    if(abstr_dest && has_of_defined){
+      exprt overflow_with_result = overflow_result_exprt{
+        cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)};
+      make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
+      const struct_typet::componentst &result_comps =
+        to_struct_type(overflow_with_result.type()).components();
+      CHECK_RETURN(result_comps.size() == 2);
+      if(dest_deref) convert_assign(assignment(*dest_deref, member_exprt{overflow_with_result, result_comps[0]}, w), dest, mode);
+      if(sign_dest)
+      {
+        if(of_deref) convert_assign(
+          assignment(
+            *of_deref,
+            or_exprt{
+              member_exprt{overflow_with_result, result_comps[1]},
+              extractbit_exprt{*dest_deref, w - 1}},
+            w),
+          dest,
+          mode);
+      } else
+      {
+        if(of_deref) convert_assign(
+          assignment(
+            *of_deref, member_exprt{overflow_with_result, result_comps[1]}, w),
+          dest,
+          mode);
+      }
+    } else {
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+    }
+  } if (!(sign_a && sign_b)) {
+    const auto wtype = std::max(std::max(std::min(width_a, w) + !sign_a, std::min(width_b, w) + !sign_b), std::min(width_dest, w) + !sign_dest);
+    const auto type = signedbv_typet{wtype};
+    const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
+    const auto cast_b = typecast_exprt{cast_or_cut(b, b.type(), w), type};
+    if(abstr_dest && has_of_defined){
+      exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+      make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
+      const struct_typet::componentst &result_comps =
+        to_struct_type(overflow_with_result.type()).components();
+      CHECK_RETURN(result_comps.size() == 2);
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
+      if(sign_dest){
+        const auto of_ans = member_exprt{overflow_with_result, result_comps[1]};
+        if(type.get_width() > w){
+          const auto sign_ans = notequal_exprt{extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]},w},
+                                               extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]},w-1}};
+          const auto of_total = or_exprt{sign_ans, of_ans};
+          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+        } else {
+          if(of_deref) convert_assign(assignment(*of_deref, of_ans, w), dest, mode);
+        }
+      } else {
+        const auto of_ans = member_exprt{overflow_with_result, result_comps[1]};
+        if(type.get_width() > w)
+        {
+          const auto sign_ans = typecast_exprt{
+            extractbit_exprt{
+              member_exprt{overflow_with_result, result_comps[0]}, w},
+            bool_typet{}};
+          const auto of_total = or_exprt{sign_ans, of_ans};
+          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+        } else {
+          const auto sign_ans = typecast_exprt{
+            extractbit_exprt{
+              member_exprt{overflow_with_result, result_comps[0]}, w-1},
+            bool_typet{}};
+          const auto of_total = or_exprt{sign_ans, of_ans};
+          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+        }
+      }
+    } else {
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+    }
+  } else {
+    if(abstr_dest && has_of_defined){
+      if(sign_dest){
+        const auto type = signedbv_typet{w};
+        const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
+        const auto cast_b = typecast_exprt{cast_or_cut(b, b.type(), w), type};
+        exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+        make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
+        const struct_typet::componentst &result_comps =
+          to_struct_type(overflow_with_result.type()).components();
+        CHECK_RETURN(result_comps.size() == 2);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, member_exprt{overflow_with_result, result_comps[1]}, w), dest, mode);
+      } else {
+        const auto type = signedbv_typet{w+1};
+        const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
+        const auto cast_b = typecast_exprt{cast_or_cut(b, b.type(), w), type};
+        exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+        make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
+        const struct_typet::componentst &result_comps =
+          to_struct_type(overflow_with_result.type()).components();
+        CHECK_RETURN(result_comps.size() == 2);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, or_exprt{member_exprt{overflow_with_result, result_comps[1]}, extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w}}, w), dest, mode);
+      }
+    } else {
+      const auto wtype = std::min(std::max(std::max(width_a, width_b), width_dest), w);
+      const auto type = signedbv_typet{wtype};
+      const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
+      const auto cast_b = typecast_exprt{cast_or_cut(b, b.type(), w), type};
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+    }
+  }
+}
+
+void goto_convertt::remove_binary_bitwidth_overflow(
+  binary_bitwidth_overflowt &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode)
+{
+  clean_expr(expr.dest(), dest, mode, true);
+  clean_expr(expr.of(), dest, mode, true);
+  bool read_dest = expr.dest().type().id() == ID_pointer;
+  bool read_of = expr.of().type().id() == ID_pointer;
+  clean_expr(expr.a(), dest, mode, read_dest || read_of);
+  clean_expr(expr.b(), dest, mode, read_dest || read_of);
+  if(!read_dest && !read_of){
+    expr.make_nil();
+  } else {
+    const auto type_a = expr.a().type();
+    const auto type_b = expr.b().type();
+    const auto w = expr.width();
+    const optionalt<exprt> dest_deref = read_dest?optionalt<exprt>{dereference_exprt(expr.dest())}:optionalt<exprt>{};
+    const optionalt<exprt> of_deref = read_of?optionalt<exprt>{dereference_exprt(expr.of())}:optionalt<exprt>{};
+
+    if((type_a.id() == ID_bool || type_a.id() == ID_c_bool) &&
+       (type_b.id() == ID_bool || type_b.id() == ID_c_bool)){
+      const auto expr_a = cast_or_cut(expr.a(), bool_typet{}, w);
+      const auto expr_b = cast_or_cut(expr.b(), bool_typet{}, w);
+      binaryop_between_bools(expr_a, expr.op(), expr_b, dest_deref, of_deref, expr.width(), dest, mode);
+      expr.make_nil();
+      return;
+    } else {
+      binary_op_with_int(expr.a(), expr.op(), expr.b(), dest_deref, of_deref, expr.width(), dest, mode);
+      expr.make_nil();
+      return;
+    }
+  }
+}
+
 void goto_convertt::remove_overflow(
   side_effect_expr_overflowt &expr,
   goto_programt &dest,
@@ -822,6 +1201,11 @@ void goto_convertt::remove_side_effect(
   {
     remove_overflow(
       to_side_effect_expr_overflow(expr), dest, result_is_used, mode);
+  }
+  else if(statement == ID_binary_bitwidth_overflow)
+  {
+    remove_binary_bitwidth_overflow(
+      to_binary_bitwidth_overflow(expr), dest, result_is_used, mode);
   }
   else
   {

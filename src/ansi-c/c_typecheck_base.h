@@ -17,6 +17,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/symbol.h>
 #include <util/typecheck.h>
 
+#include "c_expr.h"
 #include "designator.h"
 
 #include <map>
@@ -316,6 +317,15 @@ protected:
   exprt typecheck_binary_bitwidth_overflow(
     side_effect_expr_function_callt &expr,
     const irep_idt &arith_op);
+  void binary_bitwidth_overflow_op(
+    const irep_idt &opname,
+    side_effect_expr_function_callt &expr);
+  void binary_bitwidth_overflow_only_op(
+    const irep_idt &opname,
+    side_effect_expr_function_callt &expr);
+  void binary_bitwidth_no_overflow_op(
+    const irep_idt &opname,
+    side_effect_expr_function_callt &expr);
 };
 
 class already_typechecked_exprt : public expr_protectedt
