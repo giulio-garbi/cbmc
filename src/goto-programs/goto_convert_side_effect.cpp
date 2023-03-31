@@ -902,10 +902,12 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
   //todo expression without of
   const size_t width_a = (a.type().id() == ID_bool || a.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(a.type()).get_width();
   const size_t width_b = (b.type().id() == ID_bool || b.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(b.type()).get_width();
-  const size_t width_dest = (dest_deref->type().id() == ID_bool || dest_deref->type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(dest_deref->type()).get_width();
+  const size_t width_dest = !dest_deref? w : ((dest_deref->type().id() == ID_bool || dest_deref->type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(dest_deref->type()).get_width());
   const bool sign_a = (type_try_dynamic_cast<signedbv_typet>(a.type()));
   const bool sign_b = (type_try_dynamic_cast<signedbv_typet>(b.type()));
-  const bool sign_dest = (type_try_dynamic_cast<signedbv_typet>(dest_deref->type()));
+  const bool sign_dest =
+    !dest_deref ||
+    (bool)(type_try_dynamic_cast<signedbv_typet>(dest_deref->type()));
   const bool abstr_dest = width_dest > w;
 
   const bool has_of_defined = op == ID_plus || op == ID_minus || op == ID_mult || op == ID_shl;
@@ -927,7 +929,7 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
             *of_deref,
             or_exprt{
               member_exprt{overflow_with_result, result_comps[1]},
-              extractbit_exprt{*dest_deref, w - 1}},
+              extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w - 1}},
             w),
           dest,
           mode);

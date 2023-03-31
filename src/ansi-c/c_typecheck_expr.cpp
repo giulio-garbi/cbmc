@@ -2080,7 +2080,7 @@ void c_typecheck_baset::binary_bitwidth_overflow_only_op(const irep_idt &opname,
     error() << "4th argument must be a constant" << eom;
     throw 0;
   }
-  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], nil_exprt{}, expr.arguments()[3],to_string(to_constant_expr(expr.arguments()[4])),f_op.source_location()};
+  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], nil_exprt{}, expr.arguments()[2],to_string(to_constant_expr(expr.arguments()[3])),f_op.source_location()};
   expr.swap(bbo);
 }
 
@@ -2101,7 +2101,7 @@ void c_typecheck_baset::binary_bitwidth_no_overflow_op(const irep_idt &opname, s
     error() << "4th argument must be a constant" << eom;
     throw 0;
   }
-  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], expr.arguments()[3], nil_exprt{}, to_string(to_constant_expr(expr.arguments()[4])),f_op.source_location()};
+  auto bbo = binary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], expr.arguments()[2], nil_exprt{}, to_string(to_constant_expr(expr.arguments()[3])),f_op.source_location()};
   expr.swap(bbo);
 }
 
