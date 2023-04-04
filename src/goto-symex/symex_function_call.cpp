@@ -221,7 +221,7 @@ void goto_symext::symex_function_call_symbol(
     symex_set_field(state, cleaned_arguments);
     symex_transition(state);
   }
-  else if(identifier == CPROVER_PREFIX "add_bits")
+  /*else if(identifier == CPROVER_PREFIX "add_bits")
   {
     symex_binary_op_bits_no_overflow(state,ID_plus,cleaned_arguments);
     symex_transition(state);
@@ -375,7 +375,7 @@ void goto_symext::symex_function_call_symbol(
   {
     symex_nz_bits(cleaned_lhs, state,cleaned_arguments);
     symex_transition(state);
-  }
+  }*/
   else
   {
     symex_function_call_post_clean(

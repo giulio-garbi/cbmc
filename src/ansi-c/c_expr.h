@@ -314,6 +314,254 @@ inline binary_bitwidth_overflowt &to_binary_bitwidth_overflow(exprt &expr)
   return static_cast<binary_bitwidth_overflowt &>(side_effect_expr);
 }
 
+class unary_bitwidth_overflowt : public side_effect_exprt
+{
+public:
+  unary_bitwidth_overflowt(
+    const irep_idt &op,
+    exprt a,
+    exprt dest,
+    exprt of,
+    const irep_idt &w,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_unary_bitwidth_overflow,
+        {std::move(a), std::move(dest), std::move(of)},
+        empty_typet{},
+        loc)
+  {
+    set(ID_operator, op);
+    set(ID_width, w);
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  exprt &dest()
+  {
+    return op1();
+  }
+
+  const exprt &dest() const
+  {
+    return op1();
+  }
+
+  exprt &of()
+  {
+    return op2();
+  }
+
+  const exprt &of() const
+  {
+    return op2();
+  }
+
+  size_t width()
+  {
+    return stoi(id2string(get(ID_width)));
+  }
+
+  const irep_idt &op() const
+  {
+    return get(ID_operator);
+  }
+};
+
+template <>
+inline bool can_cast_expr<unary_bitwidth_overflowt>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_unary_bitwidth_overflow;
+}
+
+/// \brief Cast an exprt to a \ref unary_bitwidth_overflowt
+///
+/// \a expr must be known to be \ref unary_bitwidth_overflowt.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref unary_bitwidth_overflowt
+inline const unary_bitwidth_overflowt &
+to_unary_bitwidth_overflow(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_unary_bitwidth_overflow);
+  return static_cast<const unary_bitwidth_overflowt &>(side_effect_expr);
+}
+
+/// \copydoc to_unary_bitwidth_overflow(const exprt &)
+inline unary_bitwidth_overflowt &to_unary_bitwidth_overflow(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_unary_bitwidth_overflow);
+  return static_cast<unary_bitwidth_overflowt &>(side_effect_expr);
+}
+
+class assign_bitwidtht : public side_effect_exprt
+{
+public:
+  assign_bitwidtht(
+    exprt a,
+    exprt dest,
+    const irep_idt &w,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_assign_bitwidth,
+        {std::move(a), std::move(dest)},
+        empty_typet{},
+        loc)
+  {
+    set(ID_width, w);
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  exprt &dest()
+  {
+    return op1();
+  }
+
+  const exprt &dest() const
+  {
+    return op1();
+  }
+
+  size_t width()
+  {
+    return stoi(id2string(get(ID_width)));
+  }
+
+  const irep_idt &op() const
+  {
+    return get(ID_operator);
+  }
+};
+
+template <>
+inline bool can_cast_expr<assign_bitwidtht>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_assign_bitwidth;
+}
+
+/// \brief Cast an exprt to a \ref assign_bitwidtht
+///
+/// \a expr must be known to be \ref assign_bitwidtht.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref assign_bitwidtht
+inline const assign_bitwidtht &
+to_assign_bitwidth(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_assign_bitwidth);
+  return static_cast<const assign_bitwidtht &>(side_effect_expr);
+}
+
+/// \copydoc to_assign_bitwidth(const exprt &)
+inline assign_bitwidtht &to_assign_bitwidth(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_assign_bitwidth);
+  return static_cast<assign_bitwidtht &>(side_effect_expr);
+}
+
+class nz_bitwidtht : public side_effect_exprt
+{
+public:
+  nz_bitwidtht(
+    exprt a,
+    const irep_idt &w,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_nz_bitwidth,
+        {std::move(a)},
+        bool_typet{},
+        loc)
+  {
+    set(ID_width, w);
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  size_t width()
+  {
+    return stoi(id2string(get(ID_width)));
+  }
+
+  const irep_idt &op() const
+  {
+    return get(ID_operator);
+  }
+};
+
+template <>
+inline bool can_cast_expr<nz_bitwidtht>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_nz_bitwidth;
+}
+
+/// \brief Cast an exprt to a \ref nz_bitwidtht
+///
+/// \a expr must be known to be \ref nz_bitwidtht.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref nz_bitwidtht
+inline const nz_bitwidtht &
+to_nz_bitwidth(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_nz_bitwidth);
+  return static_cast<const nz_bitwidtht &>(side_effect_expr);
+}
+
+/// \copydoc to_nz_bitwidth(const exprt &)
+inline nz_bitwidtht &to_nz_bitwidth(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_nz_bitwidth);
+  return static_cast<nz_bitwidtht &>(side_effect_expr);
+}
+
 /// \brief A class for an expression that indicates a history variable
 class history_exprt : public unary_exprt
 {

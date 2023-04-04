@@ -28,6 +28,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/string_constant.h>
 #include <util/suffix.h>
 #include <util/symbol_table_base.h>
+#include <util/byte_operators.h>
 
 #include <goto-programs/adjust_float_expressions.h>
 
@@ -1913,6 +1914,9 @@ void c_typecheck_baset::typecheck_expr_side_effect(side_effect_exprt &expr)
     typecheck_side_effect_statement_expression(expr);
   else if(statement==ID_gcc_conditional_expression)
     typecheck_side_effect_gcc_conditional_expression(expr);
+  else if(statement==ID_nz_bitwidth){
+
+  }
   else
   {
     error().source_location = expr.source_location();
@@ -2105,6 +2109,136 @@ void c_typecheck_baset::binary_bitwidth_no_overflow_op(const irep_idt &opname, s
   expr.swap(bbo);
 }
 
+void c_typecheck_baset::unary_bitwidth_overflow_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 4)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 4 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[3].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "4th argument must be a constant" << eom;
+    throw 0;
+  }
+  auto ubo = unary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], expr.arguments()[2], to_string(to_constant_expr(expr.arguments()[3])),f_op.source_location()};
+  expr.swap(ubo);
+}
+
+
+void c_typecheck_baset::unary_bitwidth_overflow_only_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 3)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 3 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[2].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "3rd argument must be a constant" << eom;
+    throw 0;
+  }
+  auto ubo = unary_bitwidth_overflowt{opname, expr.arguments()[0],nil_exprt{}, expr.arguments()[1],to_string(to_constant_expr(expr.arguments()[2])),f_op.source_location()};
+  expr.swap(ubo);
+}
+
+void c_typecheck_baset::unary_bitwidth_no_overflow_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 3)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 3 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[2].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "3rd argument must be a constant" << eom;
+    throw 0;
+  }
+  auto ubo = unary_bitwidth_overflowt{opname, expr.arguments()[0],expr.arguments()[1], nil_exprt{}, to_string(to_constant_expr(expr.arguments()[2])),f_op.source_location()};
+  expr.swap(ubo);
+}
+
+void c_typecheck_baset::assign_bitwidth_op(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 3)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 3 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[2].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "3rd argument must be a constant" << eom;
+    throw 0;
+  }
+
+  const auto c_deref = (expr.arguments()[1].id() == ID_address_of)?to_address_of_expr(expr.arguments()[1]).object():dereference_exprt(expr.arguments()[1]);
+
+  auto assn = assign_bitwidtht{expr.arguments()[0], c_deref, to_string(to_constant_expr(expr.arguments()[2])), expr.source_location()};
+  expr.swap(assn);
+}
+
+void c_typecheck_baset::nz_bitwidth_op(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 2)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 2 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr(op);
+  if(!expr.arguments()[1].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "2nd argument must be a constant" << eom;
+    throw 0;
+  }
+
+  auto nz = nz_bitwidtht{expr.arguments()[0], to_string(to_constant_expr(expr.arguments()[1])),f_op.source_location()};
+  expr.swap(nz);
+/*
+  const size_t w = stoi(to_string(to_constant_expr(expr.arguments()[1])));
+  exprt rhs;
+  if(expr.arguments()[0].type().id() == ID_bool){
+    rhs = expr.arguments()[0];
+  } else if(expr.arguments()[0].type().id() == ID_c_bool){
+    const auto extract = extractbit_exprt{expr.arguments()[0],0};
+    rhs = notequal_exprt{extract, constant_exprt{"0", extract.type()}};
+  } else if (auto a_ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.arguments()[0].type())){
+    if(a_ibt->get_width() <= w)
+      rhs = notequal_exprt{expr.arguments()[0], constant_exprt{"0", expr.arguments()[0].type()}};
+    else
+      rhs = notequal_exprt{extractbits_exprt{expr.arguments()[0],w-1, 0, unsignedbv_typet{w}}, constant_exprt{"0", unsignedbv_typet{w}}};
+  } else {
+    UNREACHABLE;
+  }
+
+  expr.swap(rhs);
+  */
+}
+
+
 void c_typecheck_baset::typecheck_side_effect_function_call(
   side_effect_expr_function_callt &expr)
 {
@@ -2243,6 +2377,30 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
       }
       else if(identifier == CPROVER_PREFIX "mod_bits"){
         binary_bitwidth_no_overflow_op(ID_mod, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "unary_minus_bits_overflow"){
+        unary_bitwidth_overflow_op(ID_unary_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "unary_minus_bits"){
+        unary_bitwidth_no_overflow_op(ID_unary_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "unary_minus_bits_overflow_only"){
+        unary_bitwidth_overflow_only_op(ID_unary_minus, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "compl_bits"){
+        unary_bitwidth_no_overflow_op(ID_bitnot, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "assign_bits"){
+        assign_bitwidth_op(expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "nz_bits"){
+        nz_bitwidth_op(expr);
         return;
       }
       // Is this a builtin?

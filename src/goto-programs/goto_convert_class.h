@@ -723,6 +723,37 @@ protected:
     const size_t w,
     goto_programt &dest,
     const irep_idt &mode);
+  void remove_unary_bitwidth_overflow(
+    unary_bitwidth_overflowt &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
+  void unaryop_bool(
+    const irep_idt op,
+    const exprt &a,
+    const optionalt<exprt> &dest_deref,
+    const optionalt<exprt> &of_deref,
+    const size_t w,
+    goto_programt &dest,
+    const irep_idt &mode);
+  void unary_op_int(
+    const irep_idt op,
+    const exprt &a,
+    const optionalt<exprt> &dest_deref,
+    const optionalt<exprt> &of_deref,
+    const size_t w,
+    goto_programt &dest,
+    const irep_idt &mode);
+  void remove_assign_bitwidth(
+    assign_bitwidtht &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
+  void remove_nz_bitwidth(
+    nz_bitwidtht &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
 };
 
 #endif // CPROVER_GOTO_PROGRAMS_GOTO_CONVERT_CLASS_H
