@@ -337,6 +337,7 @@ protected:
     side_effect_expr_function_callt &expr);
   void assign_bitwidth_op(side_effect_expr_function_callt &expr);
   void nz_bitwidth_op(side_effect_expr_function_callt &expr);
+  void cut_bitwidth_op(side_effect_expr_function_callt &expr);
 };
 
 class already_typechecked_exprt : public expr_protectedt

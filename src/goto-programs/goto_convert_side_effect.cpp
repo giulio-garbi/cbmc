@@ -998,7 +998,7 @@ void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const option
       if(sign_dest){
         const auto type = signedbv_typet{w};
         const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
-        exprt overflow_with_result = overflow_result_exprt{cast_a, op, nil_exprt{}};
+        exprt overflow_with_result = overflow_result_exprt{cast_a, op};
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
@@ -1008,7 +1008,7 @@ void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const option
       } else {
         const auto type = signedbv_typet{w+1};
         const auto cast_a = typecast_exprt{cast_or_cut(a, a.type(), w), type};
-        exprt overflow_with_result = overflow_result_exprt{cast_a, op, nil_exprt{}};
+        exprt overflow_with_result = overflow_result_exprt{cast_a, op};
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
@@ -1228,6 +1228,9 @@ void goto_convertt::remove_assign_bitwidth(
     auto rhs = (c_ibt->get_width() <= w)?(exprt)typecast_exprt{rhs_data, lhs_type}:make_byte_update(c, constant_exprt{"0", unsignedbv_typet{1}}, typecast_exprt{rhs_data, lhs_type});
     convert_assign(code_assignt{c, rhs}, dest, mode);
     expr.make_nil();
+  } else if (c.type().id() == ID_pointer){
+    convert_assign(code_assignt{c, typecast_exprt{a, c.type()}}, dest, mode);
+    expr.make_nil();
   } else {
     UNREACHABLE;
   }
@@ -1258,6 +1261,39 @@ void goto_convertt::remove_nz_bitwidth(
       rhs = notequal_exprt{expr.a(), constant_exprt{"0", expr.a().type()}};
     else
       rhs = notequal_exprt{extractbits_exprt{expr.a(),w-1, 0, unsignedbv_typet{w}}, constant_exprt{"0", unsignedbv_typet{w}}};
+  } else {
+    UNREACHABLE;
+  }
+
+  expr.swap(rhs);
+}
+
+void goto_convertt::remove_cut_bitwidth(
+  cut_bitwidtht &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode)
+{
+  clean_expr(expr.a(), dest, mode, result_is_used);
+  if(!result_is_used)
+  {
+    expr.make_nil();
+    return ;
+  }
+  const size_t w = expr.width();
+
+  exprt rhs;
+  if(expr.a().type().id() == ID_bool){
+    rhs = expr.a();
+  } else if(expr.a().type().id() == ID_c_bool){
+    rhs = extractbit_exprt{expr.a(),0};
+  } else if (auto a_ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.a().type())){
+    if(a_ibt->get_width() <= w)
+      rhs = expr.a();
+    else
+      rhs = extractbits_exprt{expr.a(),w-1, 0, unsignedbv_typet{w}};
+  } else if(expr.a().type().id() == ID_pointer){
+    rhs = expr.a();
   } else {
     UNREACHABLE;
   }
@@ -1458,6 +1494,11 @@ void goto_convertt::remove_side_effect(
   {
     remove_nz_bitwidth(
       to_nz_bitwidth(expr), dest, result_is_used, mode);
+  }
+  else if(statement == ID_cut_bitwidth)
+  {
+    remove_cut_bitwidth(
+      to_cut_bitwidth(expr), dest, result_is_used, mode);
   }
   else
   {

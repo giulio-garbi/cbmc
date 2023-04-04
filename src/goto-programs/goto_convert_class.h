@@ -754,6 +754,11 @@ protected:
     goto_programt &dest,
     bool result_is_used,
     const irep_idt &mode);
+  void remove_cut_bitwidth(
+    cut_bitwidtht &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
 };
 
 #endif // CPROVER_GOTO_PROGRAMS_GOTO_CONVERT_CLASS_H

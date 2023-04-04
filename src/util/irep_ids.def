@@ -906,6 +906,7 @@ IREP_ID_ONE(binary_bitwidth_overflow)
 IREP_ID_ONE(unary_bitwidth_overflow)
 IREP_ID_ONE(assign_bitwidth)
 IREP_ID_ONE(nz_bitwidth)
+IREP_ID_ONE(cut_bitwidth)
 
 // Projects depending on this code base that wish to extend the list of
 // available ids should provide a file local_irep_ids.def in their source tree

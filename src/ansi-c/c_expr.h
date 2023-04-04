@@ -14,6 +14,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/std_code.h>
 
+#include <util/bitvector_types.h>
+
 #include <string>
 #include <utility>
 
@@ -560,6 +562,100 @@ inline nz_bitwidtht &to_nz_bitwidth(exprt &expr)
   PRECONDITION(
     side_effect_expr.get_statement() == ID_nz_bitwidth);
   return static_cast<nz_bitwidtht &>(side_effect_expr);
+}
+
+class cut_bitwidtht : public side_effect_exprt
+{
+public:
+  cut_bitwidtht(
+    exprt a,
+    const irep_idt &w,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_cut_bitwidth,
+        {std::move(a)},
+        empty_typet{},
+        loc)
+  {
+    set(ID_width, w);
+    type() = compute_type(op0(), w);
+  }
+
+  static typet compute_type(const exprt&a, const irep_idt &wstr){
+    size_t w = stoi(id2string(wstr));
+    const typet &tpA = a.type();
+    if(tpA.id() == ID_bool || tpA.id() == ID_c_bool)
+      return bool_typet{};
+    else if(const auto u = type_try_dynamic_cast<unsignedbv_typet>(tpA)){
+      if(u->get_width() <= w)
+        return tpA;
+      else
+        return unsignedbv_typet{w};
+    }
+    else if(const auto s = type_try_dynamic_cast<signedbv_typet>(tpA)){
+      if(s->get_width() <= w)
+        return tpA;
+      else
+        return signedbv_typet{w};
+    } else if(tpA.id() == ID_pointer){
+      return tpA;
+    }
+    UNREACHABLE;
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  size_t width()
+  {
+    return stoi(id2string(get(ID_width)));
+  }
+
+  const irep_idt &op() const
+  {
+    return get(ID_operator);
+  }
+};
+
+template <>
+inline bool can_cast_expr<cut_bitwidtht>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_cut_bitwidth;
+}
+
+/// \brief Cast an exprt to a \ref cut_bitwidtht
+///
+/// \a expr must be known to be \ref cut_bitwidtht.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref cut_bitwidtht
+inline const cut_bitwidtht &
+to_cut_bitwidth(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_cut_bitwidth);
+  return static_cast<const cut_bitwidtht &>(side_effect_expr);
+}
+
+/// \copydoc to_cut_bitwidth(const exprt &)
+inline cut_bitwidtht &to_cut_bitwidth(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_cut_bitwidth);
+  return static_cast<cut_bitwidtht &>(side_effect_expr);
 }
 
 /// \brief A class for an expression that indicates a history variable

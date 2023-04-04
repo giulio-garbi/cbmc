@@ -1917,6 +1917,9 @@ void c_typecheck_baset::typecheck_expr_side_effect(side_effect_exprt &expr)
   else if(statement==ID_nz_bitwidth){
 
   }
+  else if(statement==ID_cut_bitwidth){
+
+  }
   else
   {
     error().source_location = expr.source_location();
@@ -2056,7 +2059,7 @@ void c_typecheck_baset::binary_bitwidth_overflow_op(const irep_idt &opname, side
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[4].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2077,7 +2080,7 @@ void c_typecheck_baset::binary_bitwidth_overflow_only_op(const irep_idt &opname,
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[3].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2098,7 +2101,7 @@ void c_typecheck_baset::binary_bitwidth_no_overflow_op(const irep_idt &opname, s
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[3].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2119,7 +2122,7 @@ void c_typecheck_baset::unary_bitwidth_overflow_op(const irep_idt &opname, side_
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[3].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2141,7 +2144,7 @@ void c_typecheck_baset::unary_bitwidth_overflow_only_op(const irep_idt &opname, 
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[2].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2162,7 +2165,7 @@ void c_typecheck_baset::unary_bitwidth_no_overflow_op(const irep_idt &opname, si
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[2].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2183,7 +2186,7 @@ void c_typecheck_baset::assign_bitwidth_op(side_effect_expr_function_callt &expr
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[2].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2207,7 +2210,7 @@ void c_typecheck_baset::nz_bitwidth_op(side_effect_expr_function_callt &expr){
     throw 0;
   }
   for(auto &op : expr.arguments())
-    typecheck_expr(op);
+    typecheck_expr_main(op);
   if(!expr.arguments()[1].is_constant())
   {
     error().source_location = f_op.source_location();
@@ -2217,25 +2220,28 @@ void c_typecheck_baset::nz_bitwidth_op(side_effect_expr_function_callt &expr){
 
   auto nz = nz_bitwidtht{expr.arguments()[0], to_string(to_constant_expr(expr.arguments()[1])),f_op.source_location()};
   expr.swap(nz);
-/*
-  const size_t w = stoi(to_string(to_constant_expr(expr.arguments()[1])));
-  exprt rhs;
-  if(expr.arguments()[0].type().id() == ID_bool){
-    rhs = expr.arguments()[0];
-  } else if(expr.arguments()[0].type().id() == ID_c_bool){
-    const auto extract = extractbit_exprt{expr.arguments()[0],0};
-    rhs = notequal_exprt{extract, constant_exprt{"0", extract.type()}};
-  } else if (auto a_ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.arguments()[0].type())){
-    if(a_ibt->get_width() <= w)
-      rhs = notequal_exprt{expr.arguments()[0], constant_exprt{"0", expr.arguments()[0].type()}};
-    else
-      rhs = notequal_exprt{extractbits_exprt{expr.arguments()[0],w-1, 0, unsignedbv_typet{w}}, constant_exprt{"0", unsignedbv_typet{w}}};
-  } else {
-    UNREACHABLE;
+}
+
+void c_typecheck_baset::cut_bitwidth_op(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 2)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 2 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr_main(op);
+  if(!expr.arguments()[1].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "2nd argument must be a constant" << eom;
+    throw 0;
   }
 
-  expr.swap(rhs);
-  */
+  auto cut = cut_bitwidtht{expr.arguments()[0], to_string(to_constant_expr(expr.arguments()[1])),f_op.source_location()};
+  expr.swap(cut);
 }
 
 
@@ -2254,12 +2260,9 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
   // f_op is not yet typechecked, in contrast to the other arguments.
   // This is a big special case!
 
-  bool isCutExpr = false;
-
   if(f_op.id()==ID_symbol)
   {
     irep_idt identifier=to_symbol_expr(f_op).get_identifier();
-    isCutExpr = (identifier==CPROVER_PREFIX "cut_bits");
 
     asm_label_mapt::const_iterator entry=
       asm_label_map.find(identifier);
@@ -2403,6 +2406,10 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
         nz_bitwidth_op(expr);
         return;
       }
+      else if(identifier == CPROVER_PREFIX "cut_bits"){
+        cut_bitwidth_op(expr);
+        return;
+      }
       // Is this a builtin?
       else if(!builtin_factory(identifier, symbol_table, get_message_handler()))
       {
@@ -2533,8 +2540,6 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
            identifier=="valloc")
         {
           guessed_return_type = pointer_type(void_type()); // void *
-        } else if (identifier==CPROVER_PREFIX "nz_bits"){
-          guessed_return_type = bool_typet();
         }
 
         symbolt new_symbol{
@@ -2633,28 +2638,6 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
   else
   {
     typecheck_function_call_arguments(expr);
-    if(isCutExpr){
-      const size_t w = stoi(id2string(to_constant_expr(expr.arguments()[1]).get_value()));
-      const auto typeArgOrig = expr.arguments()[0].type();
-      if(typeArgOrig.id() == ID_bool){
-        expr.type() = typeArgOrig;
-      } else if(typeArgOrig.id() == ID_c_bool){
-        expr.type() = unsignedbv_typet{1};
-      } else
-      {
-        const auto typeArg = to_integer_bitvector_type(typeArgOrig);
-        if(typeArg.get_width() <= w)
-        {
-          expr.type() = typeArg;
-        }
-        else
-        {
-          expr.type() =
-            (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
-                                    : unsignedbv_typet{w});
-        }
-      }
-    }
   }
 }
 
