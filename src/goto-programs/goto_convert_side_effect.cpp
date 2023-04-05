@@ -806,12 +806,11 @@ code_assignt assignment(const exprt& lhs, const exprt& rhs, const size_t w){
                                              typecast_exprt{rhs,*lbt})};
       } else if(const auto rbt = type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
         PRECONDITION(lbt->get_width() == rbt->get_width());
-        /*if(*lbt == *rbt)
+        if(*lbt == *rbt)
           return code_assignt{lhs, rhs};
         else
-          return code_assignt{lhs, typecast_exprt{rhs, *lbt}};*/
-        return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
-                                           rhs)};
+          return code_assignt{lhs, typecast_exprt{rhs, *lbt}};
+        //return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},rhs)};
       } else
         UNHANDLED_CASE;
     } else {
