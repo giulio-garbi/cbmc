@@ -1288,10 +1288,12 @@ void goto_convertt::remove_cut_bitwidth(
   } else if(expr.a().type().id() == ID_c_bool){
     rhs = extractbit_exprt{expr.a(),0};
   } else if (auto a_ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.a().type())){
-    if(a_ibt->get_width() <= w)
+    if(a_ibt->get_width() <= w) {
       rhs = expr.a();
-    else
-      rhs = extractbits_exprt{expr.a(),w-1, 0, unsignedbv_typet{w}};
+    } else {
+      integer_bitvector_typet tw = a_ibt->smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w} : unsignedbv_typet{w};
+      rhs = extractbits_exprt{expr.a(), w - 1, 0, tw};
+    }
   } else if(expr.a().type().id() == ID_pointer){
     rhs = expr.a();
   } else {
