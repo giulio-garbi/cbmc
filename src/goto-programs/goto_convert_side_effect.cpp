@@ -1255,7 +1255,7 @@ void goto_convertt::remove_nz_bitwidth(
     rhs = expr.a();
   } else if(expr.a().type().id() == ID_c_bool){
     const auto extract = extractbit_exprt{expr.a(),0};
-    rhs = notequal_exprt{extract, constant_exprt{"0", extract.type()}};
+    rhs = notequal_exprt{extract, false_exprt{}};
   } else if (auto a_ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.a().type())){
     if(a_ibt->get_width() <= w)
       rhs = notequal_exprt{expr.a(), constant_exprt{"0", expr.a().type()}};
