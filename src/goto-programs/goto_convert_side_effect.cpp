@@ -420,8 +420,7 @@ void goto_convertt::remove_function_call(
           const auto new_type =
             (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
                                     : unsignedbv_typet{w});
-          auto x = extractbits_exprt{
-            expr.arguments()[0], new_type.get_width() - 1, 0, new_type};
+          auto x = make_byte_extract(expr.arguments()[0],constant_exprt{"0", unsignedbv_typet(1)}, new_type);
           expr.swap(x);
         }
       }
@@ -455,8 +454,7 @@ void goto_convertt::remove_function_call(
             (typeArg.smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w}
                                     : unsignedbv_typet{w});
           auto nz = notequal_exprt{
-            extractbits_exprt{
-              expr.arguments()[0], new_type.get_width() - 1, 0, new_type},
+            make_byte_extract(expr.arguments()[0],constant_exprt{"0", unsignedbv_typet(1)}, new_type),
             from_integer(0, new_type)};
           expr.swap(nz);
         }
@@ -712,14 +710,14 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
       if(expr_short){
         return typecast_exprt{expr, dest_type};
       } else {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, uw), dest_type};
       }
     } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
       bool dest_short = ud->get_width() <= w;
       if(!expr_short && !dest_short){
-        return extractbits_exprt{expr, w-1, 0, uw};
+        return make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, uw);
       } else if(!expr_short && dest_short) {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, uw), dest_type};
       } else if(expr_short && !dest_short) {
         return typecast_exprt{expr, uw};
       } else if(ue->get_width() != ud->get_width()){
@@ -730,9 +728,9 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
     } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
       bool dest_short = sd->get_width() <= w;
       if(!expr_short && !dest_short){
-        return extractbits_exprt{expr, w-1, 0, sw};
+        return make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, sw);
       } else if(!expr_short && dest_short) {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, sw), dest_type};
       } else if(expr_short && !dest_short) {
         return typecast_exprt{expr, sw};
       } else{
@@ -746,14 +744,14 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
       if(expr_short){
         return typecast_exprt{expr, dest_type};
       } else {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, sw), dest_type};
       }
     } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
       bool dest_short = ud->get_width() <= w;
       if(!expr_short && !dest_short){
-        return extractbits_exprt{expr, w-1, 0, uw};
+        return make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, uw);
       } else if(!expr_short) {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, uw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, uw), dest_type};
       } else if(!dest_short) {
         return typecast_exprt{expr, uw};
       } else {
@@ -762,9 +760,9 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
     } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
       bool dest_short = sd->get_width() <= w;
       if(!expr_short && !dest_short){
-        return extractbits_exprt{expr, w-1, 0, sw};
+        return make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, sw);
       } else if(!expr_short) {
-        return typecast_exprt{extractbits_exprt{expr, w-1, 0, sw}, dest_type};
+        return typecast_exprt{make_byte_extract(expr,constant_exprt{"0", unsignedbv_typet(1)}, sw), dest_type};
       } else if(!dest_short) {
         return typecast_exprt{expr, sw};
       } else if(se->get_width() != sd->get_width()){
@@ -1213,7 +1211,7 @@ void goto_convertt::remove_assign_bitwidth(
     if(a_ibt->get_width() <= w)
       rhs_data = a;
     else
-      rhs_data = extractbits_exprt{a,w-1, 0, unsignedbv_typet{w}};
+      rhs_data = make_byte_extract(a,constant_exprt{"0", unsignedbv_typet(1)}, unsignedbv_typet{w});
   } else {
     UNREACHABLE;
   }
@@ -1259,7 +1257,7 @@ void goto_convertt::remove_nz_bitwidth(
     if(a_ibt->get_width() <= w)
       rhs = notequal_exprt{expr.a(), constant_exprt{"0", expr.a().type()}};
     else
-      rhs = notequal_exprt{extractbits_exprt{expr.a(),w-1, 0, unsignedbv_typet{w}}, constant_exprt{"0", unsignedbv_typet{w}}};
+      rhs = notequal_exprt{make_byte_extract(expr.a(),constant_exprt{"0", unsignedbv_typet(1)}, unsignedbv_typet{w}), constant_exprt{"0", unsignedbv_typet{w}}};
   } else {
     UNREACHABLE;
   }
@@ -1291,7 +1289,7 @@ void goto_convertt::remove_cut_bitwidth(
       rhs = expr.a();
     } else {
       integer_bitvector_typet tw = a_ibt->smallest() < 0 ? (integer_bitvector_typet)signedbv_typet{w} : unsignedbv_typet{w};
-      rhs = extractbits_exprt{expr.a(), w - 1, 0, tw};
+      rhs = make_byte_extract(expr.a(),constant_exprt{"0", unsignedbv_typet(1)}, tw);
     }
   } else if(expr.a().type().id() == ID_pointer){
     rhs = expr.a();
