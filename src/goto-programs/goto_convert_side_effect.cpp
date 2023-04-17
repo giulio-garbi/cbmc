@@ -644,14 +644,14 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
       if(expr_short){
         return typecast_exprt::conditional_cast(expr, dest_type);
       } else {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, uw), dest_type);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, uw), dest_type);
       }
     } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
       bool dest_short = ud->get_width() <= w;
       if(!expr_short && !dest_short){
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, uw), uw);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, uw), uw);
       } else if(!expr_short && dest_short) {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, uw), dest_type);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, uw), dest_type);
       } else if(expr_short && !dest_short) {
         return typecast_exprt::conditional_cast(expr, uw);
       } else if(ue->get_width() != ud->get_width()){
@@ -662,9 +662,9 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
     } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
       bool dest_short = sd->get_width() <= w;
       if(!expr_short && !dest_short){
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, sw), sw);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, sw), sw);
       } else if(!expr_short && dest_short) {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, sw), dest_type);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, sw), dest_type);
       } else if(expr_short && !dest_short) {
         return typecast_exprt::conditional_cast(expr, sw);
       } else{
@@ -678,14 +678,14 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
       if(expr_short){
         return typecast_exprt::conditional_cast(expr, dest_type);
       } else {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, sw), dest_type);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, sw), dest_type);
       }
     } else if(const auto ud = type_try_dynamic_cast<unsignedbv_typet>(dest_type)){
       bool dest_short = ud->get_width() <= w;
       if(!expr_short && !dest_short){
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, uw), uw);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, uw), uw);
       } else if(!expr_short) {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, uw), dest_type);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, uw), dest_type);
       } else if(!dest_short) {
         return typecast_exprt::conditional_cast(expr, uw);
       } else {
@@ -694,9 +694,10 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
     } else if(const auto sd = type_try_dynamic_cast<signedbv_typet>(dest_type)){
       bool dest_short = sd->get_width() <= w;
       if(!expr_short && !dest_short){
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, sw), sw);
+        return typecast_exprt::conditional_cast(make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, sw), sw);
       } else if(!expr_short) {
-        return typecast_exprt::conditional_cast(extractbits_exprt(expr,w-1,0, sw), dest_type);
+        return typecast_exprt::conditional_cast(
+          make_byte_extract(expr, constant_exprt{"0", unsignedbv_typet{1}}, sw), dest_type);
       } else if(!dest_short) {
         return typecast_exprt::conditional_cast(expr, sw);
       } else if(se->get_width() != sd->get_width()){
@@ -1179,7 +1180,7 @@ void goto_convertt::remove_assign_bitwidth(
     {
       const auto tp = a_ibt->smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w};
       rhs_data = typecast_exprt::conditional_cast(
-        extractbits_exprt(a, w - 1, 0, tp),
+        make_byte_extract(a, constant_exprt{"0", unsignedbv_typet{1}}, tp),
         tp);
     }
   } else {
@@ -1194,8 +1195,9 @@ void goto_convertt::remove_assign_bitwidth(
     expr.make_nil();
   } else if (auto c_ibt = type_try_dynamic_cast<integer_bitvector_typet>(c.type())){
     auto lhs_type = (c_ibt->get_width() <= w)?c.type():(c_ibt->smallest()<0?(integer_bitvector_typet)signedbv_typet{w}:unsignedbv_typet{w});
-    auto rhs = (c_ibt->get_width() <= w)?(exprt)typecast_exprt::conditional_cast(rhs_data, lhs_type):make_byte_update(c, constant_exprt{"0", unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs_data, lhs_type));
-    auto assn = code_assignt{c, rhs};
+    auto rhs = (c_ibt->get_width() <= w)?(exprt)typecast_exprt::conditional_cast(rhs_data, lhs_type):rhs_data;//make_byte_update(c, constant_exprt{"0", unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs_data, lhs_type));
+    auto lhs = (c_ibt->get_width() <= w)?c:make_byte_extract(c, constant_exprt{"0", unsignedbv_typet{1}}, rhs_data.type());
+    auto assn = code_assignt{lhs, rhs};
     assn.add_source_location() = expr.source_location();
     convert_assign(assn, dest, mode);
     expr.make_nil();
@@ -1233,7 +1235,7 @@ void goto_convertt::remove_nz_bitwidth(
     if(a_ibt->get_width() <= w)
       rhs = notequal_exprt{expr.a(), constant_exprt{"0", expr.a().type()}};
     else
-      rhs = notequal_exprt{extractbits_exprt(expr.a(),w-1,0, unsignedbv_typet{w}), constant_exprt{"0", unsignedbv_typet{w}}};
+      rhs = notequal_exprt{make_byte_extract(expr.a(), constant_exprt{"0", unsignedbv_typet{1}}, unsignedbv_typet{w}), constant_exprt{"0", unsignedbv_typet{w}}};
   } else {
     UNREACHABLE;
   }
@@ -1265,7 +1267,7 @@ void goto_convertt::remove_cut_bitwidth(
       rhs = expr.a();
     } else {
       typet tw = a_ibt->smallest() < 0 ? (typet)signedbv_typet{w} : unsignedbv_typet{w};
-      rhs = typecast_exprt::conditional_cast(extractbits_exprt(expr.a(),w-1,0, tw), tw);
+      rhs = typecast_exprt::conditional_cast(make_byte_extract(expr.a(), constant_exprt{"0", unsignedbv_typet{1}}, tw), tw);
     }
   } else if(expr.a().type().id() == ID_pointer){
     rhs = expr.a();
