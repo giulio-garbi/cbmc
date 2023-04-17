@@ -1920,6 +1920,12 @@ void c_typecheck_baset::typecheck_expr_side_effect(side_effect_exprt &expr)
   else if(statement==ID_cut_bitwidth){
 
   }
+  else if(statement==ID_unsigned_cmp_bitwidth){
+
+  }
+  else if(statement==ID_myor){
+
+  }
   else
   {
     error().source_location = expr.source_location();
@@ -2222,6 +2228,43 @@ void c_typecheck_baset::nz_bitwidth_op(side_effect_expr_function_callt &expr){
   expr.swap(nz);
 }
 
+void c_typecheck_baset::unsigned_cmp_bitwidth_op(const irep_idt &opname, side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 3)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected 3 arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr_main(op);
+  if(!expr.arguments()[2].is_constant())
+  {
+    error().source_location = f_op.source_location();
+    error() << "3rd argument must be a constant" << eom;
+    throw 0;
+  }
+
+  auto ucb = unsigned_cmp_bitwidtht{expr.arguments()[0], opname, expr.arguments()[1], to_string(to_constant_expr(expr.arguments()[2])),f_op.source_location()};
+  expr.swap(ucb);
+}
+
+void c_typecheck_baset::myor(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() < 1)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected at least one argument but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr_main(op);
+  auto orexp = myort{expr.arguments(), expr.source_location()};
+  expr.swap(orexp);
+}
+
 void c_typecheck_baset::cut_bitwidth_op(side_effect_expr_function_callt &expr){
   auto &f_op = expr.function();
   if(expr.arguments().size() != 2)
@@ -2408,6 +2451,26 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
       }
       else if(identifier == CPROVER_PREFIX "cut_bits"){
         cut_bitwidth_op(expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "ult_bits"){
+        unsigned_cmp_bitwidth_op(ID_lt, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "ugt_bits"){
+        unsigned_cmp_bitwidth_op(ID_gt, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "ule_bits"){
+        unsigned_cmp_bitwidth_op(ID_le, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "uge_bits"){
+        unsigned_cmp_bitwidth_op(ID_ge, expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "myor"){
+        myor(expr);
         return;
       }
       // Is this a builtin?

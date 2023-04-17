@@ -523,11 +523,6 @@ public:
   {
     return stoi(id2string(get(ID_width)));
   }
-
-  const irep_idt &op() const
-  {
-    return get(ID_operator);
-  }
 };
 
 template <>
@@ -562,6 +557,90 @@ inline nz_bitwidtht &to_nz_bitwidth(exprt &expr)
   PRECONDITION(
     side_effect_expr.get_statement() == ID_nz_bitwidth);
   return static_cast<nz_bitwidtht &>(side_effect_expr);
+}
+
+class unsigned_cmp_bitwidtht : public side_effect_exprt
+{
+public:
+  unsigned_cmp_bitwidtht(
+    exprt a,
+    const irep_idt& op,
+    exprt b,
+    const irep_idt &w,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_unsigned_cmp_bitwidth,
+        {std::move(a), std::move(b)},
+        bool_typet{},
+        loc)
+  {
+    set(ID_width, w);
+    set(ID_operator, op);
+  }
+
+  exprt &a()
+  {
+    return op0();
+  }
+
+  const exprt &a() const
+  {
+    return op0();
+  }
+
+  exprt &b()
+  {
+    return op1();
+  }
+
+  const exprt &b() const
+  {
+    return op1();
+  }
+
+  size_t width()
+  {
+    return stoi(id2string(get(ID_width)));
+  }
+
+  const irep_idt &op() const
+  {
+    return get(ID_operator);
+  }
+};
+
+template <>
+inline bool can_cast_expr<unsigned_cmp_bitwidtht>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_unsigned_cmp_bitwidth;
+}
+
+/// \brief Cast an exprt to a \ref unsigned_cmp_bitwidtht
+///
+/// \a expr must be known to be \ref unsigned_cmp_bitwidtht.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref unsigned_cmp_bitwidtht
+inline const unsigned_cmp_bitwidtht &
+to_unsigned_cmp_bitwidth(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_unsigned_cmp_bitwidth);
+  return static_cast<const unsigned_cmp_bitwidtht &>(side_effect_expr);
+}
+
+/// \copydoc to_unsigned_cmp_bitwidth(const exprt &)
+inline unsigned_cmp_bitwidtht &to_unsigned_cmp_bitwidth(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_unsigned_cmp_bitwidth);
+  return static_cast<unsigned_cmp_bitwidtht &>(side_effect_expr);
 }
 
 class cut_bitwidtht : public side_effect_exprt
@@ -617,11 +696,6 @@ public:
   {
     return stoi(id2string(get(ID_width)));
   }
-
-  const irep_idt &op() const
-  {
-    return get(ID_operator);
-  }
 };
 
 template <>
@@ -656,6 +730,54 @@ inline cut_bitwidtht &to_cut_bitwidth(exprt &expr)
   PRECONDITION(
     side_effect_expr.get_statement() == ID_cut_bitwidth);
   return static_cast<cut_bitwidtht &>(side_effect_expr);
+}
+
+class myort : public side_effect_exprt
+{
+public:
+  myort(
+    const operandst& ops,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_myor,
+        ops,
+        bool_typet{},
+        loc)
+  {}
+};
+
+template <>
+inline bool can_cast_expr<myort>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_myor;
+}
+
+/// \brief Cast an exprt to a \ref myort
+///
+/// \a expr must be known to be \ref myort.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref myort
+inline const myort &
+to_myor(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_myor);
+  return static_cast<const myort &>(side_effect_expr);
+}
+
+/// \copydoc to_myor(const exprt &)
+inline myort &to_myor(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_myor);
+  return static_cast<myort &>(side_effect_expr);
 }
 
 /// \brief A class for an expression that indicates a history variable

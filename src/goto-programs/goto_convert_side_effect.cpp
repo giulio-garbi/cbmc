@@ -710,47 +710,47 @@ exprt cast_or_cut(const exprt &expr, const typet& dest_type, std::size_t w){
     UNHANDLED_CASE;
 }
 
-code_assignt assignment(const exprt& lhs, const exprt& rhs, const size_t w){
+code_assignt assignment(const exprt& lhs, const exprt& rhs, const size_t w, const source_locationt& sourceLocation){
   if(type_try_dynamic_cast<bool_typet>(lhs.type())){
     if(type_try_dynamic_cast<bool_typet>(rhs.type())){
-      return code_assignt{lhs, rhs};
+      return {lhs, rhs, sourceLocation};
     } else if(type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
-      return code_assignt{lhs,
-                          notequal_exprt{rhs, constant_exprt{"0",rhs.type()}}};
+      return {lhs, notequal_exprt{rhs, constant_exprt{"0",rhs.type()}}, sourceLocation};
     } else
       UNHANDLED_CASE;
   } else if(type_try_dynamic_cast<c_bool_typet>(lhs.type())){
     if(type_try_dynamic_cast<bool_typet>(rhs.type())){
-      return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs, unsignedbv_typet{1}))};
+      return {lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs, unsignedbv_typet{1})), sourceLocation};
     } else if(type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
-      return code_assignt{lhs,
+      return {lhs,
                           make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
                                            typecast_exprt::conditional_cast(
                                              notequal_exprt{rhs, constant_exprt{"0",rhs.type()}},
-                                             unsignedbv_typet{1}))};
+                                             unsignedbv_typet{1})), sourceLocation};
     } else
       UNHANDLED_CASE;
   } else if(const auto lbt = type_try_dynamic_cast<integer_bitvector_typet>(lhs.type())){
     if(lbt->get_width() <= w){
       if(type_try_dynamic_cast<bool_typet>(rhs.type())){
-        return code_assignt{lhs,
+        return {lhs,
                             make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
-                                             typecast_exprt::conditional_cast(rhs,lhs.type()))};
+                                             typecast_exprt::conditional_cast(rhs,lhs.type())),
+        sourceLocation};
       } else if(const auto rbt = type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
         PRECONDITION(lbt->get_width() == rbt->get_width());
-        return code_assignt{lhs, typecast_exprt::conditional_cast(rhs, lhs.type())};
+        return {lhs, typecast_exprt::conditional_cast(rhs, lhs.type()), sourceLocation};
       } else
         UNHANDLED_CASE;
     } else {
       auto wtype = lbt->smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w};
       if(type_try_dynamic_cast<bool_typet>(rhs.type())){
-        return code_assignt{lhs,
+        return {lhs,
                             make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
-                                             typecast_exprt::conditional_cast(rhs,wtype))};
+                                             typecast_exprt::conditional_cast(rhs,wtype)), sourceLocation};
       } else if(const auto rbt = type_try_dynamic_cast<integer_bitvector_typet>(rhs.type())){
         PRECONDITION(wtype.get_width() == rbt->get_width());
-        return code_assignt{lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
-                                                  rhs)};
+        return {lhs, make_byte_update(lhs, constant_exprt{"0",unsignedbv_typet{1}},
+                                                  rhs), sourceLocation};
       } else
         UNHANDLED_CASE;
     }
@@ -874,7 +874,7 @@ void goto_convertt::unaryop_bool(const irep_idt op, const exprt &a, const option
   }
 }
 
-void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode){
+void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode, const source_locationt& sourceLocation){
   //todo add locations e.g. overflow_with_result.add_source_location() = expr.source_location();
   //todo expression without of
   const size_t width_a = (a.type().id() == ID_bool || a.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(a.type()).get_width();
@@ -892,11 +892,12 @@ void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const option
     if(abstr_dest && has_of_defined){
       exprt overflow_with_result = overflow_result_exprt{
         cast_or_cut(a, type, w), op};
+      overflow_with_result.add_source_location() = sourceLocation;
       make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
       const struct_typet::componentst &result_comps =
         to_struct_type(overflow_with_result.type()).components();
       CHECK_RETURN(result_comps.size() == 2);
-      if(dest_deref) convert_assign(assignment(*dest_deref, member_exprt{overflow_with_result, result_comps[0]}, w), dest, mode);
+      if(dest_deref) convert_assign(assignment(*dest_deref, member_exprt{overflow_with_result, result_comps[0]}, w, sourceLocation), dest, mode);
       if(sign_dest)
       {
         if(of_deref) convert_assign(
@@ -905,20 +906,20 @@ void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const option
               or_exprt{
                 member_exprt{overflow_with_result, result_comps[1]},
                 extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w - 1}},
-              w),
+              w, sourceLocation),
             dest,
             mode);
       } else
       {
         if(of_deref) convert_assign(
             assignment(
-              *of_deref, member_exprt{overflow_with_result, result_comps[1]}, w),
+              *of_deref, member_exprt{overflow_with_result, result_comps[1]}, w, sourceLocation),
             dest,
             mode);
       }
     } else {
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(unary_exprt{op, cast_or_cut(a, type, w)}, dest_deref->type(), w), w), dest, mode);
-      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(unary_exprt{op, cast_or_cut(a, type, w)}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w, sourceLocation), dest, mode);
     }
   } else {
     if(abstr_dest && has_of_defined){
@@ -926,34 +927,36 @@ void goto_convertt::unary_op_int(const irep_idt op, const exprt &a, const option
         const auto type = signedbv_typet{w};
         const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
         exprt overflow_with_result = overflow_result_exprt{cast_a, op};
+        overflow_with_result.add_source_location() = sourceLocation;
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
         CHECK_RETURN(result_comps.size() == 2);
-        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
-        if(of_deref) convert_assign(assignment(*of_deref, member_exprt{overflow_with_result, result_comps[1]}, w), dest, mode);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, member_exprt{overflow_with_result, result_comps[1]}, w, sourceLocation), dest, mode);
       } else {
         const auto type = signedbv_typet{w+1};
         const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
         exprt overflow_with_result = overflow_result_exprt{cast_a, op};
+        overflow_with_result.add_source_location() = sourceLocation;
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
         CHECK_RETURN(result_comps.size() == 2);
-        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
-        if(of_deref) convert_assign(assignment(*of_deref, or_exprt{member_exprt{overflow_with_result, result_comps[1]}, extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w}}, w), dest, mode);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, or_exprt{member_exprt{overflow_with_result, result_comps[1]}, extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w}}, w, sourceLocation), dest, mode);
       }
     } else {
       const auto wtype = std::min(std::max(width_a, width_dest), w);
       const auto type = signedbv_typet{wtype};
       const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(unary_exprt{op,cast_a}, dest_deref->type(), w), w), dest, mode);
-      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(unary_exprt{op,cast_a}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w, sourceLocation), dest, mode);
     }
   }
 }
 
-void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const exprt &b, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode){
+void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const exprt &b, const optionalt<exprt> &dest_deref, const optionalt<exprt> &of_deref, const size_t w, goto_programt &dest, const irep_idt &mode, const source_locationt& sourceLocation){
   //todo add locations e.g. overflow_with_result.add_source_location() = expr.source_location();
   //todo expression without of
   const size_t width_a = (a.type().id() == ID_bool || a.type().id() == ID_c_bool) ? 1 : to_integer_bitvector_type(a.type()).get_width();
@@ -971,59 +974,62 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
   if(!sign_a && !sign_b){
     const auto wtype = std::max(std::max(width_a, width_b), width_dest);
     const auto type = unsignedbv_typet{wtype};
-    if(abstr_dest && has_of_defined){
+    if(abstr_dest && has_of_defined && of_deref){
       exprt overflow_with_result = overflow_result_exprt{
         cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)};
+      overflow_with_result.add_source_location() = sourceLocation;
       make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
       const struct_typet::componentst &result_comps =
         to_struct_type(overflow_with_result.type()).components();
       CHECK_RETURN(result_comps.size() == 2);
-      if(dest_deref) convert_assign(assignment(*dest_deref, member_exprt{overflow_with_result, result_comps[0]}, w), dest, mode);
+      if(dest_deref) convert_assign(assignment(*dest_deref, member_exprt{overflow_with_result, result_comps[0]}, w, sourceLocation), dest, mode);
       if(sign_dest)
       {
-        if(of_deref) convert_assign(
+        /*if(of_deref)*/ convert_assign(
           assignment(
             *of_deref,
             or_exprt{
               member_exprt{overflow_with_result, result_comps[1]},
               extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w - 1}},
-            w),
+            w,
+            sourceLocation),
           dest,
           mode);
       } else
       {
-        if(of_deref) convert_assign(
+        /*if(of_deref)*/ convert_assign(
           assignment(
-            *of_deref, member_exprt{overflow_with_result, result_comps[1]}, w),
+            *of_deref, member_exprt{overflow_with_result, result_comps[1]}, w, sourceLocation),
           dest,
           mode);
       }
     } else {
-      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
-      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w), dest, mode);
-      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_or_cut(a, type, w), op, cast_or_cut(b, type, w)}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w, sourceLocation), dest, mode);
     }
-  } if (!(sign_a && sign_b)) {
+  } else if (!(sign_a && sign_b)) {
     const auto wtype = std::max(std::max(std::min(width_a, w) + !sign_a, std::min(width_b, w) + !sign_b), std::min(width_dest, w) + !sign_dest);
     const auto type = signedbv_typet{wtype};
     const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
     const auto cast_b = typecast_exprt::conditional_cast(cast_or_cut(b, b.type(), w), type);
-    if(abstr_dest && has_of_defined){
+    if(abstr_dest && has_of_defined && of_deref){
       exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+      overflow_with_result.add_source_location() = sourceLocation;
       make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
       const struct_typet::componentst &result_comps =
         to_struct_type(overflow_with_result.type()).components();
       CHECK_RETURN(result_comps.size() == 2);
-      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
+      if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w, sourceLocation), dest, mode);
       if(sign_dest){
         const auto of_ans = member_exprt{overflow_with_result, result_comps[1]};
         if(type.get_width() > w){
           const auto sign_ans = notequal_exprt{extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]},w},
                                                extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]},w-1}};
           const auto of_total = or_exprt{sign_ans, of_ans};
-          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+          /*if(of_deref)*/ convert_assign(assignment(*of_deref, of_total, w, sourceLocation), dest, mode);
         } else {
-          if(of_deref) convert_assign(assignment(*of_deref, of_ans, w), dest, mode);
+          /*if(of_deref)*/ convert_assign(assignment(*of_deref, of_ans, w, sourceLocation), dest, mode);
         }
       } else {
         const auto of_ans = member_exprt{overflow_with_result, result_comps[1]};
@@ -1034,20 +1040,20 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
               member_exprt{overflow_with_result, result_comps[0]}, w},
             bool_typet{});
           const auto of_total = or_exprt{sign_ans, of_ans};
-          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+          if(of_deref) convert_assign(assignment(*of_deref, of_total, w, sourceLocation), dest, mode);
         } else {
           const auto sign_ans = typecast_exprt::conditional_cast(
             extractbit_exprt{
               member_exprt{overflow_with_result, result_comps[0]}, w-1},
             bool_typet{});
           const auto of_total = or_exprt{sign_ans, of_ans};
-          if(of_deref) convert_assign(assignment(*of_deref, of_total, w), dest, mode);
+          if(of_deref) convert_assign(assignment(*of_deref, of_total, w, sourceLocation), dest, mode);
         }
       }
     } else {
-      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
-      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
-      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w, sourceLocation), dest, mode);
     }
   } else {
     if(abstr_dest && has_of_defined){
@@ -1056,33 +1062,43 @@ void goto_convertt::binary_op_with_int(const exprt &a, const irep_idt op, const 
         const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
         const auto cast_b = typecast_exprt::conditional_cast(cast_or_cut(b, b.type(), w), type);
         exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+        overflow_with_result.add_source_location() = sourceLocation;
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
         CHECK_RETURN(result_comps.size() == 2);
-        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
-        if(of_deref) convert_assign(assignment(*of_deref, member_exprt{overflow_with_result, result_comps[1]}, w), dest, mode);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, member_exprt{overflow_with_result, result_comps[1]}, w, sourceLocation), dest, mode);
       } else {
         const auto type = signedbv_typet{w+1};
         const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
         const auto cast_b = typecast_exprt::conditional_cast(cast_or_cut(b, b.type(), w), type);
         exprt overflow_with_result = overflow_result_exprt{cast_a, op, cast_b};
+        overflow_with_result.add_source_location() = sourceLocation;
         make_temp_symbol(overflow_with_result, "overflow_result", dest, mode);
         const struct_typet::componentst &result_comps =
           to_struct_type(overflow_with_result.type()).components();
         CHECK_RETURN(result_comps.size() == 2);
-        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w), dest, mode);
-        if(of_deref) convert_assign(assignment(*of_deref, or_exprt{member_exprt{overflow_with_result, result_comps[1]}, extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w}}, w), dest, mode);
+        if(dest_deref) convert_assign(assignment(*dest_deref, cast_or_cut(member_exprt{overflow_with_result, result_comps[0]}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+        if(of_deref) convert_assign(assignment(*of_deref, or_exprt{member_exprt{overflow_with_result, result_comps[1]}, extractbit_exprt{member_exprt{overflow_with_result, result_comps[0]}, w}}, w, sourceLocation), dest, mode);
       }
     } else {
       const auto wtype = std::min(std::max(std::max(width_a, width_b), width_dest), w);
       const auto type = signedbv_typet{wtype};
       const auto cast_a = typecast_exprt::conditional_cast(cast_or_cut(a, a.type(), w), type);
       const auto cast_b = typecast_exprt::conditional_cast(cast_or_cut(b, b.type(), w), type);
-      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
-      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w), dest, mode);
-      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w), dest, mode);
+      if(dest_deref && !is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(dest_deref && is_relational) convert_assign(assignment(*dest_deref, cast_or_cut(binary_relation_exprt{cast_a, op, cast_b}, dest_deref->type(), w), w, sourceLocation), dest, mode);
+      if(of_deref) convert_assign(assignment(*of_deref, constant_exprt{"0", unsignedbv_typet{1}}, w, sourceLocation), dest, mode);
     }
+  }
+}
+
+exprt do_deref(const exprt& expr){
+  if(const auto aoe = expr_try_dynamic_cast<address_of_exprt>(expr)){
+    return aoe->object();
+  } else {
+    return dereference_exprt{expr};
   }
 }
 
@@ -1104,8 +1120,8 @@ void goto_convertt::remove_binary_bitwidth_overflow(
     const auto type_a = expr.a().type();
     const auto type_b = expr.b().type();
     const auto w = expr.width();
-    const optionalt<exprt> dest_deref = read_dest?optionalt<exprt>{dereference_exprt(expr.dest())}:optionalt<exprt>{};
-    const optionalt<exprt> of_deref = read_of?optionalt<exprt>{dereference_exprt(expr.of())}:optionalt<exprt>{};
+    const optionalt<exprt> dest_deref = read_dest?optionalt<exprt>{do_deref(expr.dest())}:optionalt<exprt>{};
+    const optionalt<exprt> of_deref = read_of?optionalt<exprt>{do_deref(expr.of())}:optionalt<exprt>{};
 
     if((type_a.id() == ID_bool || type_a.id() == ID_c_bool) &&
        (type_b.id() == ID_bool || type_b.id() == ID_c_bool)){
@@ -1115,11 +1131,30 @@ void goto_convertt::remove_binary_bitwidth_overflow(
       expr.make_nil();
       return;
     } else {
-      binary_op_with_int(expr.a(), expr.op(), expr.b(), dest_deref, of_deref, expr.width(), dest, mode);
+      binary_op_with_int(expr.a(), expr.op(), expr.b(), dest_deref, of_deref, expr.width(), dest, mode, expr.source_location());
       expr.make_nil();
       return;
     }
   }
+}
+
+void goto_convertt::remove_unsigned_cmp_bitwidth(
+  unsigned_cmp_bitwidtht &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode){
+  clean_expr(expr.a(), dest, mode, result_is_used);
+  clean_expr(expr.b(), dest, mode, result_is_used);
+  if(!result_is_used)
+  {
+    expr.make_nil();
+    return ;
+  }
+  const typet tp = unsignedbv_typet{expr.width()};
+  const auto a_cast = cast_or_cut(expr.a(), tp, expr.width());
+  const auto b_cast = cast_or_cut(expr.b(), tp, expr.width());
+  auto bre = binary_relation_exprt{a_cast, expr.op(), b_cast};
+  expr.swap(bre);
 }
 
 void goto_convertt::remove_assign_bitwidth(
@@ -1141,22 +1176,33 @@ void goto_convertt::remove_assign_bitwidth(
     if(a_ibt->get_width() <= w)
       rhs_data = a;
     else
-      rhs_data = typecast_exprt::conditional_cast( extractbits_exprt(a,w-1,0, unsignedbv_typet{w}), unsignedbv_typet{w});
+    {
+      const auto tp = a_ibt->smallest() < 0 ? (integer_bitvector_typet) signedbv_typet{w} : unsignedbv_typet{w};
+      rhs_data = typecast_exprt::conditional_cast(
+        extractbits_exprt(a, w - 1, 0, tp),
+        tp);
+    }
   } else {
     UNREACHABLE;
   }
 
   if(c.type().id() == ID_bool || c.type().id() == ID_c_bool){
     auto rhs = make_byte_update(c, constant_exprt{"0", unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs_data, bool_typet{}));
-    convert_assign(code_assignt{c, rhs}, dest, mode);
+    auto assn = code_assignt{c, rhs};
+    assn.add_source_location() = expr.source_location();
+    convert_assign(assn, dest, mode);
     expr.make_nil();
   } else if (auto c_ibt = type_try_dynamic_cast<integer_bitvector_typet>(c.type())){
     auto lhs_type = (c_ibt->get_width() <= w)?c.type():(c_ibt->smallest()<0?(integer_bitvector_typet)signedbv_typet{w}:unsignedbv_typet{w});
     auto rhs = (c_ibt->get_width() <= w)?(exprt)typecast_exprt::conditional_cast(rhs_data, lhs_type):make_byte_update(c, constant_exprt{"0", unsignedbv_typet{1}}, typecast_exprt::conditional_cast(rhs_data, lhs_type));
-    convert_assign(code_assignt{c, rhs}, dest, mode);
+    auto assn = code_assignt{c, rhs};
+    assn.add_source_location() = expr.source_location();
+    convert_assign(assn, dest, mode);
     expr.make_nil();
   } else if (c.type().id() == ID_pointer){
-    convert_assign(code_assignt{c, typecast_exprt::conditional_cast(a, c.type())}, dest, mode);
+    auto assn = code_assignt{c, typecast_exprt::conditional_cast(a, c.type())};
+    assn.add_source_location() = expr.source_location();
+    convert_assign(assn, dest, mode);
     expr.make_nil();
   } else {
     UNREACHABLE;
@@ -1246,8 +1292,8 @@ void goto_convertt::remove_unary_bitwidth_overflow(
   } else {
     const auto type_a = expr.a().type();
     const auto w = expr.width();
-    const optionalt<exprt> dest_deref = read_dest?optionalt<exprt>{dereference_exprt(expr.dest())}:optionalt<exprt>{};
-    const optionalt<exprt> of_deref = read_of?optionalt<exprt>{dereference_exprt(expr.of())}:optionalt<exprt>{};
+    const optionalt<exprt> dest_deref = read_dest?optionalt<exprt>{do_deref(expr.dest())}:optionalt<exprt>{};
+    const optionalt<exprt> of_deref = read_of?optionalt<exprt>{do_deref(expr.of())}:optionalt<exprt>{};
 
     if(type_a.id() == ID_bool || type_a.id() == ID_c_bool){
       const auto expr_a = cast_or_cut(expr.a(), bool_typet{}, w);
@@ -1255,11 +1301,27 @@ void goto_convertt::remove_unary_bitwidth_overflow(
       expr.make_nil();
       return;
     } else {
-      unary_op_int(expr.op(), expr.a(), dest_deref, of_deref, expr.width(), dest, mode);
+      unary_op_int(expr.op(), expr.a(), dest_deref, of_deref, expr.width(), dest, mode, expr.source_location());
       expr.make_nil();
       return;
     }
   }
+}
+
+void goto_convertt::remove_myor(
+  myort &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode)
+{
+  for(auto &op : expr.operands())
+    clean_expr(op, dest, mode, result_is_used);
+  if(!result_is_used){
+    expr.make_nil();
+    return;
+  }
+  auto orexp = or_exprt{expr.operands()};
+  expr.swap(orexp);
 }
 
 void goto_convertt::remove_overflow(
@@ -1428,6 +1490,16 @@ void goto_convertt::remove_side_effect(
   {
     remove_cut_bitwidth(
       to_cut_bitwidth(expr), dest, result_is_used, mode);
+  }
+  else if(statement == ID_unsigned_cmp_bitwidth)
+  {
+    remove_unsigned_cmp_bitwidth(
+      to_unsigned_cmp_bitwidth(expr), dest, result_is_used, mode);
+  }
+  else if(statement == ID_myor)
+  {
+    remove_myor(
+      to_myor(expr), dest, result_is_used, mode);
   }
   else
   {

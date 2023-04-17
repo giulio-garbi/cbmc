@@ -722,7 +722,8 @@ protected:
     const optionalt<exprt> &of_deref,
     const size_t w,
     goto_programt &dest,
-    const irep_idt &mode);
+    const irep_idt &mode,
+    const source_locationt& sourceLocation);
   void remove_unary_bitwidth_overflow(
     unary_bitwidth_overflowt &expr,
     goto_programt &dest,
@@ -743,7 +744,8 @@ protected:
     const optionalt<exprt> &of_deref,
     const size_t w,
     goto_programt &dest,
-    const irep_idt &mode);
+    const irep_idt &mode,
+    const source_locationt& sourceLocation);
   void remove_assign_bitwidth(
     assign_bitwidtht &expr,
     goto_programt &dest,
@@ -756,6 +758,16 @@ protected:
     const irep_idt &mode);
   void remove_cut_bitwidth(
     cut_bitwidtht &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
+  void remove_unsigned_cmp_bitwidth(
+    unsigned_cmp_bitwidtht &expr,
+    goto_programt &dest,
+    bool result_is_used,
+    const irep_idt &mode);
+  void remove_myor(
+    myort &expr,
     goto_programt &dest,
     bool result_is_used,
     const irep_idt &mode);

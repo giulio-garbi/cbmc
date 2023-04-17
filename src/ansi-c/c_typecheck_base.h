@@ -338,6 +338,10 @@ protected:
   void assign_bitwidth_op(side_effect_expr_function_callt &expr);
   void nz_bitwidth_op(side_effect_expr_function_callt &expr);
   void cut_bitwidth_op(side_effect_expr_function_callt &expr);
+  void unsigned_cmp_bitwidth_op(
+    const irep_idt &opname,
+    side_effect_expr_function_callt &expr);
+  void myor(side_effect_expr_function_callt &expr);
 };
 
 class already_typechecked_exprt : public expr_protectedt
