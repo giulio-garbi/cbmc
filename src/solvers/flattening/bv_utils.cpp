@@ -97,7 +97,12 @@ bvt bv_utilst::select(literalt s, const bvt &a, const bvt &b)
 
   result.resize(a.size());
   for(std::size_t i=0; i<result.size(); i++)
-    result[i]=prop.lselect(s, a[i], b[i]);
+  {
+    if(a[i] != b[i])
+      result[i] = prop.lselect(s, a[i], b[i]);
+    else
+      result[i] = a[i];
+  }
 
   return result;
 }
