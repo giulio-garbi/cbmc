@@ -332,9 +332,10 @@ static exprt conditional_cast_floatbv_to_unsignedbv(const exprt &value)
 static void max_element(
     const exprt &element,
     const typet &field_type,
-    exprt &max)
+    exprt &max,
+    const bool extract_shadow_memory)
 {
-  exprt value = typecast_exprt::conditional_cast(element, field_type);
+  exprt value = extract_shadow_memory?make_byte_extract(element, constant_exprt{"0", unsignedbv_typet{1}}, field_type):typecast_exprt::conditional_cast(element, field_type);
   if (max.is_nil())
   {
     max = value;
@@ -348,16 +349,18 @@ static void max_over_bytes(
     const exprt &value,
     const typet &type,
     const typet &field_type,
-    exprt &max)
+    exprt &max,
+    const bool extract_shadow_memory)
 {
   const size_t size = to_bitvector_type(type).get_width() / 8;
-  max_element(value, field_type, max);
+  max_element(value, field_type, max, extract_shadow_memory);
   for(size_t i = 1; i < size; ++i)
   {
     max_element(
-        lshr_exprt(value, from_integer(8 * i, size_type())),
+        extract_shadow_memory?(exprt)make_byte_extract(value, from_integer(mp_integer(8 * i), size_type()), field_type):lshr_exprt(value, from_integer(8 * i, size_type())),
         field_type,
-        max);
+        max,
+        extract_shadow_memory);
   }
 }
 
@@ -367,18 +370,19 @@ static void max_elements(
     const namespacet &ns,
     const messaget &log,
     const bool is_union,
-    exprt &max)
+    exprt &max,
+    const bool extract_shadow_memory)
 {
   element = conditional_cast_floatbv_to_unsignedbv(element);
   if(element.type().id() == ID_unsignedbv || element.type().id() == ID_signedbv)
   {
     if(is_union)
     {
-      max_over_bytes(element, element.type(), field_type, max);
+      max_over_bytes(element, element.type(), field_type, max, extract_shadow_memory);
     }
     else
     {
-      max_element(element, field_type, max);
+      max_element(element, field_type, max, extract_shadow_memory);
     }
   }
   else
@@ -387,8 +391,9 @@ static void max_elements(
                                         field_type,
                                         ns,
                                         log,
-                                        is_union);
-    max_element(value, field_type, max);
+                                        is_union,
+                                        extract_shadow_memory);
+    max_element(value, field_type, max, extract_shadow_memory);
   }
 }
 
@@ -397,7 +402,8 @@ exprt compute_max_over_cells(
   const typet &field_type,
   const namespacet &ns,
   const messaget &log,
-  const bool is_union)
+  const bool is_union,
+  const bool extract_shadow_memory)
 {
   const typet type = ns.follow(expr.type());
 
@@ -416,7 +422,8 @@ exprt compute_max_over_cells(
           ns,
           log,
           is_union,
-          max);
+          max,
+          extract_shadow_memory);
     }
     return max;
   }
@@ -435,7 +442,8 @@ exprt compute_max_over_cells(
             ns,
             log,
             is_union,
-            max);
+            max,
+            extract_shadow_memory);
       }
       return max;
     }
@@ -448,8 +456,13 @@ exprt compute_max_over_cells(
     }
   }
   // TODO: This is incorrect when accessing non-0 offsets of scalars.
-  return typecast_exprt::conditional_cast(
-    conditional_cast_floatbv_to_unsignedbv(expr), field_type);
+  if(extract_shadow_memory){
+    const exprt element = conditional_cast_floatbv_to_unsignedbv(expr);
+    return make_byte_extract(element, constant_exprt{"0", unsignedbv_typet{1}}, field_type);
+  } else {
+    return typecast_exprt::conditional_cast(
+      conditional_cast_floatbv_to_unsignedbv(expr), field_type);
+  }
 }
 
 static void or_over_bytes(
@@ -484,7 +497,8 @@ static void or_elements(
     const namespacet &ns,
     const messaget &log,
     const bool is_union,
-    exprt::operandst &values)
+    exprt::operandst &values,
+    const bool extract_shadow_memory)
 {
   element = conditional_cast_floatbv_to_unsignedbv(element);
   if(element.type().id() == ID_unsignedbv || element.type().id() == ID_signedbv)
@@ -505,7 +519,8 @@ static void or_elements(
                                         field_type,
                                         ns,
                                         log,
-                                        is_union);
+                                        is_union,
+                                        extract_shadow_memory);
     values.push_back(typecast_exprt::conditional_cast(value, field_type));
   }
 }
@@ -515,7 +530,8 @@ exprt compute_or_over_cells(
     const typet &field_type,
     const namespacet &ns,
     const messaget &log,
-    const bool is_union)
+    const bool is_union,
+    const bool extract_shadow_memory)
 {
   const typet type = ns.follow(expr.type());
 
@@ -534,7 +550,8 @@ exprt compute_or_over_cells(
           ns,
           log,
           is_union,
-          values);
+          values,
+          extract_shadow_memory);
     }
     return or_values(values, field_type);
   }
@@ -553,7 +570,8 @@ exprt compute_or_over_cells(
             ns,
             log,
             is_union,
-            values);
+            values,
+            extract_shadow_memory);
       }
       return or_values(values, field_type);
     }

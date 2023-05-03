@@ -4,6 +4,8 @@
 #ifndef CPROVER_GOTO_SYMEX_SYMEX_SHADOW_MEMORY_UTIL_H
 #define CPROVER_GOTO_SYMEX_SYMEX_SHADOW_MEMORY_UTIL_H
 
+#define ZSHORTCP
+
 #include "goto_symex_state.h"
 
 #include <pointer-analysis/value_set_dereference.h>
@@ -89,14 +91,16 @@ exprt compute_max_over_cells(
   const typet &lhs_type,
   const namespacet &ns,
   const messaget &log,
-  const bool is_union);
+  const bool is_union,
+  const bool extract_shadow_memory);
 
 exprt compute_or_over_cells(
     const exprt &expr,
     const typet &field_type,
     const namespacet &ns,
     const messaget &log,
-    const bool is_union);
+    const bool is_union,
+    const bool extract_shadow_memory);
 
 exprt duplicate_per_byte(
     const exprt &expr,

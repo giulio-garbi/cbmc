@@ -67,7 +67,9 @@ public:
       _total_vccs(std::numeric_limits<unsigned>::max()),
       _remaining_vccs(std::numeric_limits<unsigned>::max()),
       complexity_module(mh, options),
-      enable_copy_shadow_memory(options.get_bool_option("copy-shadow-memory"))
+      enable_copy_shadow_memory(options.get_bool_option("copy-shadow-memory")),
+      extract_shadow_memory(options.get_bool_option("sm-extract")),
+      extract_phi(options.is_set("phi-extract")?optionalt<int>{options.get_signed_int_option("phi-extract")}:optionalt<int>{})
   {
   }
 
@@ -888,6 +890,8 @@ protected:
 
 private:
   bool enable_copy_shadow_memory;
+  bool extract_shadow_memory;
+  optionalt<int> extract_phi;
 
   static void convert_field_decl(
     const namespacet &ns,

@@ -9,10 +9,6 @@ Author: Peter Schrammel
 /// \file
 /// Symex Shadow Memory Instrumentation
 
-#include "goto_symex.h"
-
-#include "symex_shadow_memory_util.h"
-
 #include <util/arith_tools.h>
 #include <util/c_types.h>
 #include <util/cprover_prefix.h>
@@ -28,12 +24,16 @@ Author: Peter Schrammel
 #include <util/range.h>
 #include <util/std_expr.h>
 #include <util/string_constant.h>
-
-#include <langapi/language_util.h>
+#include <util/byte_operators.h>
 
 #include <goto-programs/goto_model.h>
+
+#include <langapi/language_util.h>
 #include <linking/static_lifetime_init.h>
 #include <pointer-analysis/value_set_dereference.h>
+
+#include "goto_symex.h"
+#include "symex_shadow_memory_util.h"
 
 void goto_symext::initialize_shadow_memory(
   goto_symex_statet &state,
@@ -319,7 +319,7 @@ static void clean_string_constant(exprt &expr) {
   }
 }
 
-static exprt build_if_else_expr(std::vector<exprt::operandst> conds_values) {
+static exprt build_if_else_expr(std::vector<exprt::operandst> conds_values/*, const typet &field_type*/) {
   DATA_INVARIANT(!conds_values.empty(),
                  "build_if_else_expr requires non-empty argument");
   exprt result = nil_exprt();
@@ -680,11 +680,13 @@ static std::vector<exprt::operandst> get_field(
   const exprt &matched_object,
   const std::vector<goto_symex_statet::shadowed_addresst> &addresses,
   const typet &field_type,
-  const exprt &expr,
+  const exprt &exprz,
   const typet &lhs_type,
-  bool &exact_match)
+  bool &exact_match,
+  const bool extract_shadow_memory)
 {
   std::vector<exprt::operandst> result;
+  const exprt &expr = can_cast_expr<typecast_exprt>(exprz) && is_void_pointer(to_typecast_expr(exprz).type())?to_typecast_expr(exprz).op():exprz;
 
   for(const auto &shadowed_address : addresses)
   {
@@ -734,13 +736,13 @@ static std::vector<exprt::operandst> get_field(
     if(field_type.id() == ID_c_bool || field_type.id() == ID_bool)
     {
       value = typecast_exprt::conditional_cast(
-          compute_or_over_cells(shadow_dereference.value, field_type, ns, log, is_union),
+          compute_or_over_cells(shadow_dereference.value, field_type, ns, log, is_union, extract_shadow_memory),
           lhs_type);
     }
     else
     {
       value = typecast_exprt::conditional_cast(
-          compute_max_over_cells(shadow_dereference.value, field_type, ns, log, is_union),
+          compute_max_over_cells(shadow_dereference.value, field_type, ns, log, is_union, extract_shadow_memory),
           lhs_type);
     }
 
@@ -827,7 +829,7 @@ void goto_symext::symex_set_field(
   }
 
   // build lhs
-  const exprt &rhs = value;
+  const exprt &rhs = extract_shadow_memory?make_byte_extract(value, constant_exprt{"0", unsignedbv_typet{1}}, get_field_init_expr(field_name, state).type()):value;
   size_t mux_size = 0;
   optionalt<exprt> maybe_lhs = get_shadow_memory(
       expr, value_set, addresses, ns, log, mux_size);
@@ -945,7 +947,7 @@ void goto_symext::symex_get_field(
 
     bool exact_match = false;
     auto per_matched_object_conds_values = get_field(
-      ns, log, matched_object, addresses, field_init_expr.type(), expr, lhs.type(), exact_match);
+      ns, log, matched_object, addresses, field_init_expr.type(), expr, lhs.type(), exact_match, extract_shadow_memory);
     if(exact_match) {
       rhs_conds_values.clear();
     }

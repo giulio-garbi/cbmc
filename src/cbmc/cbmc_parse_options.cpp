@@ -172,6 +172,12 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
   if(cmdline.isset("copy-shadow-memory"))
     options.set_option("copy-shadow-memory", true);
 
+  if(cmdline.isset("sm-extract"))
+    options.set_option("sm-extract", true);
+
+  if(cmdline.isset("phi-extract"))
+    options.set_option("phi-extract", stoi(cmdline.get_value("phi-extract")));
+
   if(cmdline.isset("full-slice"))
     options.set_option("full-slice", true);
 
@@ -946,6 +952,8 @@ void cbmc_parse_optionst::help()
     " --nondet-static-matching r   add nondeterministic initialization of variables\n"
     "                              with static lifetime matching regex r\n"
     " --copy-shadow-memory         copy shadow memory in simple assignments\n"
+    " --phi-extract                how many bits to consider in phi functions\n"
+    " --sm-extract                 use extract instead of cast in SM R/W\n"
     "\n"
     "BMC options:\n"
     HELP_BMC

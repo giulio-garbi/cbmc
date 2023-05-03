@@ -60,6 +60,8 @@ class optionst;
   "(verbosity):(no-library)" \
   "(nondet-static)(nondet-static-matching):" \
   "(copy-shadow-memory)" \
+  "(sm-extract)" \
+  "(phi-extract):" \
   "(version)" \
   OPT_COVER \
   "(symex-coverage-report):" \

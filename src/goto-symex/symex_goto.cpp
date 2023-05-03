@@ -21,6 +21,9 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <pointer-analysis/add_failed_symbols.h>
 #include <pointer-analysis/value_set_dereference.h>
 
+#include <util/arith_tools.h>
+#include <util/bitvector_expr.h>
+#include <util/byte_operators.h>
 #include "goto_symex.h"
 #include "goto_symex_is_constant.h"
 #include "path_storage.h"
@@ -748,7 +751,8 @@ static void merge_names(
   const incremental_dirtyt &dirty,
   const ssa_exprt &ssa,
   const unsigned goto_count,
-  const unsigned dest_count)
+  const unsigned dest_count,
+  const optionalt<int> extract_phi)
 {
   const irep_idt l1_identifier = ssa.get_identifier();
   const irep_idt &obj_identifier = ssa.get_object_name();
@@ -834,6 +838,30 @@ static void merge_names(
     rhs = goto_state_rhs;
   else
   {
+    if(extract_phi)
+    {
+      const size_t abs_width = *extract_phi;
+      const auto lb = from_integer(0, unsignedbv_typet{1});
+      const auto ab_type = unsignedbv_typet{abs_width};
+      if(
+        const auto ibt =
+          type_try_dynamic_cast<integer_bitvector_typet>(ssa.type()))
+      {
+        const auto lhs_name = as_string(ssa.get_original_name());
+        if(
+          ibt->get_width() > abs_width &&
+          lhs_name.find("_cs_") == std::string::npos &&
+          lhs_name.find("__CPROVER_") != 0)
+        {
+          const auto zero = constant_exprt{"0", ssa.type()};
+          goto_state_rhs = make_byte_update(
+            zero, lb, make_byte_extract(goto_state_rhs, lb, ab_type));
+          dest_state_rhs = make_byte_update(
+            zero, lb, make_byte_extract(dest_state_rhs, lb, ab_type));
+          //log.warning() << "ABSTR: " << lhs_name << messaget::eom;
+        }
+      }
+    }
     rhs = if_exprt(diff_guard.as_expr(), goto_state_rhs, dest_state_rhs);
     if(do_simplify_phi)
       simplify(rhs, ns);
@@ -897,7 +925,8 @@ void goto_symext::phi_function(
       path_storage.dirty,
       ssa,
       goto_count,
-      dest_count);
+      dest_count,
+      extract_phi);
   }
 
   delta_view.clear();
@@ -924,7 +953,8 @@ void goto_symext::phi_function(
       path_storage.dirty,
       ssa,
       goto_count,
-      dest_count);
+      dest_count,
+      extract_phi);
   }
 }
 
