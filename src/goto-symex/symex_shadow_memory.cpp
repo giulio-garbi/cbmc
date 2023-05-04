@@ -603,10 +603,10 @@ void goto_symext::symex_shadow_memory_copy(
         mux_size);
     if(!maybe_lhs.has_value())
     {
-      log.warning()
+      /*log.warning()
           << "Shadow memory: cannot copy shadow memory to "
           << format(dest_expr)
-          << messaget::eom;
+          << messaget::eom;*/
       continue;
     }
     std::vector<exprt> rhs_value_set = state.value_set.get_value_set(src_expr, ns);
@@ -619,20 +619,20 @@ void goto_symext::symex_shadow_memory_copy(
         mux_size);
     if(!maybe_rhs.has_value())
     {
-      log.warning()
+      /*log.warning()
           << "Shadow memory: cannot copy shadow memory from "
           << format(src_expr)
-          << messaget::eom;
+          << messaget::eom;*/
       continue;
     }
     if(maybe_lhs->id() == ID_address_of && maybe_rhs->id() == ID_address_of)
     {
-      log.warning()
+      /*log.warning()
         << "Shadow memory: copied shadow memory from "
         << format(src_expr)
         << " to "
         << format(dest_expr)
-        << messaget::eom;
+        << messaget::eom;*/
       symex_assign(
           state,
           state.field_sensitivity.apply(ns, state, to_address_of_expr(*maybe_lhs).object(), true),
