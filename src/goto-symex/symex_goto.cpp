@@ -838,7 +838,7 @@ static void merge_names(
     rhs = goto_state_rhs;
   else
   {
-    if(extract_phi)
+    if(extract_phi && ssa.type().get_string(ID_C_typedef) != "__cs_mutex_t")
     {
       const size_t abs_width = *extract_phi;
       const auto lb = from_integer(0, unsignedbv_typet{1});
