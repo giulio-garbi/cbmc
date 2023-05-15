@@ -135,7 +135,7 @@ public:
   #endif
 
 
-  literalt equal(const bvt &op0, const bvt &op1);
+  literalt equal(const bvt &op0, const bvt &op1, const optionalt<std::vector<bool>> &abstract={});
 
   static inline literalt sign_bit(const bvt &op)
   {
@@ -204,6 +204,7 @@ public:
   bvt cond_negate(const bvt &bv, const literalt cond);
 
   bvt select(literalt s, const bvt &a, const bvt &b);
+  bvt select_with_mask(literalt s, const bvt &a, const bvt &b, const std::vector<bool> &mask);
 
   // computes a[last:first]
   static bvt extract(const bvt &a, std::size_t first, std::size_t last);

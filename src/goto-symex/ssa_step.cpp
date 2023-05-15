@@ -232,6 +232,7 @@ SSA_assignment_stept::SSA_assignment_stept(
   ssa_rhs = std::move(_ssa_rhs);
   assignment_type = _assignment_type;
   cond_expr = equal_exprt{ssa_lhs, ssa_rhs};
+  cond_expr.set(ID_C_is_assignment, 1);
   hidden = assignment_type != symex_targett::assignment_typet::STATE &&
            assignment_type !=
              symex_targett::assignment_typet::VISIBLE_ACTUAL_PARAMETER;

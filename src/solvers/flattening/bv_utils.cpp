@@ -107,6 +107,30 @@ bvt bv_utilst::select(literalt s, const bvt &a, const bvt &b)
   return result;
 }
 
+/// If s is true, selects a otherwise selects b
+bvt bv_utilst::select_with_mask(literalt s, const bvt &a, const bvt &b, const std::vector<bool> &mask)
+{
+  PRECONDITION(a.size() == b.size());
+
+  bvt result;
+
+  result.resize(a.size());
+  for(std::size_t i=0; i<result.size(); i++)
+  {
+    if(mask[i])
+    {
+      if(a[i] != b[i])
+        result[i] = prop.lselect(s, a[i], b[i]);
+      else
+        result[i] = a[i];
+    } else {
+      result[i] = const_literal(false);
+    }
+  }
+
+  return result;
+}
+
 bvt bv_utilst::extension(
   const bvt &bv,
   std::size_t new_size,
@@ -1178,7 +1202,7 @@ literalt bv_utilst::equal_const(const bvt &var, const bvt &constant)
 /// \param op0: Lhs bitvector to compare
 /// \param op1: Rhs bitvector to compare
 /// \return The literal that is true if and only if they are equal.
-literalt bv_utilst::equal(const bvt &op0, const bvt &op1)
+literalt bv_utilst::equal(const bvt &op0, const bvt &op1, const optionalt<std::vector<bool>> &abstract)
 {
   PRECONDITION(op0.size() == op1.size());
 
@@ -1194,11 +1218,16 @@ literalt bv_utilst::equal(const bvt &op0, const bvt &op1)
   #endif
 
   bvt equal_bv;
+  int equalities = 0;
   equal_bv.resize(op0.size());
 
   for(std::size_t i=0; i<op0.size(); i++)
-    equal_bv[i]=prop.lequal(op0[i], op1[i]);
+    if(!abstract || !(*abstract)[i])
+      equal_bv[equalities++]=prop.lequal(op0[i], op1[i]);
+    else
+      prop.l_set_to_false(op0[i]);
 
+  equal_bv.resize(equalities);
   return prop.land(equal_bv);
 }
 

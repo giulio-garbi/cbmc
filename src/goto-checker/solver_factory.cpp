@@ -234,6 +234,9 @@ std::unique_ptr<solver_factoryt::solvert> solver_factoryt::get_default()
     bv_pointers->unbounded_array = bv_pointerst::unbounded_arrayt::U_NONE;
   else if(options.get_option("arrays-uf") == "always")
     bv_pointers->unbounded_array = bv_pointerst::unbounded_arrayt::U_ALL;
+  if(options.is_set("phi-extract")){
+    bv_pointers->set_abstraction_bits(options.get_signed_int_option("phi-extract"));
+  }
 
   set_decision_procedure_time_limit(*bv_pointers);
   solver->set_decision_procedure(std::move(bv_pointers));

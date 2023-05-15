@@ -109,9 +109,15 @@ public:
 
   virtual endianness_mapt endianness_map(const typet &type) const;
 
+  void set_abstraction_bits(int w){
+    abstraction_bits = {w};
+  }
+
 protected:
   boolbv_widtht bv_width;
   bv_utilst bv_utils;
+
+  optionalt<int> abstraction_bits;
 
   // uninterpreted functions
   functionst functions;
@@ -125,6 +131,10 @@ protected:
 
   // NOLINTNEXTLINE(readability/identifiers)
   typedef arrayst SUB;
+
+  bool keep_all_bits(const typet &tp, std::vector<bool> &map, const int from, const int to);
+  bool is_abstractable_name(const std::basic_string<char> &name);
+  bool is_abstract_op(const exprt& expr);
 
   bvt conversion_failed(const exprt &expr);
 
