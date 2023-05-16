@@ -780,6 +780,135 @@ inline myort &to_myor(exprt &expr)
   return static_cast<myort &>(side_effect_expr);
 }
 
+class myternt : public side_effect_exprt
+{
+public:
+  myternt(
+    const exprt& cond,
+    const exprt& then,
+    const exprt& els,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_mytern,
+        {cond, then, els},
+        then.type(),
+        loc)
+  {}
+
+  exprt &cond()
+  {
+    return op0();
+  }
+
+  const exprt &cond() const
+  {
+    return op0();
+  }
+
+  exprt &then()
+  {
+    return op1();
+  }
+
+  const exprt &then() const
+  {
+    return op1();
+  }
+
+  exprt &els()
+  {
+    return op2();
+  }
+
+  const exprt &els() const
+  {
+    return op2();
+  }
+
+};
+
+template <>
+inline bool can_cast_expr<myternt>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_mytern;
+}
+
+/// \brief Cast an exprt to a \ref myternt
+///
+/// \a expr must be known to be \ref myternt.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref myternt
+inline const myternt &
+to_mytern(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_mytern);
+  return static_cast<const myternt &>(side_effect_expr);
+}
+
+/// \copydoc to_mytern(const exprt &)
+inline myternt &to_mytern(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_mytern);
+  return static_cast<myternt &>(side_effect_expr);
+}
+
+class myandt : public side_effect_exprt
+{
+public:
+  myandt(
+    const operandst& ops,
+    const source_locationt &loc)
+    : side_effect_exprt(
+        ID_myand,
+        ops,
+        bool_typet{},
+        loc)
+  {}
+};
+
+template <>
+inline bool can_cast_expr<myandt>(const exprt &base)
+{
+  if(base.id() != ID_side_effect)
+    return false;
+
+  const irep_idt &statement = to_side_effect_expr(base).get_statement();
+  return statement == ID_myand;
+}
+
+/// \brief Cast an exprt to a \ref myandt
+///
+/// \a expr must be known to be \ref myandt.
+///
+/// \param expr: Source expression
+/// \return Object of type \ref myandt
+inline const myandt &
+to_myand(const exprt &expr)
+{
+  const auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_myand);
+  return static_cast<const myandt &>(side_effect_expr);
+}
+
+/// \copydoc to_myand(const exprt &)
+inline myandt &to_myand(exprt &expr)
+{
+  auto &side_effect_expr = to_side_effect_expr(expr);
+  PRECONDITION(
+    side_effect_expr.get_statement() == ID_myand);
+  return static_cast<myandt &>(side_effect_expr);
+}
+
 /// \brief A class for an expression that indicates a history variable
 class history_exprt : public unary_exprt
 {

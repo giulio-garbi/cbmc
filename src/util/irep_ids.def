@@ -909,6 +909,8 @@ IREP_ID_ONE(nz_bitwidth)
 IREP_ID_ONE(cut_bitwidth)
 IREP_ID_ONE(unsigned_cmp_bitwidth)
 IREP_ID_ONE(myor)
+IREP_ID_ONE(myand)
+IREP_ID_ONE(mytern)
 IREP_ID_ONE(C_is_assignment)
 
 // Projects depending on this code base that wish to extend the list of

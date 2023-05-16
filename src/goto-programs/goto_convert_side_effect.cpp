@@ -1326,6 +1326,38 @@ void goto_convertt::remove_myor(
   expr.swap(orexp);
 }
 
+void goto_convertt::remove_myand(
+  myandt &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode)
+{
+  for(auto &op : expr.operands())
+    clean_expr(op, dest, mode, result_is_used);
+  if(!result_is_used){
+    expr.make_nil();
+    return;
+  }
+  auto andexp = and_exprt{expr.operands()};
+  expr.swap(andexp);
+}
+
+void goto_convertt::remove_mytern(
+  myternt &expr,
+  goto_programt &dest,
+  bool result_is_used,
+  const irep_idt &mode)
+{
+  for(auto &op : expr.operands())
+    clean_expr(op, dest, mode, result_is_used);
+  if(!result_is_used){
+    expr.make_nil();
+    return;
+  }
+  auto ternexp = if_exprt{expr.cond(), expr.then(), expr.els()};
+  expr.swap(ternexp);
+}
+
 void goto_convertt::remove_overflow(
   side_effect_expr_overflowt &expr,
   goto_programt &dest,
@@ -1502,6 +1534,11 @@ void goto_convertt::remove_side_effect(
   {
     remove_myor(
       to_myor(expr), dest, result_is_used, mode);
+  }
+  else if(statement == ID_myand)
+  {
+    remove_myand(
+      to_myand(expr), dest, result_is_used, mode);
   }
   else
   {

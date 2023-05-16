@@ -342,6 +342,8 @@ protected:
     const irep_idt &opname,
     side_effect_expr_function_callt &expr);
   void myor(side_effect_expr_function_callt &expr);
+  void myand(side_effect_expr_function_callt &expr);
+  void mytern(side_effect_expr_function_callt &expr);
 };
 
 class already_typechecked_exprt : public expr_protectedt

@@ -1926,6 +1926,12 @@ void c_typecheck_baset::typecheck_expr_side_effect(side_effect_exprt &expr)
   else if(statement==ID_myor){
 
   }
+  else if(statement==ID_myand){
+
+  }
+  else if(statement==ID_mytern){
+
+  }
   else
   {
     error().source_location = expr.source_location();
@@ -2260,9 +2266,53 @@ void c_typecheck_baset::myor(side_effect_expr_function_callt &expr){
     throw 0;
   }
   for(auto &op : expr.arguments())
+  {
+    implicit_typecast_bool(op);
     typecheck_expr_main(op);
+  }
   auto orexp = myort{expr.arguments(), expr.source_location()};
   expr.swap(orexp);
+}
+
+void c_typecheck_baset::myand(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() < 1)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected at least one argument but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+  {
+    implicit_typecast_bool(op);
+    typecheck_expr_main(op);
+  }
+  auto andexp = myandt{expr.arguments(), expr.source_location()};
+  expr.swap(andexp);
+}
+
+void c_typecheck_baset::mytern(side_effect_expr_function_callt &expr){
+  auto &f_op = expr.function();
+  if(expr.arguments().size() != 3)
+  {
+    error().source_location = f_op.source_location();
+    error() << "expected three arguments but got " << expr.arguments().size()
+            << eom;
+    throw 0;
+  }
+  for(auto &op : expr.arguments())
+    typecheck_expr_main(op);
+  implicit_typecast_bool(expr.arguments()[0]);
+  if(expr.arguments()[1].type() != expr.arguments()[2].type())
+  {
+    error().source_location = f_op.source_location();
+    error() << "then and else branches should have the same type"
+            << eom;
+    throw 0;
+  }
+  auto andexp = myternt{typecast_exprt::conditional_cast(expr.arguments()[0], bool_typet{}), expr.arguments()[1], expr.arguments()[2], f_op.source_location()};
+  expr.swap(andexp);
 }
 
 void c_typecheck_baset::cut_bitwidth_op(side_effect_expr_function_callt &expr){
@@ -2471,6 +2521,14 @@ void c_typecheck_baset::typecheck_side_effect_function_call(
       }
       else if(identifier == CPROVER_PREFIX "myor"){
         myor(expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "myand"){
+        myand(expr);
+        return;
+      }
+      else if(identifier == CPROVER_PREFIX "mytern"){
+        mytern(expr);
         return;
       }
       // Is this a builtin?
