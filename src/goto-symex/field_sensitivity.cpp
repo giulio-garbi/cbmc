@@ -296,6 +296,21 @@ void field_sensitivityt::field_assignments(
   }
 }
 
+
+exprt do_cut(const exprt &expr){
+  if (const auto ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.type())){
+    const size_t ab_width = 4;
+    if(ibt->get_width() > ab_width)
+    {
+      const auto bv_width = unsignedbv_typet(ab_width);
+      const auto zero = from_integer(0, expr.type());
+      const auto lb = from_integer(0, unsigned_int_type());
+      return make_byte_update(zero, lb, make_byte_extract(expr, lb, bv_width));
+    }
+  }
+  return expr;
+}
+
 /// Assign to the individual fields \p lhs_fs of a non-expanded symbol \p lhs.
 /// This is required whenever prior steps have updated the full object rather
 /// than individual fields, e.g., in case of assignments to an array at an
@@ -332,7 +347,7 @@ void field_sensitivityt::field_assignments_rec(
       ssa_lhs,
       ssa_lhs,
       ssa_lhs.get_original_expr(),
-      ssa_rhs,
+      do_cut(ssa_rhs),
       state.source,
       symex_targett::assignment_typet::STATE);
   }
@@ -349,11 +364,11 @@ void field_sensitivityt::field_assignments_rec(
     exprt::operandst::const_iterator fs_it = lhs_fs.operands().begin();
     for(const auto &comp : components)
     {
-      const exprt member_rhs = apply(
+      const exprt member_rhs = do_cut(apply(
         ns,
         state,
         simplify_opt(member_exprt{ssa_rhs, comp.get_name(), comp.type()}, ns),
-        false);
+        false));
 
       const exprt &member_lhs = *fs_it;
       if(
@@ -428,12 +443,12 @@ void field_sensitivityt::field_assignments_rec(
     exprt::operandst::const_iterator fs_it = lhs_fs.operands().begin();
     for(std::size_t i = 0; i < array_size; ++i)
     {
-      const exprt index_rhs = apply(
+      const exprt index_rhs = do_cut(apply(
         ns,
         state,
         simplify_opt(
           index_exprt{ssa_rhs, from_integer(i, type->index_type())}, ns),
-        false);
+        false));
 
       const exprt &index_lhs = *fs_it;
       if(
@@ -470,13 +485,13 @@ void field_sensitivityt::field_assignments_rec(
           ns,
           state,
           fs_ssa->get_object_ssa(),
-          op,
+          do_cut(op),
           target,
           allow_pointer_unsoundness);
       }
 
       field_assignments_rec(
-        ns, state, *fs_it, op, target, allow_pointer_unsoundness);
+        ns, state, *fs_it, do_cut(op), target, allow_pointer_unsoundness);
       ++fs_it;
     }
   }
