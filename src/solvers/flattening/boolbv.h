@@ -118,6 +118,7 @@ protected:
   bv_utilst bv_utils;
 
   optionalt<int> abstraction_bits;
+  bool abstraction_disabled = false;
 
   // uninterpreted functions
   functionst functions;

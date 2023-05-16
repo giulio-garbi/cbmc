@@ -16,6 +16,9 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "ssa_expr.h"
 
 bool boolbvt::keep_all_bits(const typet &tp, std::vector<bool> &bitmap, const int from, const int to){
+  return true;
+  if(abstraction_disabled)
+    return true;
   if(!abstraction_bits)
     return true;
   if(tp.get_string(ID_C_typedef) == "__cs_mutex_t")
@@ -85,8 +88,13 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
   const bvt &lhs_bv = convert_bv(expr.lhs());
 
   optionalt<std::vector<bool>> abs_bitmap {};
-  if(expr.get_long_long(ID_C_is_assignment) && !is_unbounded_array(expr.lhs().type()) && is_abstractable_name(as_string(to_ssa_expr(expr.lhs()).get_original_name())))
+  bool abstraction_disabled_bak = abstraction_disabled;
+
+  if(expr.get_long_long(ID_C_is_assignment) && !is_unbounded_array(expr.lhs().type()) )
   {
+    if(!is_abstractable_name(as_string(to_ssa_expr(expr.lhs()).get_original_name())) || expr.lhs().type().get_string(ID_C_typedef) == "__cs_mutex_t"){
+      abstraction_disabled = true;
+    }
     abs_bitmap = {std::vector<bool>(lhs_bv.size(), true)};
     if(keep_all_bits(expr.lhs().type(), *abs_bitmap, 0, abs_bitmap->size())){
       abs_bitmap = {};
@@ -99,6 +107,8 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
     }
   }
   const bvt &rhs_bv = convert_bv(expr.rhs());
+
+  abstraction_disabled = abstraction_disabled_bak;
 
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     lhs_bv.size() == rhs_bv.size(),
