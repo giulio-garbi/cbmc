@@ -1540,6 +1540,11 @@ void goto_convertt::remove_side_effect(
     remove_myand(
       to_myand(expr), dest, result_is_used, mode);
   }
+  else if(statement == ID_mytern)
+  {
+    remove_mytern(
+      to_mytern(expr), dest, result_is_used, mode);
+  }
   else
   {
     UNREACHABLE;
