@@ -428,7 +428,8 @@ std::unique_ptr<goto_symext::statet> goto_symext::initialize_entry_point_state(
     symex_config.max_field_sensitivity_array_size,
     symex_config.simplify_opt,
     guard_manager,
-    [storage](const irep_idt &id) { return storage->get_unique_l2_index(id); });
+    [storage](const irep_idt &id) { return storage->get_unique_l2_index(id); },
+    extract_phi);
 
   CHECK_RETURN(!state->threads.empty());
   CHECK_RETURN(!state->call_stack().empty());

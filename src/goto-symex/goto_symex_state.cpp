@@ -33,7 +33,8 @@ goto_symex_statet::goto_symex_statet(
   std::size_t max_field_sensitive_array_size,
   bool should_simplify,
   guard_managert &manager,
-  std::function<std::size_t(const irep_idt &)> fresh_l2_name_provider)
+  std::function<std::size_t(const irep_idt &)> fresh_l2_name_provider,
+  optionalt<int> abstraction_width)
   : goto_statet(manager),
     source(_source),
     guard_manager(manager),
@@ -42,6 +43,8 @@ goto_symex_statet::goto_symex_statet(
     record_events({true}),
     fresh_l2_name_provider(fresh_l2_name_provider)
 {
+  if(abstraction_width)
+    field_sensitivity.set_abstraction_bits(*abstraction_width);
   threads.emplace_back(guard_manager);
   call_stack().new_frame(source, guardt(true_exprt(), manager));
 }

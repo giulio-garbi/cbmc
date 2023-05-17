@@ -297,18 +297,34 @@ void field_sensitivityt::field_assignments(
 }
 
 
-exprt do_cut(const exprt &expr){
-  if (const auto ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.type())){
-    const size_t ab_width = 4;
-    if(ibt->get_width() > ab_width)
+exprt do_cut(const exprt &expr, const optionalt<int> abstraction_bits){
+  if(abstraction_bits)
+  {
+    if(
+      const auto ibt =
+        type_try_dynamic_cast<integer_bitvector_typet>(expr.type()))
     {
-      const auto bv_width = unsignedbv_typet(ab_width);
-      const auto zero = from_integer(0, expr.type());
-      const auto lb = from_integer(0, unsigned_int_type());
-      return make_byte_update(zero, lb, make_byte_extract(expr, lb, bv_width));
+      const size_t ab_width = *abstraction_bits;
+      if(ibt->get_width() > ab_width)
+      {
+        const auto bv_width = unsignedbv_typet(ab_width);
+        const auto zero = from_integer(0, expr.type());
+        const auto lb = from_integer(0, unsigned_int_type());
+        return make_byte_update(
+          zero, lb, make_byte_extract(expr, lb, bv_width));
+      }
     }
   }
   return expr;
+}
+
+bool is_abstractable_ssa(const ssa_exprt &ssa){
+  auto name = as_string(ssa.get_original_name());
+  if(name.find(CPROVER_PREFIX) == 0)
+    return false;
+  if(name.find("_cs_") != std::basic_string<char>::npos)
+    return false;
+  return true;
 }
 
 /// Assign to the individual fields \p lhs_fs of a non-expanded symbol \p lhs.
@@ -341,13 +357,15 @@ void field_sensitivityt::field_assignments_rec(
                                   allow_pointer_unsoundness)
                                 .get();
 
+    bool do_abs = is_abstractable_ssa(ssa_lhs);
+
     // do the assignment
     target.assignment(
       state.guard.as_expr(),
       ssa_lhs,
       ssa_lhs,
       ssa_lhs.get_original_expr(),
-      do_cut(ssa_rhs),
+      do_abs?do_cut(ssa_rhs, abstraction_bits):ssa_rhs,
       state.source,
       symex_targett::assignment_typet::STATE);
   }
@@ -364,11 +382,11 @@ void field_sensitivityt::field_assignments_rec(
     exprt::operandst::const_iterator fs_it = lhs_fs.operands().begin();
     for(const auto &comp : components)
     {
-      const exprt member_rhs = do_cut(apply(
+      const exprt member_rhs = apply(
         ns,
         state,
         simplify_opt(member_exprt{ssa_rhs, comp.get_name(), comp.type()}, ns),
-        false));
+        false);
 
       const exprt &member_lhs = *fs_it;
       if(
@@ -443,12 +461,12 @@ void field_sensitivityt::field_assignments_rec(
     exprt::operandst::const_iterator fs_it = lhs_fs.operands().begin();
     for(std::size_t i = 0; i < array_size; ++i)
     {
-      const exprt index_rhs = do_cut(apply(
+      const exprt index_rhs = apply(
         ns,
         state,
         simplify_opt(
           index_exprt{ssa_rhs, from_integer(i, type->index_type())}, ns),
-        false));
+        false);
 
       const exprt &index_lhs = *fs_it;
       if(
@@ -485,13 +503,13 @@ void field_sensitivityt::field_assignments_rec(
           ns,
           state,
           fs_ssa->get_object_ssa(),
-          do_cut(op),
+          op,
           target,
           allow_pointer_unsoundness);
       }
 
       field_assignments_rec(
-        ns, state, *fs_it, do_cut(op), target, allow_pointer_unsoundness);
+        ns, state, *fs_it, op, target, allow_pointer_unsoundness);
       ++fs_it;
     }
   }

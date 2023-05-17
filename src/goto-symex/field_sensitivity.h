@@ -201,10 +201,16 @@ public:
   NODISCARD
   bool is_divisible(const ssa_exprt &expr, bool disjoined_fields_only) const;
 
+  void set_abstraction_bits(int w){
+    abstraction_bits = {w};
+  }
+
 private:
   const std::size_t max_field_sensitivity_array_size;
 
   const bool should_simplify;
+
+  optionalt<int> abstraction_bits = {};
 
   void field_assignments_rec(
     const namespacet &ns,

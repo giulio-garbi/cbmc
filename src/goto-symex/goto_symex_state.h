@@ -47,7 +47,8 @@ public:
     std::size_t max_field_sensitive_array_size,
     bool should_simplify,
     guard_managert &manager,
-    std::function<std::size_t(const irep_idt &)> fresh_l2_name_provider);
+    std::function<std::size_t(const irep_idt &)> fresh_l2_name_provider,
+    optionalt<int> abstraction_width = {});
   ~goto_symex_statet();
 
   /// \brief Fake "copy constructor" that initializes the `symex_target` member
