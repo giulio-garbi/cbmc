@@ -867,6 +867,8 @@ static void merge_names(
       simplify(rhs, ns);
   }
 
+  if(rhs.id() != ID_if)
+    return;
   dest_state.record_events.push(false);
   const ssa_exprt new_lhs =
     dest_state.assignment(ssa, rhs, ns, true, true).get();
