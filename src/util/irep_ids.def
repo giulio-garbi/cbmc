@@ -912,6 +912,13 @@ IREP_ID_ONE(myor)
 IREP_ID_ONE(myand)
 IREP_ID_ONE(mytern)
 IREP_ID_ONE(C_is_assignment)
+IREP_ID_ONE(is_abstract)
+IREP_ID_ONE(C_abstr_expr)
+IREP_ID_ONE(C_abstr_type)
+IREP_ID_ONE(C_compute_overflow_bit)
+IREP_ID_ONE(C_abstr_forbidden)
+IREP_ID_ONE(C_produce_nonabs)
+IREP_ID_ONE(overflow_bit)
 
 // Projects depending on this code base that wish to extend the list of
 // available ids should provide a file local_irep_ids.def in their source tree

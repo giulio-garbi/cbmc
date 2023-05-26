@@ -42,7 +42,7 @@ add_custom_target(
 
 add_library(util
   ${sources}
-  version.cpp)
+  version.cpp abstraction.h abstraction.cpp)
 
 add_dependencies(util generate_version_cpp)
 
