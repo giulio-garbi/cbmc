@@ -15,6 +15,63 @@ void produce_nonabs(exprt &e){
   }
   if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
     e.set(ID_C_produce_nonabs, !is_abstractable_name(as_string(ssa->get_original_name())));
+  } else if (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
+          e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
+          e.id() == ID_lshr || e.id() == ID_ashr || e.id() == ID_rol || e.id() == ID_ror ||
+          e.id() == ID_array || e.id() == ID_array_of || e.id() == ID_bitreverse ||
+          e.id() == ID_bitand || e.id()==ID_bitor || e.id()==ID_bitxor ||
+          e.id() == ID_bitnand || e.id() == ID_bitnor || e.id() == ID_bitxnor ||
+          e.id() == ID_bitnot || e.id() == ID_bswap || e.id() == ID_abs ||
+          e.id() == ID_byte_extract_little_endian || e.id() == ID_byte_extract_big_endian ||
+          e.id() == ID_extractbit || e.id() == ID_extractbits ||
+          e.id() == ID_byte_update_little_endian || e.id() == ID_byte_update_big_endian ||
+          e.id() == ID_complex || e.id() == ID_complex_imag || e.id() == ID_complex_real ||
+          e.id() == ID_concatenation || e.id() == ID_cond ||
+          e.id() == ID_floatbv_mod || e.id() == ID_floatbv_rem || e.id() == ID_floatbv_plus ||
+          e.id() == ID_floatbv_minus || e.id() == ID_floatbv_mult || e.id() == ID_floatbv_div ||
+          e.id() == ID_let || e.id() == ID_member || e.id() == ID_onehot ||
+          e.id() == ID_onehot0 || e.id() == ID_overflow_minus || e.id() == ID_overflow_plus ||
+          e.id() == ID_overflow_mult  || e.id() == ID_overflow_unary_minus || e.id() == ID_overflow_shl ||
+          e.id() == ID_overflow_result_minus || e.id() == ID_overflow_result_plus ||
+          e.id() == ID_overflow_result_mult || e.id() == ID_overflow_result_unary_minus ||
+          e.id() == ID_overflow_result_shl || e.id() == ID_power ||
+          e.id() == ID_reduction_or || e.id() == ID_reduction_and ||
+          e.id() == ID_reduction_nand || e.id() == ID_reduction_nor ||
+          e.id() == ID_reduction_xor || e.id() == ID_reduction_xnor ||
+          e.id() == ID_struct || e.id() == ID_union || e.id() == ID_update ||
+          e.id() == ID_vector || e.id() == ID_with || e.id() == ID_ge ||
+          e.id() == ID_le || e.id() == ID_gt ||
+          e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||
+          e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal ||
+          e.id() == ID_forall || e.id() == ID_exists) {
+    e.set(ID_C_produce_nonabs, true);
+    Forall_operands(op, e){
+      produce_nonabs(e.operands()[0]);
+    }
+  } else if(e.id() == ID_case){
+    // produce nonabs for every op[e'] (e>0 AND e' is even) AND this op produce nonabs
+    e.set(ID_C_produce_nonabs, true);
+    for(int i=2; i<e.operands().size(); i+=2){
+      produce_nonabs(e.operands()[i]);
+    }
+  } else if (e.id() == ID_constant){
+    e.set(ID_C_produce_nonabs, true);
+  } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
+    // produce nonabs for then and else AND this op has produce nonabs
+    e.set(ID_C_produce_nonabs, true);
+    produce_nonabs(ifexp->true_case());
+    produce_nonabs(ifexp->false_case());
+  } else if(const auto index = expr_try_dynamic_cast<index_exprt>(e)){
+    e.set(ID_C_produce_nonabs, true);
+    produce_nonabs(index->index());
+  } else if(const auto repl = expr_try_dynamic_cast<replication_exprt>(e)){
+    e.set(ID_C_produce_nonabs, true);
+    produce_nonabs(repl->op());
+  } else if(const auto cast = expr_try_dynamic_cast<typecast_exprt>(e)){
+    e.set(ID_C_produce_nonabs, true);
+    produce_nonabs(cast->op());
+  } else {
+    UNREACHABLE;
   }
 }
 
@@ -34,8 +91,8 @@ bool set_if_abs_forbidden(exprt &e){
           e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
           e.id() == ID_lshr || e.id() == ID_ashr || e.id() == ID_rol || e.id() == ID_ror ||
           e.id() == ID_array || e.id() == ID_array_of || e.id() == ID_bitreverse ||
-          e.id()==ID_bitand || e.id()==ID_bitor || e.id()==ID_bitxor ||
-          e.id()==ID_bitnand || e.id()==ID_bitnor || e.id()==ID_bitxnor ||
+          e.id() == ID_bitand || e.id() == ID_bitor || e.id() == ID_bitxor ||
+          e.id() == ID_bitnand || e.id() == ID_bitnor || e.id() == ID_bitxnor ||
           e.id() == ID_bitnot || e.id() == ID_bswap || e.id() == ID_abs ||
           e.id() == ID_byte_extract_little_endian || e.id() == ID_byte_extract_big_endian ||
           e.id() == ID_extractbit || e.id() == ID_extractbits ||
@@ -79,6 +136,7 @@ bool set_if_abs_forbidden(exprt &e){
       forbOp = set_if_abs_forbidden(*op) || forbOp;
     }
     e.set(ID_C_abstr_forbidden, false);
+    e.set(ID_C_produce_nonabs, true);
     if(forbOp){
       Forall_operands(op, e){
         produce_nonabs(e.operands()[0]);
