@@ -43,7 +43,10 @@ void produce_nonabs(exprt &e){
           e.id() == ID_le || e.id() == ID_gt ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||
           e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal ||
-          e.id() == ID_forall || e.id() == ID_exists) {
+          e.id() == ID_forall || e.id() == ID_exists || e.id() == ID_not ||
+          e.id() == ID_implies || e.id() == ID_address_of || e.id() == ID_and ||
+          e.id() == ID_or || e.id() == ID_nand || e.id() == ID_nor ||
+          e.id() == ID_xor || e.id() == ID_pointer_object || e.id() == ID_pointer_offset) {
     e.set(ID_C_produce_nonabs, true);
     Forall_operands(op, e){
       produce_nonabs(e.operands()[0]);
@@ -56,6 +59,8 @@ void produce_nonabs(exprt &e){
     }
   } else if (e.id() == ID_constant){
     e.set(ID_C_produce_nonabs, true);
+  } else if (e.id() == ID_nondet_symbol){
+    e.set(ID_C_produce_nonabs, false);
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // produce nonabs for then and else AND this op has produce nonabs
     e.set(ID_C_produce_nonabs, true);
@@ -82,7 +87,10 @@ bool set_if_abs_forbidden(exprt &e){
   if(e.find(ID_C_abstr_forbidden).is_not_nil()){
     return e.get_int(ID_C_abstr_forbidden);
   }
-  if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
+  if(e.is_nil()){
+    return false;
+  }
+  else if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
     bool is_abs = !is_abstractable_name(as_string(ssa->get_original_name()));
     e.set(ID_C_abstr_forbidden, is_abs);
     if(is_abs)
@@ -111,7 +119,8 @@ bool set_if_abs_forbidden(exprt &e){
           e.id() == ID_reduction_nand || e.id() == ID_reduction_nor ||
           e.id() == ID_reduction_xor || e.id() == ID_reduction_xnor ||
           e.id() == ID_struct || e.id() == ID_union || e.id() == ID_update ||
-          e.id() == ID_vector || e.id() == ID_with){
+          e.id() == ID_vector || e.id() == ID_with || e.id() == ID_address_of ||
+          e.id() == ID_pointer_object || e.id() == ID_pointer_offset){
     // exists op with abs_forbidden => this op has abs_forbidden
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
@@ -128,7 +137,9 @@ bool set_if_abs_forbidden(exprt &e){
   } else if(e.id() == ID_ge || e.id() == ID_le || e.id() == ID_gt ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||
           e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal ||
-          e.id() == ID_forall || e.id() == ID_exists){
+          e.id() == ID_forall || e.id() == ID_exists || e.id() == ID_not ||
+          e.id() == ID_implies || e.id() == ID_and || e.id() == ID_or ||
+          e.id() == ID_nand || e.id() == ID_nor || e.id() == ID_xor) {
     // NOT this op has abs_forbidden
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
@@ -168,6 +179,9 @@ bool set_if_abs_forbidden(exprt &e){
     }
   } else if (e.id() == ID_constant){
     e.set(ID_C_abstr_forbidden, false);
+  } else if (e.id() == ID_nondet_symbol){
+    e.set(ID_C_abstr_forbidden, false);
+    e.set(ID_C_produce_nonabs, false);
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // then or else with abs_forbidden => produce nonabs for then and else AND this op has abs_forbidden
     set_if_abs_forbidden(ifexp->cond());
