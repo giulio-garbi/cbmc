@@ -51,7 +51,7 @@ void produce_nonabs(exprt &e){
   } else if(e.id() == ID_case){
     // produce nonabs for every op[e'] (e>0 AND e' is even) AND this op produce nonabs
     e.set(ID_C_produce_nonabs, true);
-    for(int i=2; i<e.operands().size(); i+=2){
+    for(std::vector<exprt>::size_type i=2; i<e.operands().size(); i+=2){
       produce_nonabs(e.operands()[i]);
     }
   } else if (e.id() == ID_constant){
@@ -147,7 +147,7 @@ bool set_if_abs_forbidden(exprt &e){
     // exists op[e] with abs_forbidden AND e>0 AND e is even => produce nonabs for every op[e'] (e>0 AND e' is even) AND this op has abs_forbidden
     bool forbOp_o = false;
     bool forbOp_e = false;
-    for(int i=0; i<e.operands().size(); i++){
+    for(std::vector<exprt>::size_type i=0; i<e.operands().size(); i++){
       if(i == 0 || i%2 == 1){
         forbOp_o = set_if_abs_forbidden(e.operands()[i]) || forbOp_o;
       } else {
@@ -157,7 +157,7 @@ bool set_if_abs_forbidden(exprt &e){
     e.set(ID_C_abstr_forbidden, forbOp_e);
     if(forbOp_e)
       e.set(ID_C_produce_nonabs, true);
-    for(int i=0; i<e.operands().size(); i++){
+    for(std::vector<exprt>::size_type i=0; i<e.operands().size(); i++){
       if(i == 0 || i%2 == 1){
         if(forbOp_o)
           produce_nonabs(e.operands()[i]);

@@ -60,6 +60,7 @@ class optionst;
   "(verbosity):(no-library)" \
   "(nondet-static)(nondet-static-matching):" \
   "(copy-shadow-memory)" \
+  "(under):" \
   "(sm-extract)" \
   "(phi-extract):" \
   "(version)" \

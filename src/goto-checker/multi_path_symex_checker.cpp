@@ -15,6 +15,7 @@ Author: Daniel Kroening, Peter Schrammel
 
 #include <goto-symex/solver_hardness.h>
 
+#include "abstraction.h"
 #include "bmc_util.h"
 #include "counterexample_beautification.h"
 #include "goto_symex_fault_localizer.h"
@@ -59,6 +60,10 @@ operator()(propertiest &properties)
       return result;
 
     solver_runtime += prepare_property_decider(properties);
+
+    if(options.is_set("under")){
+      apply_approx(equation);
+    }
 
     equation_generated = true;
   }
