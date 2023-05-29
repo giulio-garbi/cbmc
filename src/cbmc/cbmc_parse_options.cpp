@@ -242,6 +242,9 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
     options.set_option(
       "nondet-static-matching", cmdline.get_value("nondet-static-matching"));
 
+  if(cmdline.isset("under"))
+    options.set_option("under", cmdline.get_value("under"));
+
   if(cmdline.isset("no-simplify"))
     options.set_option("simplify", false);
 
