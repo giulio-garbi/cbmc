@@ -61,10 +61,6 @@ operator()(propertiest &properties)
 
     solver_runtime += prepare_property_decider(properties);
 
-    if(options.is_set("under")){
-      apply_approx(equation);
-    }
-
     equation_generated = true;
   }
 

@@ -17,6 +17,7 @@ Author: Daniel Kroening, Peter Schrammel
 #include <goto-symex/show_program.h>
 #include <goto-symex/show_vcc.h>
 
+#include "abstraction.h"
 #include "bmc_util.h"
 
 multi_path_symex_only_checkert::multi_path_symex_only_checkert(
@@ -89,6 +90,10 @@ void multi_path_symex_only_checkert::generate_equation()
                << messaget::eom;
 
   postprocess_equation(symex, equation, options, ns, ui_message_handler);
+
+  if(options.is_set("under")){
+    apply_approx(equation);
+  }
 }
 
 void multi_path_symex_only_checkert::update_properties(
