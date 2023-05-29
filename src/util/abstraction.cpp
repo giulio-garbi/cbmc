@@ -207,6 +207,79 @@ bool set_if_abs_forbidden(exprt &e){
   return e.get_int(ID_C_abstr_forbidden);
 }
 
+void apply_approx(symex_target_equationt &targetEquation)
+{
+  symex_target_equationt::SSA_stepst abs_steps;
+  for(SSA_stept &step:targetEquation.SSA_steps){
+    set_if_abs_forbidden(step.guard);
+    switch(step.type)
+    {
+    case goto_trace_stept::typet::NONE:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::ASSIGNMENT:
+      if(is_abstractable_name(as_string(step.ssa_lhs.get_original_name()))){
+        set_if_abs_forbidden(step.ssa_rhs);
+      } else {
+        set_if_abs_forbidden(step.ssa_lhs);
+        produce_nonabs(step.ssa_rhs);
+      }
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::ASSUME:
+      set_if_abs_forbidden(step.cond_expr);
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::ASSERT:
+      set_if_abs_forbidden(step.cond_expr);
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::GOTO:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::LOCATION:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::INPUT:
+      if(is_abstractable_name(as_string(step.io_id))){
+        for(exprt& e:step.io_args)
+          set_if_abs_forbidden(e);
+      } else {
+        for(exprt& e:step.io_args)
+          produce_nonabs(e);
+      }
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::OUTPUT:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::DECL:
+      if(is_abstractable_name(as_string(step.io_id))){
+        for(exprt& e:step.io_args)
+          set_if_abs_forbidden(e);
+      } else {
+        for(exprt& e:step.io_args)
+          produce_nonabs(e);
+      }
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::DEAD:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::FUNCTION_CALL:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::FUNCTION_RETURN:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::CONSTRAINT:
+      set_if_abs_forbidden(step.cond_expr);
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::SHARED_READ:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::SHARED_WRITE:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::SPAWN:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::MEMORY_BARRIER:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::ATOMIC_BEGIN:
+      abs_steps.emplace_back(step);
+    case goto_trace_stept::typet::ATOMIC_END:
+      abs_steps.emplace_back(step);
+    }
+  }
+  targetEquation.SSA_steps = std::move(abs_steps);
+}
+
 /*
  * this
  * - returns an expression saying whether the expression is abstract;

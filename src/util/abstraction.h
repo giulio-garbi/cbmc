@@ -7,6 +7,8 @@
 
 #include <util/ssa_expr.h>
 
+#include "goto-symex/symex_target_equation.h"
+
 class is_abstractt: public unary_exprt{
 public:
   is_abstractt(ssa_exprt &expr) : unary_exprt(ID_is_abstract, expr, bool_typet{}){}
@@ -76,5 +78,6 @@ inline overflow_bitt &to_overflow_bit(exprt &expr)
 const exprt is_expr_abstract(exprt&, size_t width);
 bool is_abstractable_name(const std::string);
 bool is_abstractable_type(typet&, size_t);
+void apply_approx(symex_target_equationt& targetEquation);
 
 #endif //CBMC_ABSTRACTION_H
