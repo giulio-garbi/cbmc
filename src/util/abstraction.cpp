@@ -9,12 +9,12 @@
 #include "c_types.h"
 #include "cprover_prefix.h"
 
-void produce_nonabs(exprt &e){
-  if(e.find(ID_C_produce_nonabs).is_not_nil()){
+void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
+  if((*targetEquation.produce_nonabs)[e].has_value()){
     return;
   }
   if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
-    e.set(ID_C_produce_nonabs, !is_abstractable_name(as_string(ssa->get_original_name())));
+    (*targetEquation.produce_nonabs)[e] = !is_abstractable_name(as_string(ssa->get_original_name()));
   } else if (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
           e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
           e.id() == ID_lshr || e.id() == ID_ashr || e.id() == ID_rol || e.id() == ID_ror ||
@@ -47,34 +47,34 @@ void produce_nonabs(exprt &e){
           e.id() == ID_implies || e.id() == ID_address_of || e.id() == ID_and ||
           e.id() == ID_or || e.id() == ID_nand || e.id() == ID_nor ||
           e.id() == ID_xor || e.id() == ID_pointer_object || e.id() == ID_pointer_offset) {
-    e.set(ID_C_produce_nonabs, true);
+    (*targetEquation.produce_nonabs)[e] = true;
     Forall_operands(op, e){
-      produce_nonabs(e.operands()[0]);
+      produce_nonabs(e.operands()[0], targetEquation);
     }
   } else if(e.id() == ID_case){
     // produce nonabs for every op[e'] (e>0 AND e' is even) AND this op produce nonabs
-    e.set(ID_C_produce_nonabs, true);
+    (*targetEquation.produce_nonabs)[e] = true;
     for(std::vector<exprt>::size_type i=2; i<e.operands().size(); i+=2){
-      produce_nonabs(e.operands()[i]);
+      produce_nonabs(e.operands()[i], targetEquation);
     }
   } else if (e.id() == ID_constant){
-    e.set(ID_C_produce_nonabs, true);
+    (*targetEquation.produce_nonabs)[e] = true;
   } else if (e.id() == ID_nondet_symbol){
-    e.set(ID_C_produce_nonabs, false);
+    (*targetEquation.produce_nonabs)[e] = false;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // produce nonabs for then and else AND this op has produce nonabs
-    e.set(ID_C_produce_nonabs, true);
-    produce_nonabs(ifexp->true_case());
-    produce_nonabs(ifexp->false_case());
+    (*targetEquation.produce_nonabs)[e] = true;
+    produce_nonabs(ifexp->true_case(), targetEquation);
+    produce_nonabs(ifexp->false_case(), targetEquation);
   } else if(const auto index = expr_try_dynamic_cast<index_exprt>(e)){
-    e.set(ID_C_produce_nonabs, true);
-    produce_nonabs(index->index());
+    (*targetEquation.produce_nonabs)[e] = true;
+    produce_nonabs(index->index(), targetEquation);
   } else if(const auto repl = expr_try_dynamic_cast<replication_exprt>(e)){
-    e.set(ID_C_produce_nonabs, true);
-    produce_nonabs(repl->op());
+    (*targetEquation.produce_nonabs)[e] = true;
+    produce_nonabs(repl->op(), targetEquation);
   } else if(const auto cast = expr_try_dynamic_cast<typecast_exprt>(e)){
-    e.set(ID_C_produce_nonabs, true);
-    produce_nonabs(cast->op());
+    (*targetEquation.produce_nonabs)[e] = true;
+    produce_nonabs(cast->op(), targetEquation);
   } else {
     UNREACHABLE;
   }
@@ -83,18 +83,15 @@ void produce_nonabs(exprt &e){
 /* unknown expressions:
  * ID_constraint_select_one
  */
-bool set_if_abs_forbidden(exprt &e){
-  if(e.find(ID_C_abstr_forbidden).is_not_nil()){
-    return e.get_int(ID_C_abstr_forbidden);
-  }
-  if(e.is_nil()){
-    return false;
+bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
+  if((*targetEquation.is_abs_forbidden)[e].has_value()){
+    return *((*targetEquation.is_abs_forbidden)[e]);
   }
   else if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
-    bool is_abs = !is_abstractable_name(as_string(ssa->get_original_name()));
-    e.set(ID_C_abstr_forbidden, is_abs);
-    if(is_abs)
-      e.set(ID_C_produce_nonabs, true);
+    bool is_out_of_abs = !is_abstractable_name(as_string(ssa->get_original_name()));
+    ((*targetEquation.is_abs_forbidden)[e]) = is_out_of_abs;
+    if(is_out_of_abs)
+      (*targetEquation.produce_nonabs)[e] =  true;
   } else if(e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
           e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
           e.id() == ID_lshr || e.id() == ID_ashr || e.id() == ID_rol || e.id() == ID_ror ||
@@ -125,13 +122,13 @@ bool set_if_abs_forbidden(exprt &e){
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
     Forall_operands(op, e){
-      forbOp = set_if_abs_forbidden(*op) || forbOp;
+      forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
     }
-    e.set(ID_C_abstr_forbidden, forbOp);
+    ((*targetEquation.is_abs_forbidden)[e]) = forbOp;
     if(forbOp){
-      e.set(ID_C_produce_nonabs, true);
+      (*targetEquation.produce_nonabs)[e] = true;
       Forall_operands(op, e){
-        produce_nonabs(e.operands()[0]);
+        produce_nonabs(e.operands()[0], targetEquation);
       }
     }
   } else if(e.id() == ID_ge || e.id() == ID_le || e.id() == ID_gt ||
@@ -144,13 +141,13 @@ bool set_if_abs_forbidden(exprt &e){
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
     Forall_operands(op, e){
-      forbOp = set_if_abs_forbidden(*op) || forbOp;
+      forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
     }
-    e.set(ID_C_abstr_forbidden, false);
-    e.set(ID_C_produce_nonabs, true);
+    ((*targetEquation.is_abs_forbidden)[e]) = false;
+    (*targetEquation.produce_nonabs)[e] = true;
     if(forbOp){
       Forall_operands(op, e){
-        produce_nonabs(e.operands()[0]);
+        produce_nonabs(e.operands()[0], targetEquation);
       }
     }
   } else if(e.id() == ID_case){
@@ -160,135 +157,186 @@ bool set_if_abs_forbidden(exprt &e){
     bool forbOp_e = false;
     for(std::vector<exprt>::size_type i=0; i<e.operands().size(); i++){
       if(i == 0 || i%2 == 1){
-        forbOp_o = set_if_abs_forbidden(e.operands()[i]) || forbOp_o;
+        forbOp_o = set_if_abs_forbidden(e.operands()[i], targetEquation) || forbOp_o;
       } else {
-        forbOp_e = set_if_abs_forbidden(e.operands()[i]) || forbOp_e;
+        forbOp_e = set_if_abs_forbidden(e.operands()[i], targetEquation) || forbOp_e;
       }
     }
-    e.set(ID_C_abstr_forbidden, forbOp_e);
+    ((*targetEquation.is_abs_forbidden)[e]) = forbOp_e;
     if(forbOp_e)
-      e.set(ID_C_produce_nonabs, true);
+      (*targetEquation.produce_nonabs)[e] = true;
     for(std::vector<exprt>::size_type i=0; i<e.operands().size(); i++){
       if(i == 0 || i%2 == 1){
         if(forbOp_o)
-          produce_nonabs(e.operands()[i]);
+          produce_nonabs(e.operands()[i], targetEquation);
       } else {
         if(forbOp_e)
-          produce_nonabs(e.operands()[i]);
+          produce_nonabs(e.operands()[i], targetEquation);
       }
     }
   } else if (e.id() == ID_constant){
-    e.set(ID_C_abstr_forbidden, false);
+    (*targetEquation.is_abs_forbidden)[e] = false;
+    (*targetEquation.produce_nonabs)[e] = false;
   } else if (e.id() == ID_nondet_symbol){
-    e.set(ID_C_abstr_forbidden, false);
-    e.set(ID_C_produce_nonabs, false);
+    (*targetEquation.is_abs_forbidden)[e] = true;
+    (*targetEquation.produce_nonabs)[e] = false;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // then or else with abs_forbidden => produce nonabs for then and else AND this op has abs_forbidden
-    set_if_abs_forbidden(ifexp->cond());
-    bool forbOp = set_if_abs_forbidden(ifexp->true_case());
-    forbOp = set_if_abs_forbidden(ifexp->false_case()) || forbOp;
-    e.set(ID_C_abstr_forbidden, forbOp);
+    set_if_abs_forbidden(ifexp->cond(), targetEquation);
+    bool forbOp = set_if_abs_forbidden(ifexp->true_case(), targetEquation);
+    forbOp = set_if_abs_forbidden(ifexp->false_case(), targetEquation) || forbOp;
+    ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
     if(forbOp){
-      e.set(ID_C_produce_nonabs, true);
-      produce_nonabs(ifexp->true_case());
-      produce_nonabs(ifexp->false_case());
+      (*targetEquation.produce_nonabs)[e] = true;
+      produce_nonabs(ifexp->true_case(), targetEquation);
+      produce_nonabs(ifexp->false_case(), targetEquation);
     }
   } else if(const auto index = expr_try_dynamic_cast<index_exprt>(e)){
     // array with abs_forbidden => this op has abs_forbidden
-    set_if_abs_forbidden(index->index());
-    bool forbOp = set_if_abs_forbidden(index->array());
-    e.set(ID_C_abstr_forbidden, forbOp);
+    set_if_abs_forbidden(index->index(), targetEquation);
+    bool forbOp = set_if_abs_forbidden(index->array(), targetEquation);
+    ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
     if(forbOp){
-      e.set(ID_C_produce_nonabs, true);
+      (*targetEquation.produce_nonabs)[e] = true;
     }
   } else if(const auto repl = expr_try_dynamic_cast<replication_exprt>(e)){
     // op with abs_forbidden => this op has abs_forbidden
-    bool forbOp = set_if_abs_forbidden(repl->op());
-    e.set(ID_C_abstr_forbidden, forbOp);
+    bool forbOp = set_if_abs_forbidden(repl->op(), targetEquation);
+    ((*targetEquation.is_abs_forbidden)[e]) = forbOp;
     if(forbOp){
-      e.set(ID_C_produce_nonabs, true);
+      (*targetEquation.produce_nonabs)[e] = true;
     }
   } else if(const auto cast = expr_try_dynamic_cast<typecast_exprt>(e)){
     // op with abs_forbidden => this op has abs_forbidden
-    bool forbOp = set_if_abs_forbidden(cast->op());
-    e.set(ID_C_abstr_forbidden, forbOp);
+    bool forbOp = set_if_abs_forbidden(cast->op(), targetEquation);
+    ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
     if(forbOp){
-      e.set(ID_C_produce_nonabs, true);
+      (*targetEquation.produce_nonabs)[e] = true;
     }
   } else {
     UNREACHABLE;
   }
-  return e.get_int(ID_C_abstr_forbidden);
+  return *((*targetEquation.is_abs_forbidden)[e]);
+}
+
+void annotate_ssa_exprs_tree(exprt &e, symex_target_equationt &targetEquation){
+  if(e.is_nil())
+    return ;
+  bool pna = targetEquation.produce_nonabs.has_value() &&
+             (*targetEquation.produce_nonabs)[e].has_value() &&
+             *(*targetEquation.produce_nonabs)[e];
+  bool forb = targetEquation.is_abs_forbidden.has_value() &&
+              (*targetEquation.is_abs_forbidden)[e].has_value() &&
+              *(*targetEquation.is_abs_forbidden)[e];
+  e.set(ID_C_produce_nonabs, pna);
+  e.set(ID_C_abstr_forbidden, forb);
+  for(exprt &s: e.operands())
+    annotate_ssa_exprs_tree(s, targetEquation);
+}
+
+void annotate_ssa_exprs_tree(symex_target_equationt &targetEquation)
+{
+  for(SSA_stept &step:targetEquation.SSA_steps){
+    if(step.is_shared_read() || step.is_shared_write())
+      annotate_ssa_exprs_tree(step.ssa_lhs, targetEquation);
+    else
+      annotate_ssa_exprs_tree(step.cond_expr, targetEquation);
+    annotate_ssa_exprs_tree(step.guard, targetEquation);
+  }
 }
 
 void apply_approx(symex_target_equationt &targetEquation)
 {
   symex_target_equationt::SSA_stepst abs_steps;
+  targetEquation.is_abs_forbidden = {std::map<exprt,optionalt<bool>>()};
+  targetEquation.produce_nonabs = {std::map<exprt,optionalt<bool>>()};
   for(SSA_stept &step:targetEquation.SSA_steps){
-    set_if_abs_forbidden(step.guard);
+    set_if_abs_forbidden(step.guard, targetEquation);
     switch(step.type)
     {
     case goto_trace_stept::typet::NONE:
       abs_steps.emplace_back(step);
-    case goto_trace_stept::typet::ASSIGNMENT:
-      if(is_abstractable_name(as_string(step.ssa_lhs.get_original_name()))){
-        set_if_abs_forbidden(step.ssa_rhs);
-      } else {
-        set_if_abs_forbidden(step.ssa_lhs);
-        produce_nonabs(step.ssa_rhs);
+      break;
+    case goto_trace_stept::typet::ASSIGNMENT:{
+      set_if_abs_forbidden(step.ssa_lhs, targetEquation);
+      set_if_abs_forbidden(step.ssa_rhs, targetEquation);
+      if(step.ssa_lhs.get_bool(ID_C_abstr_forbidden))
+      {
+        produce_nonabs(step.ssa_lhs, targetEquation);
+        produce_nonabs(step.ssa_rhs, targetEquation);
       }
       abs_steps.emplace_back(step);
+      break;}
     case goto_trace_stept::typet::ASSUME:
-      set_if_abs_forbidden(step.cond_expr);
+      set_if_abs_forbidden(step.cond_expr, targetEquation);
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::ASSERT:
-      set_if_abs_forbidden(step.cond_expr);
+      set_if_abs_forbidden(step.cond_expr, targetEquation);
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::GOTO:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::LOCATION:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::INPUT:
-      if(is_abstractable_name(as_string(step.io_id))){
+      /*if(is_abstractable_name(as_string(step.io_id))){
         for(exprt& e:step.io_args)
-          set_if_abs_forbidden(e);
+          set_if_abs_forbidden(e, targetEquation);
       } else {
         for(exprt& e:step.io_args)
-          produce_nonabs(e);
-      }
+          produce_nonabs(e, targetEquation);
+      }*/
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::OUTPUT:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::DECL:
-      if(is_abstractable_name(as_string(step.io_id))){
+      /*if(is_abstractable_name(as_string(step.io_id))){
         for(exprt& e:step.io_args)
-          set_if_abs_forbidden(e);
+          set_if_abs_forbidden(e, targetEquation);
       } else {
         for(exprt& e:step.io_args)
-          produce_nonabs(e);
-      }
+          produce_nonabs(e, targetEquation);
+      }*/
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::DEAD:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::FUNCTION_CALL:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::FUNCTION_RETURN:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::CONSTRAINT:
-      set_if_abs_forbidden(step.cond_expr);
+      set_if_abs_forbidden(step.cond_expr, targetEquation);
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::SHARED_READ:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::SHARED_WRITE:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::SPAWN:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::MEMORY_BARRIER:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::ATOMIC_BEGIN:
       abs_steps.emplace_back(step);
+      break;
     case goto_trace_stept::typet::ATOMIC_END:
       abs_steps.emplace_back(step);
+      break;
+    default:
+      UNREACHABLE;
     }
   }
   targetEquation.SSA_steps = std::move(abs_steps);

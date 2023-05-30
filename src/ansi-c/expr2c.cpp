@@ -3556,6 +3556,22 @@ std::string expr2ct::convert_bitreverse(const bitreverse_exprt &src)
 
 std::string expr2ct::convert_with_precedence(
   const exprt &src,
+  unsigned &precedence) {
+  auto out = convert_with_precedence_inn(src, precedence);
+  bool abs_forbidden = src.get_bool(ID_C_abstr_forbidden);
+  bool produce_nonabs = src.get_bool(ID_C_produce_nonabs);
+  if(abs_forbidden || produce_nonabs){
+    out = "("+out+")";
+    if(produce_nonabs)
+      out = "N"+out;
+    if(abs_forbidden)
+      out = "F"+out;
+  }
+  return out;
+}
+
+std::string expr2ct::convert_with_precedence_inn(
+  const exprt &src,
   unsigned &precedence)
 {
   precedence=16;

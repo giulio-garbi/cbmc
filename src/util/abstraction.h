@@ -79,5 +79,6 @@ const exprt is_expr_abstract(exprt&, size_t width);
 bool is_abstractable_name(const std::string);
 bool is_abstractable_type(typet&, size_t);
 void apply_approx(symex_target_equationt& targetEquation);
+void annotate_ssa_exprs_tree(symex_target_equationt& targetEquation);
 
 #endif //CBMC_ABSTRACTION_H

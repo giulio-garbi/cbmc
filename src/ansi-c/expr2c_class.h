@@ -233,6 +233,8 @@ protected:
 
   virtual std::string convert_with_precedence(
     const exprt &src, unsigned &precedence);
+  virtual std::string convert_with_precedence_inn(
+    const exprt &src, unsigned &precedence);
 
   std::string
   convert_function_application(const function_application_exprt &src);

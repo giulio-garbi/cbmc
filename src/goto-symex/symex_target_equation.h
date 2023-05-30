@@ -37,6 +37,9 @@ public:
   {
   }
 
+  optionalt<std::map<exprt,optionalt<bool>>> is_abs_forbidden;
+  optionalt<std::map<exprt,optionalt<bool>>> produce_nonabs;
+
   virtual ~symex_target_equationt() = default;
 
   /// \copydoc symex_targett::shared_read()

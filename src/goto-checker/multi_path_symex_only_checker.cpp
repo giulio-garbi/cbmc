@@ -93,6 +93,9 @@ void multi_path_symex_only_checkert::generate_equation()
 
   if(options.is_set("under")){
     apply_approx(equation);
+    // that's costly and breaks the equation merging. Do it only if unavoidable
+    if(options.is_set("program-only"))
+      annotate_ssa_exprs_tree(equation);
   }
 }
 
