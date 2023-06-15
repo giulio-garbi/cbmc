@@ -12,16 +12,16 @@ Author: Daniel Kroening, kroening@kroening.com
 #ifndef CPROVER_GOTO_SYMEX_SYMEX_TARGET_EQUATION_H
 #define CPROVER_GOTO_SYMEX_SYMEX_TARGET_EQUATION_H
 
-#include <algorithm>
-#include <iosfwd>
-#include <list>
-
 #include <util/invariant.h>
 #include <util/message.h>
 #include <util/narrow.h>
 
 #include "ssa_step.h"
 #include "symex_target.h"
+
+#include <algorithm>
+#include <iosfwd>
+#include <list>
 
 class decision_proceduret;
 class namespacet;
@@ -38,7 +38,12 @@ public:
   }
 
   optionalt<std::map<exprt,optionalt<bool>>> is_abs_forbidden;
+  optionalt<std::map<typet,optionalt<bool>>> is_type_abstract;
   optionalt<std::map<exprt,optionalt<bool>>> produce_nonabs;
+  optionalt<std::map<std::pair<exprt, bool>,optionalt<exprt>>> is_abstract;
+  optionalt<std::map<exprt,optionalt<bool>>> compute_bounds_failure;
+
+  friend void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 
   virtual ~symex_target_equationt() = default;
 

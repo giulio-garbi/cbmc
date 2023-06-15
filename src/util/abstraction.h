@@ -7,7 +7,11 @@
 
 #include <util/ssa_expr.h>
 
+#include "bitvector_types.h"
+
 #include "goto-symex/symex_target_equation.h"
+
+unsignedbv_typet get_abs_type(typet &t, namespacet &ns);
 
 class is_abstractt: public unary_exprt{
 public:
@@ -42,43 +46,47 @@ inline is_abstractt &to_is_abstract(exprt &expr)
   return static_cast<is_abstractt &>(expr);
 }
 
-class overflow_bitt: public unary_exprt{
+class bounds_failuret: public unary_exprt{
 public:
-  overflow_bitt(exprt &expr) : unary_exprt(ID_overflow_bit, expr, bool_typet{}){}
+  bounds_failuret(const exprt &expr, size_t width) : unary_exprt(ID_bounds_failure, expr, unsignedbv_typet(1)){
+    set(ID_width, width);
+  }
 };
 
 
-inline bool is_overflow_bit(const exprt &expr)
+inline bool is_bounds_failure(const exprt &expr)
 {
-  return expr.id() == ID_overflow_bit;
+  return expr.id() == ID_bounds_failure;
 }
 
 template <>
-inline bool can_cast_expr<overflow_bitt>(const exprt &base)
+inline bool can_cast_expr<bounds_failuret>(const exprt &base)
 {
-  return is_overflow_bit(base);
+  return is_bounds_failure(base);
 }
 
-/// Cast a generic exprt to an \ref overflow_bitt.
+/// Cast a generic exprt to an \ref bounds_failuret.
 /// \param expr: Source expression
-/// \return Object of type \ref overflow_bitt
-inline const overflow_bitt &to_overflow_bit(const exprt &expr)
+/// \return Object of type \ref bounds_failuret
+inline const bounds_failuret &to_bounds_failure(const exprt &expr)
 {
-  INVARIANT_WITH_DIAGNOSTICS(is_overflow_bit(expr), "expr needs to be a overflow_bitt", expr.pretty());
-  return static_cast<const overflow_bitt &>(expr);
+  INVARIANT_WITH_DIAGNOSTICS(is_bounds_failure(expr), "expr needs to be a bounds_failuret", expr.pretty());
+  return static_cast<const bounds_failuret &>(expr);
 }
 
-/// \copydoc to_overflow_bit(const exprt &)
-inline overflow_bitt &to_overflow_bit(exprt &expr)
+/// \copydoc to_bounds_failure(const exprt &)
+inline bounds_failuret &to_bounds_failure(exprt &expr)
 {
-  INVARIANT_WITH_DIAGNOSTICS(is_overflow_bit(expr), "expr needs to be a overflow_bitt", expr.pretty());
-  return static_cast<overflow_bitt &>(expr);
+  INVARIANT_WITH_DIAGNOSTICS(is_bounds_failure(expr), "expr needs to be a bounds_failuret", expr.pretty());
+  return static_cast<bounds_failuret &>(expr);
 }
 
-const exprt is_expr_abstract(exprt&, size_t width);
+//const exprt is_expr_abstract(exprt&, size_t width);
 bool is_abstractable_name(const std::string);
-bool is_abstractable_type(typet&, size_t);
-void apply_approx(symex_target_equationt& targetEquation);
+bool is_abstractable_type(const typet&, size_t, symex_target_equationt&);
+void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 void annotate_ssa_exprs_tree(symex_target_equationt& targetEquation);
+
+
 
 #endif //CBMC_ABSTRACTION_H

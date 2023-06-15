@@ -3979,6 +3979,20 @@ std::string expr2ct::convert_with_precedence_inn(
   else if(src.id() == ID_bitreverse)
     return convert_bitreverse(to_bitreverse_expr(src));
 
+  else if(src.id() == ID_bounds_failure){
+    return "bounds_failure("+ convert(src.operands()[0])+" ,"+(src.get_string(ID_width))+")";
+  }
+
+  else if(src.id() == ID_replication){
+    auto rep = to_replication_expr(src);
+    return "replication("+ convert(rep.op())+" , times="+convert(rep.times())+")";
+  }
+
+  else if(src.id() == ID_reduction_or){
+    auto red = to_unary_expr(src);
+    return "reduction_or("+ convert(red.op())+")";
+  }
+
   auto function_string_opt = convert_function(src);
   if(function_string_opt.has_value())
     return *function_string_opt;

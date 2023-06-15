@@ -918,7 +918,8 @@ IREP_ID_ONE(C_abstr_type)
 IREP_ID_ONE(C_compute_overflow_bit)
 IREP_ID_ONE(C_abstr_forbidden)
 IREP_ID_ONE(C_produce_nonabs)
-IREP_ID_ONE(overflow_bit)
+IREP_ID_ONE(bounds_failure)
+IREP_ID_ONE(div_width_by_8)
 
 // Projects depending on this code base that wish to extend the list of
 // available ids should provide a file local_irep_ids.def in their source tree
