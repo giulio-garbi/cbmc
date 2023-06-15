@@ -142,9 +142,7 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
   } else if(e.id() == ID_ge || e.id() == ID_le || e.id() == ID_gt ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||
           e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal ||
-          e.id() == ID_forall || e.id() == ID_exists || e.id() == ID_not ||
-          e.id() == ID_implies || e.id() == ID_and || e.id() == ID_or ||
-          e.id() == ID_nand || e.id() == ID_nor || e.id() == ID_xor) {
+          e.id() == ID_forall || e.id() == ID_exists) {
     // NOT this op has abs_forbidden
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
@@ -155,9 +153,18 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     (*targetEquation.produce_nonabs)[e] = true;
     if(forbOp){
       Forall_operands(op, e){
-        produce_nonabs(e.operands()[0], targetEquation);
+        produce_nonabs(*op, targetEquation);
       }
     }
+  } else if(e.id() == ID_not ||
+          e.id() == ID_implies || e.id() == ID_and || e.id() == ID_or ||
+          e.id() == ID_nand || e.id() == ID_nor || e.id() == ID_xor) {
+    // NOT this op has abs_forbidden
+    Forall_operands(op, e){
+      set_if_abs_forbidden(*op, targetEquation);
+    }
+    ((*targetEquation.is_abs_forbidden)[e]) = false;
+    (*targetEquation.produce_nonabs)[e] = true;
   } else if(e.id() == ID_case){
     // exists op[o] with abs_forbidden AND (o=0 OR o is odd) => produce nonabs for every op[o'] (o'=0 OR o' is odd)
     // exists op[e] with abs_forbidden AND e>0 AND e is even => produce nonabs for every op[e'] (e>0 AND e' is even) AND this op has abs_forbidden
@@ -309,7 +316,7 @@ bool can_abstract(const exprt& op, symex_target_equationt &targetEquation){
   return !(*(*targetEquation.is_abs_forbidden)[op]);
 }
 
-bool can_abstract(std::vector<exprt>& ops, symex_target_equationt &targetEquation){
+bool can_abstract(const std::vector<exprt>& ops, symex_target_equationt &targetEquation){
   for(const auto &op:ops){
     if(!can_abstract(op, targetEquation))
       return false;
@@ -377,7 +384,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
   const auto map_key = std::make_pair(e, abs_result);
   if((*targetEquation.is_abstract)[map_key])
     return *(*targetEquation.is_abstract)[map_key];
-  else if(!abs_result && !*(*targetEquation.produce_nonabs)[e]){
+  else if(!abs_result && (!(*targetEquation.produce_nonabs)[e] || !*(*targetEquation.produce_nonabs)[e])){
     PRECONDITION(false);
   } else if(abs_result && *(*targetEquation.is_abs_forbidden)[e]){
     PRECONDITION(false);
@@ -433,8 +440,11 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (e.id() == ID_ge || e.id() == ID_gt || e.id() == ID_le ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal) {
-    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
-                             get_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width)));
+    bool do_operands_with_abstraction = abs_result && can_abstract(e.operands(), targetEquation);
+    if(!do_operands_with_abstraction)
+      assert(*(*targetEquation.produce_nonabs)[e]);
+    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], do_operands_with_abstraction, width, targetEquation, ns, bv_width)),
+                             get_sm(abstr_check(e.operands()[1], do_operands_with_abstraction, width, targetEquation, ns, bv_width)));
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (const auto be = expr_try_dynamic_cast<byte_extract_exprt>(e)) {
     // see if you can restrict the offset search somehow (e.g., offset is limited to x bits)
