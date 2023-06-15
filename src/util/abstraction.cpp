@@ -348,19 +348,28 @@ ssa_exprt get_random_bit(const nondet_symbol_exprt &orig){
   else
     idx += 2;
   auto abstr_ident = ident.substr(0,idx) + "__NONDET__" + ident.substr(idx);
-  return ssa_exprt(symbol_exprt(abstr_ident, bool_typet()));
+  return ssa_exprt(symbol_exprt(abstr_ident, unsignedbv_typet(1)));
 }
-replication_exprt update_sm(const exprt &bit, const typet &to_cover_tp, namespacet &ns){
+exprt update_sm(const exprt &bit, const typet &to_cover_tp, namespacet &ns){
+  PRECONDITION(can_cast_type<unsignedbv_typet>(bit.type()) && to_unsignedbv_type(bit.type()).get_width() == 1);
   auto to_cover_sm = get_abs_type(to_cover_tp, ns);
-  return {from_integer(to_cover_sm.get_width(), size_type()), bit, to_cover_sm};
+  if(auto const c = expr_try_dynamic_cast<constant_exprt>(bit)){
+    if(c->is_zero()){
+      return unsignedbv_typet(to_cover_sm.get_width()).smallest_expr();
+    } else {
+      return unsignedbv_typet(to_cover_sm.get_width()).largest_expr();
+    }
+  }
+  return replication_exprt{
+    from_integer(to_cover_sm.get_width(), size_type()), bit, to_cover_sm};
 }
 unary_exprt get_sm(const exprt &sm){
   return {ID_reduction_or, sm, unsignedbv_typet(1)};
 }
-replication_exprt max_sm(const exprt &sm, const typet &to_cover_tp, namespacet &ns){
+/*exprt max_sm(const exprt &sm, const typet &to_cover_tp, namespacet &ns){
   auto bit = get_sm(sm);
   return update_sm(bit, to_cover_tp, ns);
-}
+}*/
 
 exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_target_equationt &targetEquation, namespacet &ns, boolbv_widtht &bv_width){
   exprt abs_check;
@@ -368,11 +377,11 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
   const auto map_key = std::make_pair(e, abs_result);
   if((*targetEquation.is_abstract)[map_key])
     return *(*targetEquation.is_abstract)[map_key];
-  /*else if(!abs_result && !*(*targetEquation.produce_nonabs)[e]){
-    INVARIANT(!(!abs_result && !*(*targetEquation.produce_nonabs)[e]), "NOT abs_result requires produce_nonabs");
-  } else if(!abs_result && *(*targetEquation.is_abs_forbidden)[e]){
-    INVARIANT(!(!abs_result && *(*targetEquation.is_abs_forbidden)[e]), "is_abs_forbidden incompatible with abs_result");
-  } */
+  else if(!abs_result && !*(*targetEquation.produce_nonabs)[e]){
+    PRECONDITION(false);
+  } else if(abs_result && *(*targetEquation.is_abs_forbidden)[e]){
+    PRECONDITION(false);
+  }
   else if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
     bool has_sm = !*(*targetEquation.is_abs_forbidden)[e];
     bool needs_bounds_failure = abs_result && is_abstractable_type(ssa->type(), width, targetEquation);
@@ -416,16 +425,16 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
     }
-    auto op_ok = bitor_exprt(max_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width), e.operands()[0].type(), ns),
-                             max_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width), e.operands()[1].type(), ns));
+    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
+                             get_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width)));
     if(needs_bounds_failure)
       op_ok = bitor_exprt(op_ok, bounds_failuret(e, width));
 
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (e.id() == ID_ge || e.id() == ID_gt || e.id() == ID_le ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal) {
-    auto op_ok = bitor_exprt(max_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width), e.operands()[0].type(), ns),
-                             max_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width), e.operands()[1].type(), ns));
+    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
+                             get_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width)));
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (const auto be = expr_try_dynamic_cast<byte_extract_exprt>(e)) {
     // see if you can restrict the offset search somehow (e.g., offset is limited to x bits)
