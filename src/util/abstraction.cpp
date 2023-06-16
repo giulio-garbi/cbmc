@@ -274,6 +274,36 @@ exprt or_simpl(const exprt &e0 = false_exprt{},
     return or_exprt(o);
 }
 
+exprt if_simpl(const exprt &cond, const exprt &then, const exprt &els){
+  if(then == els || cond.is_true())
+    return then;
+  else if(cond.is_false())
+    return els;
+  else
+    return if_exprt(cond, then, els);
+}
+
+exprt bitor_simpl(const exprt &e0 = nil_exprt{},
+                  const exprt &e1 = nil_exprt{},
+                  const exprt &e2 = nil_exprt{},
+                  const exprt &e3 = nil_exprt{}){
+  std::vector<exprt> o;
+  if(!e0.is_nil() && !e0.is_zero()) o.push_back(e0);
+  if(!e1.is_nil() && !e1.is_zero()) o.push_back(e1);
+  if(!e2.is_nil() && !e2.is_zero()) o.push_back(e2);
+  if(!e3.is_nil() && !e3.is_zero()) o.push_back(e3);
+  if(o.empty())
+    return e0;
+  else if(o.size() == 1)
+    return o[0];
+  else if(o.size() == 2)
+    return bitor_exprt(o[0], o[1]);
+  else if(o.size() == 3)
+    return bitor_exprt(bitor_exprt(o[0], o[1]), o[2]);
+  else
+    return bitor_exprt(bitor_exprt(o[0], o[1]), bitor_exprt(o[2], o[3]));
+}
+
 exprt and_simpl(const exprt &e0 = true_exprt{},
                const exprt &e1 = true_exprt{},
                const exprt &e2 = true_exprt{},
@@ -367,11 +397,21 @@ exprt update_sm(const exprt &bit, const typet &to_cover_tp, namespacet &ns){
       return unsignedbv_typet(to_cover_sm.get_width()).largest_expr();
     }
   }
+  auto repl_times = to_cover_sm.get_width();
+  if(repl_times == 1)
+    return bit;
   return replication_exprt{
-    from_integer(to_cover_sm.get_width(), size_type()), bit, to_cover_sm};
+    from_integer(repl_times, size_type()), bit, to_cover_sm};
 }
-unary_exprt get_sm(const exprt &sm){
-  return {ID_reduction_or, sm, unsignedbv_typet(1)};
+exprt get_sm(const exprt &sm){
+  if(sm.is_constant()){
+    if(sm.is_zero()){
+      return from_integer(0, unsignedbv_typet(1));
+    } else {
+      return from_integer(1, unsignedbv_typet(1));
+    }
+  }
+  return unary_exprt{ID_reduction_or, sm, unsignedbv_typet(1)};
 }
 /*exprt max_sm(const exprt &sm, const typet &to_cover_tp, namespacet &ns){
   auto bit = get_sm(sm);
@@ -396,7 +436,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       (*targetEquation.compute_bounds_failure)[e] = true;
     if(has_sm){
       if(needs_bounds_failure)
-        abs_check = bitor_exprt(get_abs_symbol(*ssa, ns), update_sm(bounds_failuret(*ssa, width), ssa->type(), ns));
+        abs_check = bitor_simpl(get_abs_symbol(*ssa, ns), update_sm(bounds_failuret(*ssa, width), ssa->type(), ns));
       else
         abs_check = get_abs_symbol(*ssa, ns);
     } else {
@@ -432,10 +472,10 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
     }
-    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
+    auto op_ok = bitor_simpl(get_sm(abstr_check(e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
                              get_sm(abstr_check(e.operands()[1], abs_result, width, targetEquation, ns, bv_width)));
     if(needs_bounds_failure)
-      op_ok = bitor_exprt(op_ok, bounds_failuret(e, width));
+      op_ok = bitor_simpl(op_ok, bounds_failuret(e, width));
 
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (e.id() == ID_ge || e.id() == ID_gt || e.id() == ID_le ||
@@ -443,7 +483,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     bool do_operands_with_abstraction = abs_result && can_abstract(e.operands(), targetEquation);
     if(!do_operands_with_abstraction)
       assert(*(*targetEquation.produce_nonabs)[e]);
-    auto op_ok = bitor_exprt(get_sm(abstr_check(e.operands()[0], do_operands_with_abstraction, width, targetEquation, ns, bv_width)),
+    auto op_ok = bitor_simpl(get_sm(abstr_check(e.operands()[0], do_operands_with_abstraction, width, targetEquation, ns, bv_width)),
                              get_sm(abstr_check(e.operands()[1], do_operands_with_abstraction, width, targetEquation, ns, bv_width)));
     abs_check = update_sm(op_ok, e.type(), ns);
   } else if (const auto be = expr_try_dynamic_cast<byte_extract_exprt>(e)) {
@@ -451,14 +491,14 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     // maybe, have a look on the higher literals of offset
     exprt offset_abs = get_sm(abstr_check(be->offset(), abs_result, width, targetEquation, ns, bv_width));
     exprt op_sm = abstr_check(be->op(), abs_result, width, targetEquation, ns, bv_width);
-    auto extract_op_sm = byte_extract_exprt(ID_byte_extract_little_endian, op_sm, be->offset(), 1, get_abs_type(be->type(), ns));
+    auto extract_op_sm = op_sm.is_zero()?(exprt)get_zero_sm_symbol(be->type(), ns):byte_extract_exprt(ID_byte_extract_little_endian, op_sm, be->offset(), 1, get_abs_type(be->type(), ns));
     bool needs_bounds_failure = abs_result && is_abstractable_type(e.type(), width, targetEquation);
     if(needs_bounds_failure)
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
-      abs_check = bitor_exprt(update_sm(bitor_exprt(bounds_failuret(*be, width), offset_abs), e.type(), ns), extract_op_sm);
+      abs_check = bitor_simpl(update_sm(bitor_simpl(bounds_failuret(*be, width), offset_abs), e.type(), ns), extract_op_sm);
     } else {
-      abs_check = bitor_exprt(update_sm(offset_abs, e.type(), ns), extract_op_sm);
+      abs_check = bitor_simpl(update_sm(offset_abs, e.type(), ns), extract_op_sm);
     }
   } else if (const auto eb = expr_try_dynamic_cast<extractbits_exprt>(e)) {
     auto const maybe_upper_as_int = numeric_cast<mp_integer>(eb->upper());
@@ -471,7 +511,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     if(needs_bounds_failure)
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
-      abs_check = bitor_exprt(update_sm(bounds_failuret(*eb, width), extract_op_sm.type(), ns), extract_op_sm);
+      abs_check = bitor_simpl(update_sm(bounds_failuret(*eb, width), extract_op_sm.type(), ns), extract_op_sm);
     } else {
       abs_check = extract_op_sm;
     }
@@ -484,7 +524,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     if(needs_bounds_failure)
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
-      abs_check = bitor_exprt(update_sm(bounds_failuret(*eb, width), extract_op_sm.type(), ns), extract_op_sm);
+      abs_check = bitor_simpl(update_sm(bounds_failuret(*eb, width), extract_op_sm.type(), ns), extract_op_sm);
     } else {
       abs_check = extract_op_sm;
     }
@@ -516,7 +556,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       else
       {
         abs_check =
-          bitor_exprt(update_sm(offset_abs, e.type(), ns), bupdate_sm);
+          bitor_simpl(update_sm(offset_abs, e.type(), ns), bupdate_sm);
       }
       assert((to_integer_bitvector_type(abs_check.type()).get_width() == get_abs_type(e.type(), ns).get_width()));
     }
@@ -530,9 +570,9 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     } else {
       auto then_abs = abstr_check(ife->true_case(), abs_result, width, targetEquation, ns, bv_width);
       auto else_abs = abstr_check(ife->false_case(), abs_result, width, targetEquation, ns, bv_width);
-      abs_check = if_exprt(ife->cond(), then_abs, else_abs);
+      abs_check = if_simpl(ife->cond(), then_abs, else_abs);
       if(!cond_abs_bits.is_false()){
-        abs_check = bitor_exprt(update_sm(get_sm(cond_abs_bits), ife->type(), ns), abs_check);
+        abs_check = bitor_simpl(update_sm(get_sm(cond_abs_bits), ife->type(), ns), abs_check);
       }
     }
   } else if (const auto ae = expr_try_dynamic_cast<and_exprt>(e))
@@ -544,12 +584,12 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     for(const auto &op: ae->operands()){
       exprt check = abstr_check(op, can_abstract(op, targetEquation), width, targetEquation, ns, bv_width);
       if(first){
-        foreach_not_sound_or_true = bitor_exprt(check, typecast_exprt::conditional_cast(op, unsignedbv_typet(1)));
+        foreach_not_sound_or_true = bitor_simpl(check, typecast_exprt::conditional_cast(op, unsignedbv_typet(1)));
         exists_unsound = check;
         first = false;
       } else {
-        foreach_not_sound_or_true = bitand_exprt(foreach_not_sound_or_true, bitor_exprt(check, typecast_exprt::conditional_cast(op, unsignedbv_typet(1))));
-        exists_unsound = bitor_exprt(exists_unsound, check);
+        foreach_not_sound_or_true = bitand_exprt(foreach_not_sound_or_true, bitor_simpl(check, typecast_exprt::conditional_cast(op, unsignedbv_typet(1))));
+        exists_unsound = bitor_simpl(exists_unsound, check);
       }
     }
     abs_check = bitand_exprt(foreach_not_sound_or_true, exists_unsound);
@@ -562,12 +602,12 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     for(const auto &op: oe->operands()){
       exprt check = abstr_check(op, can_abstract(op, targetEquation), width, targetEquation, ns, bv_width);
       if(first){
-        foreach_not_sound_or_false = bitor_exprt(check, bitnot_exprt(typecast_exprt::conditional_cast(op, unsignedbv_typet(1))));
+        foreach_not_sound_or_false = bitor_simpl(check, bitnot_exprt(typecast_exprt::conditional_cast(op, unsignedbv_typet(1))));
         exists_unsound = check;
         first = false;
       } else {
-        foreach_not_sound_or_false = bitand_exprt(foreach_not_sound_or_false, bitor_exprt(check, bitnot_exprt(typecast_exprt::conditional_cast(op, unsignedbv_typet(1)))));
-        exists_unsound = bitor_exprt(exists_unsound, check);
+        foreach_not_sound_or_false = bitand_exprt(foreach_not_sound_or_false, bitor_simpl(check, bitnot_exprt(typecast_exprt::conditional_cast(op, unsignedbv_typet(1)))));
+        exists_unsound = bitor_simpl(exists_unsound, check);
       }
     }
     abs_check = bitand_exprt(foreach_not_sound_or_false, exists_unsound);
@@ -594,10 +634,10 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     exprt B = typecast_exprt::conditional_cast(impl->rhs(), unsignedbv_typet(1));
 
     abs_check = bitand_exprt(
-      bitor_exprt(checkA, checkB),
+      bitor_simpl(checkA, checkB),
       bitand_exprt(
-        bitor_exprt(checkB, bitnot_exprt(B)),
-        bitor_exprt(checkA, A)));
+        bitor_simpl(checkB, bitnot_exprt(B)),
+        bitor_simpl(checkA, A)));
   } else if (const auto cast = expr_try_dynamic_cast<typecast_exprt>(e))
   {
     bool needs_bounds_failure =
@@ -608,7 +648,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     {
       (*targetEquation.compute_bounds_failure)[e] = true;
       abs_check = update_sm(
-          bitor_exprt(op_check, bounds_failuret(*cast, width)),
+        bitor_simpl(op_check, bounds_failuret(*cast, width)),
           cast->type(),
           ns);
     }
@@ -656,7 +696,8 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     const auto elem_smtype = get_abs_type(idx->type(), ns);
     const auto elem_width =
       from_integer(elem_smtype.get_width(), idx->index().type());
-    abs_check = bitor_exprt(
+    abs_check = bitor_simpl(
+      array_sm.is_zero()?(exprt) get_zero_sm_symbol(idx->type(), ns):
       byte_extract_exprt(
         ID_byte_extract_little_endian,
         array_sm,
@@ -731,7 +772,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
         auto old_sm_index = mult_exprt(
           typecast_exprt::conditional_cast(with->where(), index_type),
           from_integer(new_sm_width, index_type));
-        abs_check = bitor_exprt(
+        abs_check = bitor_simpl(
           byte_update_exprt(
             ID_byte_update_little_endian, old_sm, old_sm_index, new_sm, 1),
           where_sm_extended);
@@ -740,7 +781,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       {
         auto old_sm_index = mult_exprt(
           with->where(), from_integer(new_sm_width, with->where().type()));
-        abs_check = bitor_exprt(
+        abs_check = bitor_simpl(
           byte_update_exprt(
             ID_byte_update_little_endian, old_sm, old_sm_index, new_sm, 1),
           where_sm_extended);
@@ -748,7 +789,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
     } else {
       UNIMPLEMENTED;
     }
-    abs_check = bitor_exprt(where_sm_extended, abs_check);
+    abs_check = bitor_simpl(where_sm_extended, abs_check);
   } else if (const auto aoff = expr_try_dynamic_cast<address_of_exprt>(e))
   {
     abs_check = get_zero_sm_symbol(aoff->type(), ns);
@@ -764,7 +805,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       const auto &member_bits =
         bv_width.get_member(struct_op_type, member->get_component_name());
       auto op_ab = abstr_check(member->op(), abs_result, width, targetEquation, ns, bv_width);
-      abs_check = byte_extract_exprt(ID_byte_extract_little_endian, op_ab, from_integer(member_bits.offset/8, unsigned_int_type()), 1, get_abs_type(e.type(), ns));
+      abs_check = op_ab.is_zero()? (exprt)get_zero_sm_symbol(member->op().type(), ns):byte_extract_exprt(ID_byte_extract_little_endian, op_ab, from_integer(member_bits.offset/8, unsigned_int_type()), 1, get_abs_type(e.type(), ns));
     } else {
       UNIMPLEMENTED;
     }
