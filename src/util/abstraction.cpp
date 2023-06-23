@@ -107,6 +107,41 @@ bool test_pattern_ptr_index_times_offset(const exprt &e)
   }
 }
 
+bool test_pattern_ptr_offset(const exprt &e)
+{
+  /* special pattern: a + const
+   * where a is a pointer and const is a constant offset. Produce it fully,
+   * it is used in expressions like &a.field */
+  if(
+    e.type().id() == ID_pointer && e.id() == ID_plus &&
+    e.operands()[1].is_constant())
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool test_pattern_ptroffset_const(const exprt &e)
+{
+  /* special patterns: a + const and const + a
+   * where a is POINTER_OFFSET and const is a constant offset. Produce it fully,
+   * it is used in byte_update */
+  if(
+    e.id() == ID_plus &&
+    ((e.operands()[0].is_constant() && can_cast_expr<pointer_offset_exprt>(e.operands()[1])) ||
+     (e.operands()[1].is_constant() && can_cast_expr<pointer_offset_exprt>(e.operands()[0]))))
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 /* unknown expressions:
  * ID_constraint_select_one
  */
@@ -152,7 +187,7 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
       forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
     }
     ((*targetEquation.is_abs_forbidden)[e]) = forbOp;
-    if(forbOp || test_pattern_ptr_index_times_offset(e)){
+    if(forbOp || test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) || test_pattern_ptroffset_const(e)){
       (*targetEquation.produce_nonabs)[e] = true;
       Forall_operands(op, e){
         produce_nonabs(*op, targetEquation);
@@ -419,6 +454,13 @@ exprt update_sm(const exprt &bit, const typet &to_cover_tp, namespacet &ns){
   auto repl_times = to_cover_sm.get_width();
   if(repl_times == 1)
     return bit;
+  if(bit.id() == ID_reduction_or){
+    const auto red = to_unary_expr(bit);
+    if(const auto repl = expr_try_dynamic_cast<replication_exprt>(red.op())){
+      return replication_exprt{
+        from_integer(repl_times, size_type()), repl->op(), to_cover_sm};
+    }
+  }
   return replication_exprt{
     from_integer(repl_times, size_type()), bit, to_cover_sm};
 }
@@ -428,6 +470,11 @@ exprt get_sm(const exprt &sm){
       return from_integer(0, unsignedbv_typet(1));
     } else {
       return from_integer(1, unsignedbv_typet(1));
+    }
+  }
+  if(const auto repl = expr_try_dynamic_cast<replication_exprt>(sm)){
+    if(repl->op().id() == ID_reduction_or){
+      return repl->op();
     }
   }
   return unary_exprt{ID_reduction_or, sm, unsignedbv_typet(1)};
@@ -500,6 +547,15 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
             abstr_check(idx, abs_result, width, targetEquation, ns, bv_width))),
         e.type(),
         ns);
+    } else if(test_pattern_ptr_offset(e))
+    {
+      auto arr = e.operands()[0];
+      auto offs = e.operands()[1];
+      abs_check = abstr_check(arr, abs_result, width, targetEquation, ns, bv_width);
+    } else if(test_pattern_ptroffset_const(e))
+    {
+      auto poff = e.operands()[0].is_constant() ? e.operands()[1] : e.operands()[0];
+      abs_check = abstr_check(poff, abs_result, width, targetEquation, ns, bv_width);
     } else {
       bool needs_bounds_failure =
         abs_result && is_abstractable_type(e.type(), width, targetEquation);
@@ -507,7 +563,6 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       {
         (*targetEquation.compute_bounds_failure)[e] = true;
       }
-      test_pattern_ptr_index_times_offset(e);
       auto op_ok = bitor_simpl(
         get_sm(abstr_check(
           e.operands()[0], abs_result, width, targetEquation, ns, bv_width)),
