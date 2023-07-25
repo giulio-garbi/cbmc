@@ -157,8 +157,8 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     ((*targetEquation.is_abs_forbidden)[e]) = is_out_of_abs;
     if(is_out_of_abs)
       (*targetEquation.produce_nonabs)[e] =  true;
-  } else if(e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
-          e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
+  } else if(e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult || e.id() == ID_unary_minus ||
+          e.id() == ID_div || e.id() == ID_mod || e.id() == ID_shl || e.id() == ID_shr ||
           e.id() == ID_lshr || e.id() == ID_ashr || e.id() == ID_rol || e.id() == ID_ror ||
           e.id() == ID_array || e.id() == ID_array_of || e.id() == ID_bitreverse ||
           e.id() == ID_bitand || e.id() == ID_bitor || e.id() == ID_bitxor ||

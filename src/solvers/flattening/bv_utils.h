@@ -238,7 +238,8 @@ public:
     std::vector<int> &abmap,
     const typet &tp,
     const boolbv_widtht &bvwidth,
-    const size_t ab_width);
+    const size_t ab_width,
+    const namespacet &ns);
 
 protected:
   propt &prop;

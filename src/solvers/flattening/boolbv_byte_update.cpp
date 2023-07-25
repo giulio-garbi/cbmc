@@ -65,7 +65,7 @@ bvt boolbvt::convert_byte_update(const byte_update_exprt &expr)
   bvt bv=convert_bv(op);
   std::vector<int> op_abmap;
   if(!produce_nonabs(expr))
-    bv_utils.abstraction_map(op_abmap, op.type(), bv_width, *abstraction_bits);
+    bv_utils.abstraction_map(op_abmap, op.type(), bv_width, *abstraction_bits, ns);
 
   const bvt &value_bv=convert_bv(value);
   std::size_t update_width=value_bv.size();

@@ -12,6 +12,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "bitvector_types.h"
 #include "boolbv_width.h"
 #include "type.h"
+#include "namespace.h"
 
 bvt bv_utilst::build_constant(const mp_integer &n, std::size_t width)
 {
@@ -1249,7 +1250,7 @@ literalt bv_utilst::bf_check(const representationt rep, const int width, const b
   }
 }
 
-void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width, size_t base_idx){
+void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width, size_t base_idx, const namespacet &ns){
   const auto orig_width = bvwidth(tp);
   if(can_cast_type<integer_bitvector_typet>(tp)){
     for(size_t i=0; i<ab_width && i<orig_width; i++)
@@ -1257,18 +1258,22 @@ void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_
     auto filler = to_integer_bitvector_type(tp).smallest()<0?base_idx+ab_width-1:-1;
     for(size_t i=ab_width; i<orig_width; i++)
       abmap[base_idx + i] = filler;
-  } else if(can_cast_type<struct_typet>(tp)){
+  } else if(can_cast_type<struct_tag_typet>(tp)){
+    const auto stag = to_struct_tag_type(tp);
+    ns.follow(stag);
+    abstraction_map_rec(abmap, ns.follow(stag), bvwidth, ab_width, base_idx, ns);
+  }else if(can_cast_type<struct_typet>(tp)){
     const auto stp = to_struct_type(tp);
     size_t idx_struct = base_idx;
     for(const auto &c:stp.components()){
-      abstraction_map_rec(abmap, c.type(), bvwidth, ab_width, idx_struct);
+      abstraction_map_rec(abmap, c.type(), bvwidth, ab_width, idx_struct, ns);
       idx_struct += bvwidth(c.type());
     }
   } else if(can_cast_type<array_typet>(tp)){
     const auto atp = to_array_type(tp);
     const auto elem_width = bvwidth(atp.element_type());
     for(size_t idx = 0; idx < orig_width; idx+=elem_width) {
-      abstraction_map_rec(abmap, atp.element_type(), bvwidth, ab_width, base_idx + idx);
+      abstraction_map_rec(abmap, atp.element_type(), bvwidth, ab_width, base_idx + idx, ns);
     }
   } else {
     for(size_t i=0; i<orig_width; i++)
@@ -1276,9 +1281,9 @@ void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_
   }
 }
 
-void bv_utilst::abstraction_map(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width){
+void bv_utilst::abstraction_map(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width, const namespacet &ns){
   abmap.resize(bvwidth(tp));
-  abstraction_map_rec(abmap, tp, bvwidth, ab_width, 0);
+  abstraction_map_rec(abmap, tp, bvwidth, ab_width, 0, ns);
 }
 
 // returns an overapproximation of how many bits you need to represent the number
