@@ -120,6 +120,12 @@ bvt boolbvt::convert_bv_reduction(const unary_exprt &expr)
       return bv;
     }
   }
+  if (op_type.id() == ID_unsignedbv){
+    if(id == ID_reduction_or)
+      return bvt{prop.lor(op_bv)};
+    else if(id == ID_reduction_and)
+      return bvt{prop.land(op_bv)};
+  }
 
   return conversion_failed(expr);
 }

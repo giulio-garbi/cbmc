@@ -6,9 +6,10 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
 #include <util/invariant.h>
+
+#include "bitvector_types.h"
+#include "boolbv.h"
 
 /// Flatten array. Loop over each element and convert them in turn, limiting
 /// each result's width to initial array bit size divided by number of elements.
@@ -32,11 +33,22 @@ bvt boolbvt::convert_array(const exprt &expr)
     bvt bv;
     bv.reserve(width);
 
+    const auto elem_type = to_array_type(expr.type()).element_type();
+    const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(elem_type) && (int) to_integer_bitvector_type(elem_type).get_width() > *abstraction_bits;
+    const auto sign = should_abstract && to_integer_bitvector_type(elem_type).smallest() < 0;
+
     for(const auto &op : operands)
     {
       const bvt &tmp = convert_bv(op, op_width);
 
-      bv.insert(bv.end(), tmp.begin(), tmp.end());
+      if(should_abstract)
+      {
+        bv.insert(bv.end(), tmp.begin(), tmp.begin()+*abstraction_bits);
+        auto lit_cover = sign?tmp[*abstraction_bits-1]: const_literal(false);
+        bv.insert(bv.end(), op_width-*abstraction_bits, lit_cover);
+      } else {
+        bv.insert(bv.end(), tmp.begin(), tmp.end());
+      }
     }
 
     return bv;

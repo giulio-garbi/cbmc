@@ -8,6 +8,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 
+#include "bitvector_types.h"
 #include "boolbv.h"
 
 bvt boolbvt::convert_constant(const constant_exprt &expr)
@@ -49,11 +50,24 @@ bvt boolbvt::convert_constant(const constant_exprt &expr)
     expr_type.id() == ID_c_bit_field)
   {
     const auto &value = expr.get_value();
+    const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr_type) && (int) to_integer_bitvector_type(expr_type).get_width() > *abstraction_bits;
+    const auto sign = should_abstract && to_integer_bitvector_type(expr_type).smallest() < 0;
+
+    if(compute_bounds_failure(expr)){
+      if(should_abstract)
+        bounds_failure_literals.insert(std::make_pair(expr, bvt{bv_utils.bf_check(sign?bv_utilst::representationt::SIGNED:bv_utilst::representationt::UNSIGNED, *abstraction_bits, bv)}));
+      else
+        bounds_failure_literals.insert(std::make_pair(expr, bvt{const_literal(false)}));
+    }
 
     for(std::size_t i=0; i<width; i++)
     {
-      const bool bit = get_bvrep_bit(value, width, i);
-      bv[i]=const_literal(bit);
+      if(should_abstract && (int)i >= *abstraction_bits){
+        bv[i] = sign?bv[*abstraction_bits-1]: const_literal(false);
+      } else {
+        const bool bit = get_bvrep_bit(value, width, i);
+        bv[i] = const_literal(bit);
+      }
     }
 
     return bv;

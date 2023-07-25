@@ -6,11 +6,12 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
 #include <util/arith_tools.h>
 #include <util/invariant.h>
 #include <util/std_types.h>
+
+#include "bitvector_types.h"
+#include "boolbv.h"
 
 /// Flatten arrays constructed from a single element.
 bvt boolbvt::convert_array_of(const array_of_exprt &expr)
@@ -31,7 +32,14 @@ bvt boolbvt::convert_array_of(const array_of_exprt &expr)
 
   const auto size = numeric_cast_v<mp_integer>(to_constant_expr(array_size));
 
-  const bvt &tmp = convert_bv(expr.what());
+  bvt tmp = convert_bv(expr.what());
+  const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.what().type()) && (int)to_integer_bitvector_type(expr.what().type()).get_width() > *abstraction_bits;
+  if(should_abstract){
+    const auto sign = to_integer_bitvector_type(expr.what().type()).smallest() < 0;
+    const auto lit_cover = sign?tmp[*abstraction_bits-1]: const_literal(false);
+    for(size_t i = *abstraction_bits; i < tmp.size(); i++)
+      tmp[i] = lit_cover;
+  }
 
   INVARIANT(
     size * tmp.size() == width,

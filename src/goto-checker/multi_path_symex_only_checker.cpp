@@ -91,11 +91,14 @@ void multi_path_symex_only_checkert::generate_equation()
 
   postprocess_equation(symex, equation, options, ns, ui_message_handler);
 
-  if(options.is_set("under")){
+  if(options.get_option("absmode") == "under"){
     apply_approx(equation, (size_t) options.get_unsigned_int_option("under"), ns);
     // that's costly and breaks the equation merging. Do it only if unavoidable
-    /*if(options.is_set("program-only"))
-      annotate_ssa_exprs_tree(equation);*/
+    if(options.is_set("program-only"))
+      annotate_ssa_exprs_tree(equation);
+  }
+  if(options.get_option("absmode") == "cut"){
+    apply_cut(equation, ns);
   }
 }
 

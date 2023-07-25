@@ -14,6 +14,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/nodiscard.h>
 
 #include <solvers/prop/prop.h>
+#include "type.h"
+#include "boolbv_width.h"
 
 // Shares variables between var == const tests for registered variables.
 // Gives ~15% memory savings on some programs using constant arrays
@@ -135,11 +137,22 @@ public:
   #endif
 
 
-  literalt equal(const bvt &op0, const bvt &op1, const optionalt<std::vector<bool>> &abstract={});
+  literalt equal(const bvt &op0, const bvt &op1);
+
+  literalt bf_check(representationt rep, int width, const bvt &op);
+
+  size_t how_many_bits(representationt rep, const bvt &op);
 
   static inline literalt sign_bit(const bvt &op)
   {
     return op[op.size()-1];
+  }
+
+  static inline literalt sign_bit(representationt rep,const bvt &op){
+    if(rep == representationt::SIGNED)
+      return sign_bit(op);
+    else
+      return const_literal(false);
   }
 
   literalt is_zero(const bvt &op)
@@ -220,6 +233,12 @@ public:
 
   literalt verilog_bv_has_x_or_z(const bvt &);
   static bvt verilog_bv_normal_bits(const bvt &);
+
+  void abstraction_map(
+    std::vector<int> &abmap,
+    const typet &tp,
+    const boolbv_widtht &bvwidth,
+    const size_t ab_width);
 
 protected:
   propt &prop;

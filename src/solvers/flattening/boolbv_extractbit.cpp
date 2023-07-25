@@ -56,17 +56,31 @@ literalt boolbvt::convert_extractbit(const extractbit_exprt &expr)
     equal_exprt equality(
       typecast_exprt::conditional_cast(index, index_type), exprt());
 
+    if(compute_bounds_failure(expr)){ // TODO should disappear
+      bounds_failure_literals[expr] = {const_literal(false)};
+    }
+
     if(prop.has_set_to())
     {
       // free variable
       literalt literal = prop.new_variable();
+      bvt offset_bv = convert_bv(index);
+      auto offs_sign = to_integer_bitvector_type(index.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED :bv_utilst::representationt::UNSIGNED;
+      auto bits = bv_utils.how_many_bits(offs_sign,offset_bv) - (offs_sign == bv_utilst::representationt::SIGNED?1:0);
 
       // add implications
-      for(std::size_t i = 0; i < src_bv.size(); i++)
+      for(std::size_t i = 0; i < std::min(src_bv.size(), (size_t)1 << bits); i++)
       {
+        if(produce_nonabs(expr)) { //TODO or detect a pattern in offset
+          (*produce_nonabs_map)[equality] = true;
+        }
         equality.rhs()=from_integer(i, index_type);
-        literalt equal = prop.lequal(literal, src_bv[i]);
-        prop.l_set_to_true(prop.limplies(convert(equality), equal));
+        const literalt is_offset_ok = convert(equality);
+        if(!is_offset_ok.is_false())
+        {
+          literalt equal = prop.lequal(literal, src_bv[i]);
+          prop.l_set_to_true(prop.limplies(is_offset_ok, equal));
+        }
       }
 
       return literal;

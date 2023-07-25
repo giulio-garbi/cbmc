@@ -106,6 +106,7 @@ class merge_irept
 {
 public:
   void operator()(irept &);
+  const irept &merged1L(const irept &irep);
 
 protected:
   typedef std::unordered_set<irept, irep_hash> irep_storet;

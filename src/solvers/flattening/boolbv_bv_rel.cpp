@@ -22,8 +22,8 @@ literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
   const exprt &lhs = expr.lhs();
   const exprt &rhs = expr.rhs();
 
-  const bvt &bv_lhs = convert_bv(lhs);
-  const bvt &bv_rhs = convert_bv(rhs);
+  bvt bv_lhs = convert_bv(lhs);
+  bvt bv_rhs = convert_bv(rhs);
 
   bvtypet bvtype_lhs = get_bvtype(lhs.type());
   bvtypet bvtype_rhs = get_bvtype(rhs.type());
@@ -60,7 +60,10 @@ literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
                                          : bv_utilst::representationt::UNSIGNED;
 
 #if 1
-
+      if(!produce_nonabs(expr) && bv_lhs.size() > (size_t)*abstraction_bits && (bvtype_lhs == bvtypet::IS_SIGNED || bvtype_lhs == bvtypet::IS_UNSIGNED)) {
+        bv_lhs.resize(*abstraction_bits);
+        bv_rhs.resize(*abstraction_bits);
+      }
       return bv_utils.rel(bv_lhs, expr.id(), bv_rhs, rep);
 
 #else

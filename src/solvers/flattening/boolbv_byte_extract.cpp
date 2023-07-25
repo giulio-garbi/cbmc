@@ -96,6 +96,7 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
 
   // first do op0
   const endianness_mapt op_map = endianness_map(op.type(), little_endian);
+  // TODO for more efficiency, convert op with a bitmap
   const bvt op_bv=map_bv(op_map, convert_bv(op));
 
   // do result
@@ -132,19 +133,26 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
       bvt equal_bv;
       equal_bv.resize(width);
 
-      for(std::size_t i=0; i<bytes; i++)
+      bvt offset_bv = convert_bv(expr.offset());
+      auto offs_sign = to_integer_bitvector_type(expr.offset().type()).smallest() < 0 ? bv_utilst::representationt::SIGNED :bv_utilst::representationt::UNSIGNED;
+      auto bits = bv_utils.how_many_bits(offs_sign,offset_bv) - (offs_sign == bv_utilst::representationt::SIGNED?1:0);
+      for(std::size_t i=0; i<std::min(bytes, (size_t)1 << bits); i++)
       {
         std::size_t offset = i * expr.get_bits_per_byte();
+        const auto offset_check = equal_exprt(expr.offset(), from_integer(i, constant_type));
+        if(produce_nonabs(expr) && produce_nonabs_map) //TODO or detect a pattern in offset
+          (*produce_nonabs_map)[offset_check] = true;
+        const literalt is_offset_ok = convert(offset_check);
+        if(!is_offset_ok.is_false())
+        {
+          for(std::size_t j = 0; j < width; j++)
+            if(offset + j < op_bv.size())
+              equal_bv[j] = prop.lequal(bv[j], op_bv[offset + j]);
+            else
+              equal_bv[j] = const_literal(true);
 
-        for(std::size_t j=0; j<width; j++)
-          if(offset+j<op_bv.size())
-            equal_bv[j]=prop.lequal(bv[j], op_bv[offset+j]);
-          else
-            equal_bv[j]=const_literal(true);
-
-        prop.l_set_to_true(prop.limplies(
-          convert(equal_exprt(expr.offset(), from_integer(i, constant_type))),
-          prop.land(equal_bv)));
+          prop.l_set_to_true(prop.limplies(is_offset_ok, prop.land(equal_bv)));
+        }
       }
     }
     else
@@ -179,6 +187,17 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
 
   // shuffle the result
   bv=map_bv(result_map, bv);
+
+  if(compute_bounds_failure(expr)){
+    auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+    bounds_failure_literals[expr] = {bv_utils.bf_check(rep, *abstraction_bits, bv)};
+  }
+  if(!produce_nonabs(expr) && (int)bv.size() > *abstraction_bits && can_cast_type<integer_bitvector_typet>(expr.type())){
+    auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+    const auto lit_cover = rep == bv_utilst::representationt::UNSIGNED ? const_literal(false) : bv[*abstraction_bits-1];
+    for(size_t idx = *abstraction_bits; idx < bv.size(); idx++)
+      bv[idx] = lit_cover;
+  }
 
   return bv;
 }

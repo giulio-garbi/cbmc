@@ -25,6 +25,8 @@ bvt boolbvt::convert_index(const index_exprt &expr)
 
   const typet &array_op_type = array.type();
 
+  const bool prod_na = produce_nonabs(expr);
+
   bvt bv;
 
   if(array_op_type.id()==ID_array)
@@ -93,7 +95,7 @@ bvt boolbvt::convert_index(const index_exprt &expr)
       auto maybe_index_value = numeric_cast<mp_integer>(index);
       if(maybe_index_value.has_value())
       {
-        return convert_index(array, maybe_index_value.value());
+        return convert_index(array, maybe_index_value.value(), prod_na);
       }
     }
 
@@ -281,9 +283,12 @@ bvt boolbvt::convert_index(const index_exprt &expr)
 /// index operator with constant index
 bvt boolbvt::convert_index(
   const exprt &array,
-  const mp_integer &index)
+  const mp_integer &index,
+  const bool prod_na)
 {
   const array_typet &array_type = to_array_type(array.type());
+  const auto should_abstract = !prod_na && can_cast_type<integer_bitvector_typet>(array_type.element_type()) && (int) to_integer_bitvector_type(array_type.element_type()).get_width() > *abstraction_bits;
+  const auto sign = should_abstract && to_integer_bitvector_type(array_type.element_type()).smallest() < 0;
 
   std::size_t width = boolbv_width(array_type.element_type());
 
@@ -313,7 +318,15 @@ bvt boolbvt::convert_index(
     // If not there are large improvements possible as above
 
     std::size_t offset_int = numeric_cast_v<std::size_t>(offset);
-    return bvt(tmp.begin() + offset_int, tmp.begin() + offset_int + width);
+
+    if(should_abstract){
+      bvt ans(tmp.begin() + offset_int, tmp.begin() + offset_int + *abstraction_bits);
+      auto lit_cover = sign?tmp[offset_int + *abstraction_bits-1]: const_literal(false);
+      ans.insert(ans.end(), width-*abstraction_bits, lit_cover);
+      return ans;
+    } else {
+      return bvt(tmp.begin() + offset_int, tmp.begin() + offset_int + width);
+    }
   }
   else if(array.id() == ID_member || array.id() == ID_index)
   {
@@ -331,6 +344,7 @@ bvt boolbvt::convert_index(
       plus_exprt(
         o.offset(), from_integer(index * (*subtype_bytes_opt), o.offset().type())),
       ns);
+    (*produce_nonabs_map)[new_offset] = true;
 
     byte_extract_exprt be =
       make_byte_extract(o.root_object(), new_offset, array_type.element_type());
@@ -354,6 +368,7 @@ bvt boolbvt::convert_index(
         from_integer(
           index * (*subtype_bytes_opt), byte_extract_expr.offset().type())},
       ns);
+    (*produce_nonabs_map)[new_offset] = true;
 
     byte_extract_exprt be = byte_extract_expr;
     be.offset() = new_offset;

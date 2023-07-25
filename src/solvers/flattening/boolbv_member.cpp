@@ -64,9 +64,18 @@ bvt boolbvt::convert_member(const member_exprt &expr)
       "bitvector part corresponding to element shall be contained within the "
       "full aggregate bitvector");
 
-    return bvt(
-      compound_bv.begin() + member_bits.offset,
-      compound_bv.begin() + member_bits.offset + member_bits.width);
+    const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.type()) && (int) to_integer_bitvector_type(expr.type()).get_width() > *abstraction_bits;
+    if(should_abstract){
+      const auto sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
+      const auto lit_cover = sign?compound_bv[member_bits.offset+*abstraction_bits-1]: const_literal(false);
+      auto ans = bvt(compound_bv.begin() + member_bits.offset, compound_bv.begin() + member_bits.offset + *abstraction_bits);
+      ans.insert(ans.end(), member_bits.width-*abstraction_bits, lit_cover);
+      return ans;
+    } else {
+      return bvt(
+        compound_bv.begin() + member_bits.offset,
+        compound_bv.begin() + member_bits.offset + member_bits.width);
+    }
   }
   else
   {

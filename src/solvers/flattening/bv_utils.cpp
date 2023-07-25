@@ -8,6 +8,11 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "bv_utils.h"
 
+#include "arith_tools.h"
+#include "bitvector_types.h"
+#include "boolbv_width.h"
+#include "type.h"
+
 bvt bv_utilst::build_constant(const mp_integer &n, std::size_t width)
 {
   std::string n_str=integer2binary(n, width);
@@ -98,10 +103,12 @@ bvt bv_utilst::select(literalt s, const bvt &a, const bvt &b)
   result.resize(a.size());
   for(std::size_t i=0; i<result.size(); i++)
   {
-    if(a[i] != b[i])
-      result[i] = prop.lselect(s, a[i], b[i]);
-    else
+    if(a[i] == b[i])
       result[i] = a[i];
+    else if(i > 0 && a[i] == a[i-1] && b[i] == b[i-1])
+      result[i] = result[i-1];
+    else
+      result[i] = prop.lselect(s, a[i], b[i]);
   }
 
   return result;
@@ -1202,7 +1209,7 @@ literalt bv_utilst::equal_const(const bvt &var, const bvt &constant)
 /// \param op0: Lhs bitvector to compare
 /// \param op1: Rhs bitvector to compare
 /// \return The literal that is true if and only if they are equal.
-literalt bv_utilst::equal(const bvt &op0, const bvt &op1, const optionalt<std::vector<bool>> &abstract)
+literalt bv_utilst::equal(const bvt &op0, const bvt &op1)
 {
   PRECONDITION(op0.size() == op1.size());
 
@@ -1222,13 +1229,77 @@ literalt bv_utilst::equal(const bvt &op0, const bvt &op1, const optionalt<std::v
   equal_bv.resize(op0.size());
 
   for(std::size_t i=0; i<op0.size(); i++)
-    if(!abstract || !(*abstract)[i])
-      equal_bv[equalities++]=prop.lequal(op0[i], op1[i]);
-    else
-      prop.l_set_to_false(op0[i]);
+  {
+    if(op0[i] != op1[i] && (i == 0 || op0[i-1] != op0[i] || op1[i-1] != op1[i]))
+      equal_bv[equalities++] = prop.lequal(op0[i], op1[i]);
+  }
 
   equal_bv.resize(equalities);
   return prop.land(equal_bv);
+}
+
+literalt bv_utilst::bf_check(const representationt rep, const int width, const bvt &op){
+  if(rep == representationt::SIGNED)
+  {
+    const auto bits = extract(op, width-1, op.size()-1);
+    return prop.lxor(prop.land(bits), prop.lor(bits));
+  } else {
+    const auto bits = extract(op, width, op.size()-1);
+    return prop.lor(bits);
+  }
+}
+
+void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width, size_t base_idx){
+  const auto orig_width = bvwidth(tp);
+  if(can_cast_type<integer_bitvector_typet>(tp)){
+    for(size_t i=0; i<ab_width && i<orig_width; i++)
+      abmap[base_idx + i] = base_idx + i;
+    auto filler = to_integer_bitvector_type(tp).smallest()<0?base_idx+ab_width-1:-1;
+    for(size_t i=ab_width; i<orig_width; i++)
+      abmap[base_idx + i] = filler;
+  } else if(can_cast_type<struct_typet>(tp)){
+    const auto stp = to_struct_type(tp);
+    size_t idx_struct = base_idx;
+    for(const auto &c:stp.components()){
+      abstraction_map_rec(abmap, c.type(), bvwidth, ab_width, idx_struct);
+      idx_struct += bvwidth(c.type());
+    }
+  } else if(can_cast_type<array_typet>(tp)){
+    const auto atp = to_array_type(tp);
+    const auto elem_width = bvwidth(atp.element_type());
+    for(size_t idx = 0; idx < orig_width; idx+=elem_width) {
+      abstraction_map_rec(abmap, atp.element_type(), bvwidth, ab_width, base_idx + idx);
+    }
+  } else {
+    for(size_t i=0; i<orig_width; i++)
+      abmap[i] = base_idx + i;
+  }
+}
+
+void bv_utilst::abstraction_map(std::vector<int>& abmap, const typet& tp, const boolbv_widtht& bvwidth, const size_t ab_width){
+  abmap.resize(bvwidth(tp));
+  abstraction_map_rec(abmap, tp, bvwidth, ab_width, 0);
+}
+
+// returns an overapproximation of how many bits you need to represent the number
+size_t bv_utilst::how_many_bits(const representationt rep, const bvt &op){
+  if(rep == representationt::SIGNED){
+    for(size_t b=op.size(); b>=2; b--){
+      // if the two topmost bits are equal, you can remove one
+      if(!(op[b-1] == op[b-2])){
+        return b;
+      }
+    }
+    return 1;
+  } else {
+    for(size_t b=op.size(); b>=2; b--){
+      // remove topmost 0s
+      if(!(op[b-1].is_false())){
+        return b;
+      }
+    }
+    return 1;
+  }
 }
 
 /// To provide a bitwise model of < or <=.

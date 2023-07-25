@@ -6,10 +6,11 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
 #include <util/arith_tools.h>
 #include <util/bitvector_expr.h>
+
+#include "bitvector_types.h"
+#include "boolbv.h"
 
 bvt boolbvt::convert_extractbits(const extractbits_exprt &expr)
 {
@@ -56,6 +57,16 @@ bvt boolbvt::convert_extractbits(const extractbits_exprt &expr)
   const std::size_t offset = numeric_cast_v<std::size_t>(lower_as_int);
 
   bvt result_bv(src_bv.begin() + offset, src_bv.begin() + offset + bv_width);
+  if(compute_bounds_failure(expr)){
+    auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+    bounds_failure_literals[expr] = {bv_utils.bf_check(rep, *abstraction_bits, result_bv)};
+  }
+  if(!produce_nonabs(expr) && (int)result_bv.size() > *abstraction_bits && can_cast_type<integer_bitvector_typet>(expr.type())){
+    auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+    const auto lit_cover = rep == bv_utilst::representationt::UNSIGNED ? const_literal(false) : result_bv[*abstraction_bits-1];
+    for(size_t idx = *abstraction_bits; idx < result_bv.size(); idx++)
+      result_bv[idx] = lit_cover;
+  }
 
   return result_bv;
 }

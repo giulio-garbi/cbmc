@@ -237,6 +237,9 @@ std::unique_ptr<solver_factoryt::solvert> solver_factoryt::get_default()
   if(options.is_set("phi-extract")){
     bv_pointers->set_abstraction_bits(options.get_signed_int_option("phi-extract"));
   }
+  if(options.is_set("abssize")){
+    bv_pointers->set_abstraction_bits(options.get_signed_int_option("abssize"));
+  }
 
   set_decision_procedure_time_limit(*bv_pointers);
   solver->set_decision_procedure(std::move(bv_pointers));
@@ -256,6 +259,9 @@ std::unique_ptr<solver_factoryt::solvert> solver_factoryt::get_dimacs()
 
   auto bv_dimacs = util_make_unique<bv_dimacst>(
     ns, *prop, message_handler, filename, vars_to_show);
+
+  if(options.is_set("abssize"))
+    bv_dimacs->set_abstraction_bits(options.get_signed_int_option("abssize"));
 
   return util_make_unique<solvert>(std::move(bv_dimacs), std::move(prop));
 }

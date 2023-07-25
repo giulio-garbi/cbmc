@@ -21,18 +21,15 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
 
   const typet &type = expr.type();
 
-  if(type.id()!=ID_unsignedbv &&
-     type.id()!=ID_signedbv &&
-     type.id()!=ID_fixedbv &&
-     type.id()!=ID_floatbv &&
-     type.id()!=ID_range &&
-     type.id()!=ID_complex &&
-     type.id()!=ID_vector)
+  if(
+    type.id() != ID_unsignedbv && type.id() != ID_signedbv &&
+    type.id() != ID_fixedbv && type.id() != ID_floatbv &&
+    type.id() != ID_range && type.id() != ID_complex && type.id() != ID_vector)
     return conversion_failed(expr);
 
-  std::size_t width=boolbv_width(type);
+  std::size_t width = boolbv_width(type);
 
-  const exprt::operandst &operands=expr.operands();
+  const exprt::operandst &operands = expr.operands();
 
   DATA_INVARIANT(
     !operands.empty(),
@@ -42,33 +39,45 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
   DATA_INVARIANT(
     op0.type() == type, "add/sub with mixed types:\n" + expr.pretty());
 
-  bvt bv = convert_bv(op0, width);
+  bool subtract = (expr.id() == ID_minus || expr.id() == "no-overflow-minus");
 
-  bool subtract=(expr.id()==ID_minus ||
-                 expr.id()=="no-overflow-minus");
-
-  bool no_overflow=(expr.id()=="no-overflow-plus" ||
-                    expr.id()=="no-overflow-minus");
+  bool no_overflow =
+    (expr.id() == "no-overflow-plus" || expr.id() == "no-overflow-minus");
 
   typet arithmetic_type = (type.id() == ID_vector || type.id() == ID_complex)
                             ? to_type_with_subtype(type).subtype()
                             : type;
 
-  bv_utilst::representationt rep=
-    (arithmetic_type.id()==ID_signedbv ||
-     arithmetic_type.id()==ID_fixedbv)?bv_utilst::representationt::SIGNED:
-                                       bv_utilst::representationt::UNSIGNED;
+  bv_utilst::representationt rep =
+    (arithmetic_type.id() == ID_signedbv || arithmetic_type.id() == ID_fixedbv)
+      ? bv_utilst::representationt::SIGNED
+      : bv_utilst::representationt::UNSIGNED;
 
-  for(exprt::operandst::const_iterator
-      it=operands.begin()+1;
-      it!=operands.end(); it++)
+  const size_t operation_max_width = produce_nonabs(expr)?width:std::min((int)width, *abstraction_bits);
+  bvt bv = bv_utils.extract_lsb(convert_bv(op0, width), operation_max_width);
+  size_t sum_bits = (type.id() == ID_vector || type.id() == ID_complex ||
+                     type.id() == ID_floatbv || no_overflow)
+                      ? width
+                      : bv_utils.how_many_bits(rep, bv);
+
+  auto of = bvt();
+  of.push_back(const_literal(false));
+
+  for(exprt::operandst::const_iterator it = operands.begin() + 1;
+      it != operands.end();
+      it++)
   {
     DATA_INVARIANT(
       it->type() == type, "add/sub with mixed types:\n" + expr.pretty());
 
-    const bvt &op = convert_bv(*it, width);
+    INVARIANT(bv.size() == operation_max_width, "bv.size should always agree with the abstraction level");
 
-    if(type.id()==ID_vector || type.id()==ID_complex)
+    // op is a copy, modify it at wish
+    bvt op = bv_utils.extract_lsb(convert_bv(*it, width), operation_max_width);
+    size_t bits_op = bv_utils.how_many_bits(rep, op);
+    sum_bits = std::min(std::max(sum_bits, bits_op) + 1, operation_max_width);
+
+    if(type.id() == ID_vector || type.id() == ID_complex)
     {
       std::size_t sub_width =
         boolbv_width(to_type_with_subtype(type).subtype());
@@ -78,15 +87,15 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
         width % sub_width == 0,
         "total vector bit width shall be a multiple of the element bit width");
 
-      std::size_t size=width/sub_width;
+      std::size_t size = width / sub_width;
       bv.resize(width);
 
-      for(std::size_t i=0; i<size; i++)
+      for(std::size_t i = 0; i < size; i++)
       {
         bvt tmp_op;
         tmp_op.resize(sub_width);
 
-        for(std::size_t j=0; j<tmp_op.size(); j++)
+        for(std::size_t j = 0; j < tmp_op.size(); j++)
         {
           const std::size_t index = i * sub_width + j;
           INVARIANT(index < op.size(), "bit index shall be within bounds");
@@ -96,7 +105,7 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
         bvt tmp_result;
         tmp_result.resize(sub_width);
 
-        for(std::size_t j=0; j<tmp_result.size(); j++)
+        for(std::size_t j = 0; j < tmp_result.size(); j++)
         {
           const std::size_t index = i * sub_width + j;
           INVARIANT(index < bv.size(), "bit index shall be within bounds");
@@ -108,16 +117,16 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
           // needs to change due to rounding mode
           float_utilst float_utils(
             prop, to_floatbv_type(to_type_with_subtype(type).subtype()));
-          tmp_result=float_utils.add_sub(tmp_result, tmp_op, subtract);
+          tmp_result = float_utils.add_sub(tmp_result, tmp_op, subtract);
         }
         else
-          tmp_result=bv_utils.add_sub(tmp_result, tmp_op, subtract);
+          tmp_result = bv_utils.add_sub(tmp_result, tmp_op, subtract);
 
         INVARIANT(
           tmp_result.size() == sub_width,
           "applying the add/sub operation shall not change the bitwidth");
 
-        for(std::size_t j=0; j<tmp_result.size(); j++)
+        for(std::size_t j = 0; j < tmp_result.size(); j++)
         {
           const std::size_t index = i * sub_width + j;
           INVARIANT(index < bv.size(), "bit index shall be within bounds");
@@ -125,18 +134,56 @@ bvt boolbvt::convert_add_sub(const exprt &expr)
         }
       }
     }
-    else if(type.id()==ID_floatbv)
+    else if(type.id() == ID_floatbv)
     {
       // needs to change due to rounding mode
       float_utilst float_utils(prop, to_floatbv_type(arithmetic_type));
-      bv=float_utils.add_sub(bv, op, subtract);
+      bv = float_utils.add_sub(bv, op, subtract);
     }
     else if(no_overflow)
-      bv=bv_utils.add_sub_no_overflow(bv, op, subtract, rep);
+      bv = bv_utils.add_sub_no_overflow(bv, op, subtract, rep);
     else
-      bv=bv_utils.add_sub(bv, op, subtract);
+    {
+      if(!compute_bounds_failure(expr) || *abstraction_bits > (int) sum_bits)
+      {
+        bv.resize(sum_bits);
+        op.resize(sum_bits);
+        bv = bv_utils.add_sub(bv, op, subtract);
+      }
+      else
+      {
+        bv.resize(sum_bits);
+        op.resize(sum_bits);
+        if(subtract)
+        {
+          bv = bv_utils.add_with_overflow(bv, bv_utils.negate(op), rep);
+        }
+        else
+        {
+          bv = bv_utils.add_with_overflow(bv, op, rep);
+        }
+        of[0] = prop.lor(of[0], bv.back());
+        bv.pop_back();
+        if(produce_nonabs(expr) && compute_bounds_failure(expr))
+        {
+          of[0] =
+            prop.lor(of[0], bv_utils.bf_check(rep, *abstraction_bits, bv));
+        }
+      }
+    }
+    sum_bits = bv_utils.how_many_bits(rep, bv);
+    if(bv.size() < operation_max_width)
+    {
+      bv.resize(operation_max_width, bv_utils.sign_bit(rep, bv));
+    }
   }
-
+  if(compute_bounds_failure(expr))
+    bounds_failure_literals[expr] = of;
+  if(bv.size() < width)
+  {
+    bv.resize(width, bv_utils.sign_bit(rep, bv));
+  }
+  INVARIANT(bv.size() == width, "at return time, bv should be as wide as the original type (regardless of abstraction)");
   return bv;
 }
 

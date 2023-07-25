@@ -36,9 +36,14 @@ bvt boolbvt::convert_bitwise(const exprt &expr)
         bv=op;
       else
       {
+        literalt prev_bvi_1 = const_literal(false), prev_bvi = const_literal(false);
         for(std::size_t i=0; i<width; i++)
         {
-          if(expr.id()==ID_bitand)
+          prev_bvi_1 = prev_bvi;
+          prev_bvi = bv[i];
+          if(i > 0 && prev_bvi_1 == prev_bvi && op[i-1] == op[i])
+            bv[i]=bv[i-1];
+          else if(expr.id()==ID_bitand)
             bv[i]=prop.land(bv[i], op[i]);
           else if(expr.id()==ID_bitor)
             bv[i]=prop.lor(bv[i], op[i]);

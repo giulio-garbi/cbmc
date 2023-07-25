@@ -6,9 +6,10 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
 #include <util/namespace.h>
+
+#include "bitvector_types.h"
+#include "boolbv.h"
 
 bvt boolbvt::convert_struct(const struct_exprt &expr)
 {
@@ -48,13 +49,19 @@ bvt boolbvt::convert_struct(const struct_exprt &expr)
     if(subtype_width!=0)
     {
       const bvt &op_bv = convert_bv(op, subtype_width);
+      const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(op.type()) && (int) to_integer_bitvector_type(op.type()).get_width() > *abstraction_bits;
+      const auto sign = should_abstract && to_integer_bitvector_type(op.type()).smallest() < 0;
 
       INVARIANT(
         bit_idx + op_bv.size() <= width, "bit index shall be within bounds");
 
-      for(const auto &bit : op_bv)
+      for(size_t i = 0; i<op_bv.size(); i++)
       {
-        bv[bit_idx] = bit;
+        if(should_abstract && (int) i>=*abstraction_bits){
+          bv[bit_idx] = sign?op_bv[*abstraction_bits-1]: const_literal(false);
+        } else {
+          bv[bit_idx] = op_bv[i];
+        }
         bit_idx++;
       }
     }

@@ -173,6 +173,12 @@ literalt cnft::land(const bvt &bv)
 
   bvt new_bv=eliminate_duplicates(bv);
 
+  // special cases also for new_bv
+  if(new_bv.size()==1)
+    return new_bv[0];
+  if(new_bv.size()==2)
+    return land(new_bv[0], new_bv[1]);
+
   bvt lits(2);
   literalt literal=new_variable();
   lits[1]=neg(literal);
@@ -215,6 +221,12 @@ literalt cnft::lor(const bvt &bv)
     return const_literal(false);
 
   bvt new_bv=eliminate_duplicates(bv);
+
+  // optimization for new_bv
+  if(new_bv.size()==1)
+    return new_bv[0];
+  if(new_bv.size()==2)
+    return lor(new_bv[0], new_bv[1]);
 
   bvt lits(2);
   literalt literal=new_variable();

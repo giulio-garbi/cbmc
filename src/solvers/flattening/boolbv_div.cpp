@@ -54,7 +54,31 @@ bvt boolbvt::convert_div(const div_exprt &expr)
       expr.type().id()==ID_signedbv?bv_utilst::representationt::SIGNED:
                                     bv_utilst::representationt::UNSIGNED;
 
+    const size_t operation_max_width = produce_nonabs(expr)?width:std::min((int)width, *abstraction_bits);
+    op0 = bv_utils.extract_lsb(op0, operation_max_width);
+    op1 = bv_utils.extract_lsb(op1, operation_max_width);
+    size_t div_bits = std::max(bv_utils.how_many_bits(rep, op0), bv_utils.how_many_bits(rep, op1));
+    op0.resize(div_bits);
+    op1.resize(div_bits);
+    res.resize(div_bits);
+    rem.resize(div_bits);
+
     bv_utils.divider(op0, op1, res, rem, rep);
+
+    // overflow ::= (SIGNED && op0 == MAXINT_abs && op1 == -1)
+    if(compute_bounds_failure(expr))
+    {
+      bvt of = bvt(1, const_literal(false));
+      if(
+        rep == bv_utilst::representationt::SIGNED &&
+        (int) div_bits == *abstraction_bits)
+      {
+        op0[*abstraction_bits - 1].invert();
+        of[0] = prop.land(prop.land(op0), prop.land(op1));
+      }
+      bounds_failure_literals[expr] = of;
+    }
+    res.resize(width, bv_utils.sign_bit(rep, res));
   }
 
   return res;

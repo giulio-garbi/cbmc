@@ -14,7 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "boolbv.h"
 #include "cprover_prefix.h"
 #include "ssa_expr.h"
-
+/*
 bool boolbvt::keep_all_bits(const typet &tp, std::vector<bool> &bitmap, const int from, const int to){
   return true;
   if(abstraction_disabled)
@@ -53,14 +53,13 @@ bool boolbvt::keep_all_bits(const typet &tp, std::vector<bool> &bitmap, const in
   }
   return true;
 }
-
 bool boolbvt::is_abstractable_name(const std::basic_string<char> &name){
   if(name.find(CPROVER_PREFIX) == 0)
     return false;
   if(name.find("_cs_") != std::basic_string<char>::npos)
     return false;
   return true;
-}
+}*/
 
 literalt boolbvt::convert_equality(const equal_exprt &expr)
 {
@@ -85,12 +84,12 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
     return record_array_equality(expr);
   }
 
-  const bvt &lhs_bv = convert_bv(expr.lhs());
+  bvt lhs_bv = convert_bv(expr.lhs());
 
-  optionalt<std::vector<bool>> abs_bitmap {};
-  bool abstraction_disabled_bak = abstraction_disabled;
+  /*optionalt<std::vector<bool>> abs_bitmap {};
+  bool abstraction_disabled_bak = abstraction_disabled;*/
 
-  if(expr.get_long_long(ID_C_is_assignment) && !is_unbounded_array(expr.lhs().type()) )
+  /*if(expr.get_long_long(ID_C_is_assignment) && !is_unbounded_array(expr.lhs().type()) )
   {
     if(!is_abstractable_name(as_string(to_ssa_expr(expr.lhs()).get_original_name())) || expr.lhs().type().get_string(ID_C_typedef) == "__cs_mutex_t"){
       abstraction_disabled = true;
@@ -105,10 +104,14 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
           abs_bitmap_shuffled[bitshuffle.map_bit(i)] = (*abs_bitmap)[i];
         abs_bitmap = {abs_bitmap_shuffled};
     }
+  }*/
+  bvt rhs_bv = convert_bv(expr.rhs());
+  if(!produce_nonabs(expr) && (int)lhs_bv.size() > *abstraction_bits){
+    lhs_bv = bv_utils.extract_lsb(lhs_bv, *abstraction_bits);
+    rhs_bv = bv_utils.extract_lsb(rhs_bv, *abstraction_bits);
   }
-  const bvt &rhs_bv = convert_bv(expr.rhs());
 
-  abstraction_disabled = abstraction_disabled_bak;
+  //abstraction_disabled = abstraction_disabled_bak;
 
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     lhs_bv.size() == rhs_bv.size(),
@@ -125,7 +128,7 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
     return prop.new_variable();
   }
 
-  return bv_utils.equal(lhs_bv, rhs_bv, abs_bitmap);
+  return bv_utils.equal(lhs_bv, rhs_bv);
 }
 
 literalt boolbvt::convert_verilog_case_equality(

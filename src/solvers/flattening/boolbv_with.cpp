@@ -35,11 +35,13 @@ bvt boolbvt::convert_with(const with_exprt &expr)
 
   const exprt::operandst &ops=expr.operands();
 
+  auto prod_na = produce_nonabs(expr);
+
   for(std::size_t op_no=1; op_no<ops.size(); op_no+=2)
   {
     bv.swap(prev_bv);
 
-    convert_with(expr.old().type(), ops[op_no], ops[op_no + 1], prev_bv, bv);
+    convert_with(expr.old().type(), ops[op_no], ops[op_no + 1], prev_bv, bv, prod_na);
   }
 
   return bv;
@@ -50,14 +52,15 @@ void boolbvt::convert_with(
   const exprt &op1,
   const exprt &op2,
   const bvt &prev_bv,
-  bvt &next_bv)
+  bvt &next_bv,
+  const bool prod_na)
 {
   // we only do that on arrays, bitvectors, structs, and unions
 
   next_bv.resize(prev_bv.size());
 
   if(type.id()==ID_array)
-    return convert_with_array(to_array_type(type), op1, op2, prev_bv, next_bv);
+    return convert_with_array(to_array_type(type), op1, op2, prev_bv, next_bv, prod_na);
   else if(type.id()==ID_bv ||
           type.id()==ID_unsignedbv ||
           type.id()==ID_signedbv)
@@ -67,12 +70,12 @@ void boolbvt::convert_with(
       convert_with_struct(to_struct_type(type), op1, op2, prev_bv, next_bv);
   else if(type.id() == ID_struct_tag)
     return convert_with(
-      ns.follow_tag(to_struct_tag_type(type)), op1, op2, prev_bv, next_bv);
+      ns.follow_tag(to_struct_tag_type(type)), op1, op2, prev_bv, next_bv, prod_na);
   else if(type.id()==ID_union)
     return convert_with_union(to_union_type(type), op2, prev_bv, next_bv);
   else if(type.id() == ID_union_tag)
     return convert_with(
-      ns.follow_tag(to_union_tag_type(type)), op1, op2, prev_bv, next_bv);
+      ns.follow_tag(to_union_tag_type(type)), op1, op2, prev_bv, next_bv, prod_na);
 
   DATA_INVARIANT_WITH_DIAGNOSTICS(
     false, "unexpected with type", irep_pretty_diagnosticst{type});
@@ -83,7 +86,8 @@ void boolbvt::convert_with_array(
   const exprt &op1,
   const exprt &op2,
   const bvt &prev_bv,
-  bvt &next_bv)
+  bvt &next_bv,
+  const bool prod_na)
 {
   // can't do this
   DATA_INVARIANT_WITH_DIAGNOSTICS(
@@ -127,17 +131,31 @@ void boolbvt::convert_with_array(
 
   typet counter_type=op1.type();
 
-  for(mp_integer i=0; i<size; i=i+1)
+  const bvt &op1_bv=convert_bv(op1);
+  auto sign = to_integer_bitvector_type(op1.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+  auto bits = bv_utils.how_many_bits(sign, op1_bv) - (sign == bv_utilst::representationt::SIGNED? 1 : 0);
+  size_t max_index = 1 << bits;
+
+  for(mp_integer i=0; i<size && i<max_index; i=i+1)
   {
     exprt counter=from_integer(i, counter_type);
 
-    literalt eq_lit=convert(equal_exprt(op1, counter));
+    auto equal = equal_exprt(op1, counter);
+
+    if(!prod_na)
+      (*produce_nonabs_map)[equal] = true;
+    literalt eq_lit=convert(equal);
 
     const std::size_t offset = numeric_cast_v<std::size_t>(i * op2_bv.size());
 
     for(std::size_t j=0; j<op2_bv.size(); j++)
       next_bv[offset+j]=
         prop.lselect(eq_lit, op2_bv[j], prev_bv[offset+j]);
+  }
+  for(mp_integer i=max_index; i<size; i=i+1){
+    const std::size_t offset = numeric_cast_v<std::size_t>(i * op2_bv.size());
+    for(std::size_t j=0; j<op2_bv.size(); j++)
+      next_bv[offset+j]= prev_bv[offset+j];
   }
 }
 

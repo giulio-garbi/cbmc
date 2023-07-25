@@ -37,11 +37,21 @@ public:
   {
   }
 
+  // is abstraction forbidden for this expression (basically, when there's a __cs var inside)?
   optionalt<std::map<exprt,optionalt<bool>>> is_abs_forbidden;
   optionalt<std::map<typet,optionalt<bool>>> is_type_abstract;
+
+  //do you need to produce the nonabs version?
   optionalt<std::map<exprt,optionalt<bool>>> produce_nonabs;
+
+  //store the result of abstr_check (expr, abs_result)
   optionalt<std::map<std::pair<exprt, bool>,optionalt<exprt>>> is_abstract;
+
+  //do you need to compute a bounds failure for this expression?
   optionalt<std::map<exprt,optionalt<bool>>> compute_bounds_failure;
+  optionalt<std::map<exprt,optionalt<exprt>>> abs_guards_symbol;
+  optionalt<std::map<ssa_exprt,optionalt<exprt>>> abs_exprs;
+  optionalt<std::map<exprt,optionalt<bool>>> is_assigned;
 
   friend void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 

@@ -24,6 +24,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "boolbv_map.h"
 #include "boolbv_width.h"
 #include "bv_utils.h" // IWYU pragma: keep
+#include "ssa_expr.h"
 
 class binary_overflow_exprt;
 class bitreverse_exprt;
@@ -113,12 +114,15 @@ public:
     abstraction_bits = {w};
   }
 
+  optionalt<std::map<exprt,optionalt<bool>>> compute_bounds_failure_map;
+  optionalt<std::map<exprt,optionalt<bool>>> produce_nonabs_map;
+  optionalt<std::map<exprt,optionalt<bool>>> is_assigned_map;
+
 protected:
   boolbv_widtht bv_width;
   bv_utilst bv_utils;
 
   optionalt<int> abstraction_bits;
-  bool abstraction_disabled = false;
 
   // uninterpreted functions
   functionst functions;
@@ -133,14 +137,27 @@ protected:
   // NOLINTNEXTLINE(readability/identifiers)
   typedef arrayst SUB;
 
-  bool keep_all_bits(const typet &tp, std::vector<bool> &map, const int from, const int to);
-  bool is_abstractable_name(const std::basic_string<char> &name);
-  bool is_abstract_op(const exprt& expr);
+  /*bool keep_all_bits(const typet &tp, std::vector<bool> &map, const int from, const int to);
+  bool is_abstractable_name(const std::basic_string<char> &name);*/
+  //bool is_abstract_op(const exprt& expr);
 
   bvt conversion_failed(const exprt &expr);
 
   typedef std::unordered_map<const exprt, bvt, irep_hash> bv_cachet;
   bv_cachet bv_cache;
+  bv_cachet bounds_failure_literals;
+
+  inline bool compute_bounds_failure(const exprt &e){
+    return compute_bounds_failure_map && (*compute_bounds_failure_map)[e] && *((*compute_bounds_failure_map)[e]);
+  }
+
+  inline bool produce_nonabs(const exprt &e){
+    return !produce_nonabs_map || ((*produce_nonabs_map)[e] && *((*produce_nonabs_map)[e]));
+  }
+
+  inline bool is_assigned(const ssa_exprt &e){
+    return (*is_assigned_map)[e] && *((*is_assigned_map)[e]);
+  }
 
   bool type_conversion(
     const typet &src_type, const bvt &src,
@@ -159,7 +176,7 @@ protected:
   virtual literalt convert_ieee_float_rel(const binary_relation_exprt &);
   virtual literalt convert_quantifier(const quantifier_exprt &expr);
 
-  virtual bvt convert_index(const exprt &array, const mp_integer &index);
+  virtual bvt convert_index(const exprt &array, const mp_integer &index, const bool prod_na);
   virtual bvt convert_index(const index_exprt &expr);
   virtual bvt convert_bswap(const bswap_exprt &expr);
   virtual bvt convert_byte_extract(const byte_extract_exprt &expr);
@@ -213,7 +230,8 @@ protected:
     const exprt &op1,
     const exprt &op2,
     const bvt &prev_bv,
-    bvt &next_bv);
+    bvt &next_bv,
+    const bool prod_na);
 
   void convert_with_bv(
     const exprt &op1,
@@ -226,7 +244,8 @@ protected:
     const exprt &op1,
     const exprt &op2,
     const bvt &prev_bv,
-    bvt &next_bv);
+    bvt &next_bv,
+    const bool prod_na);
 
   void convert_with_union(
     const union_typet &type,

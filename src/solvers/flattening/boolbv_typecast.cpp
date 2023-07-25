@@ -27,6 +27,26 @@ bvt boolbvt::convert_bv_typecast(const typecast_exprt &expr)
   if(type_conversion(op.type(), op_bv, expr.type(), bv))
     return conversion_failed(expr);
 
+  if(compute_bounds_failure(expr)){
+    bvt bfcheck = { const_literal(false)};
+    if(const auto ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.type())){
+      if((int)ibt->get_width() > *abstraction_bits){
+        auto sign = ibt->smallest()<0?bv_utilst::representationt::SIGNED:bv_utilst::representationt::UNSIGNED;
+        bfcheck[0] = bv_utils.bf_check(sign, *abstraction_bits, bv);
+      }
+    }
+  }
+  if(!produce_nonabs(expr)){
+    if(const auto ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.type())){
+      if((int)ibt->get_width() > *abstraction_bits){
+        auto sign = ibt->smallest()<0;
+        auto lit_cover = sign?bv[*abstraction_bits-1]: const_literal(false);
+        for(size_t i = *abstraction_bits; i<bv.size(); i++)
+          bv[i] = lit_cover;
+      }
+    }
+  }
+
   return bv;
 }
 

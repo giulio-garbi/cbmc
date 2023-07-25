@@ -19,6 +19,8 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <chrono> // IWYU pragma: keep
 
+#include "solvers/flattening/boolbv.h"
+
 static std::function<void(solver_hardnesst &)>
 hardness_register_ssa(std::size_t step_index, const SSA_stept &step)
 {
@@ -346,6 +348,13 @@ void symex_target_equationt::convert(decision_proceduret &decision_procedure)
 {
   const auto convert_SSA_start = std::chrono::steady_clock::now();
 
+#ifdef DISABLEABS
+  dynamic_cast<boolbvt&>(decision_procedure).compute_bounds_failure_map = {std::map<exprt, nonstd::optional<bool>>{}};
+#else
+  dynamic_cast<boolbvt&>(decision_procedure).compute_bounds_failure_map = compute_bounds_failure;
+#endif
+  dynamic_cast<boolbvt&>(decision_procedure).produce_nonabs_map = produce_nonabs;
+  dynamic_cast<boolbvt&>(decision_procedure).is_assigned_map = is_assigned;
   convert_without_assertions(decision_procedure);
   convert_assertions(decision_procedure);
 

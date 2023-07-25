@@ -1086,6 +1086,7 @@ std::string expr2ct::convert_multi_ary(
 
   std::string dest;
   bool first=true;
+  dest = "(";
 
   for(const auto &operand : src.operands())
   {
@@ -1119,6 +1120,8 @@ std::string expr2ct::convert_multi_ary(
     if(use_parentheses)
       dest+=')';
   }
+
+  dest += ")";
 
   return dest;
 }

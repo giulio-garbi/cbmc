@@ -141,6 +141,11 @@ void merge_irept::operator()(irept &irep)
   #endif
 }
 
+const irept &merge_irept::merged1L(const irept &irep){
+  auto entry = irep_store.insert(irep);
+  return *entry.first;
+}
+
 const irept &merge_irept::merged(const irept &irep)
 {
   auto entry = irep_store.insert(irep);

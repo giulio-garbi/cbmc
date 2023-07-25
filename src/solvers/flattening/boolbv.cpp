@@ -22,7 +22,10 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <solvers/floatbv/float_utils.h>
 
+#include "abstraction.h"
+
 #include <algorithm>
+#include <cmath>
 
 endianness_mapt boolbvt::endianness_map(const typet &type) const
 {
@@ -37,6 +40,7 @@ endianness_mapt boolbvt::endianness_map(const typet &type) const
 const bvt &
 boolbvt::convert_bv(const exprt &expr, optionalt<std::size_t> expected_width)
 {
+  //PRECONDITION(compute_bounds_failure_map);
   // check cache first
   std::pair<bv_cachet::iterator, bool> cache_result=
     bv_cache.insert(std::make_pair(expr, bvt()));
@@ -241,6 +245,14 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
   }
   else if(expr.id() == ID_find_first_set)
     return convert_bv(simplify_expr(to_find_first_set_expr(expr).lower(), ns));
+  else if(expr.id() == ID_bounds_failure)
+  {
+    //return {const_literal(false)};
+    PRECONDITION(compute_bounds_failure(expr.operands()[0]));
+    //convert_bv(expr.operands()[0]);
+    PRECONDITION(bounds_failure_literals.count(expr.operands()[0]) == 1);
+    return bounds_failure_literals[expr.operands()[0]];
+  }
 
   return conversion_failed(expr);
 }
@@ -288,7 +300,28 @@ bvt boolbvt::convert_symbol(const exprt &expr)
   const irep_idt &identifier = expr.get(ID_identifier);
   CHECK_RETURN(!identifier.empty());
 
-  bvt bv = map.get_literals(identifier, type, width);
+  bool is_nondet = map.get_mapping().count(identifier) == 0;
+  auto where_abstr_text = as_string(identifier).find("__ABSTR__");
+  bool is_abstr = where_abstr_text != std::string::npos;
+  bvt bv;
+  if(is_nondet && is_abstr){
+    // TODO dovresti controllare se il tipo della var originale e' astraibile e se il nome non e' escluso da astraazione
+    /*auto ident = as_string(identifier);
+    auto idx = ident.find_last_of("::");
+    if(idx == std::string::npos)
+      idx = 0;
+    else
+      idx += 2;
+    auto abstr_ident = ident.substr(0,idx) + "__ABSTR__" + ident.substr(idx);
+    auto sm_width = (size_t) std::ceil(bv_width(expr.type())/8.0);
+    if(is_forbidden_abs(expr))
+      map.set_literals(abstr_ident, unsignedbv_typet{sm_width}, bvt(sm_width, const_literal(false)));
+    else
+      map.set_literals(abstr_ident, unsignedbv_typet{sm_width}, bvt(sm_width, prop.new_variable()));*/
+    //as_string(identifier).replace(0,"__ABSTR__","");
+    map.set_literals(identifier, type, bvt(width, const_literal(false)));// prop.new_variable()));
+  }
+  bv = map.get_literals(identifier, type, width); //TODO you should not produce all the literals
 
   INVARIANT_WITH_DIAGNOSTICS(
     std::all_of(
@@ -299,6 +332,45 @@ bvt boolbvt::convert_symbol(const exprt &expr)
       }),
     "variable number of non-constant literals should be within bounds",
     id2string(identifier));
+
+  if(compute_bounds_failure(expr))
+  {
+    if(can_cast_expr<nondet_symbol_exprt>(expr)){
+      if(can_cast_type<integer_bitvector_typet>(expr.type()) && (int)to_integer_bitvector_type(expr.type()).get_width() >  *abstraction_bits)
+        bounds_failure_literals.insert(std::make_pair(expr, bvt{prop.new_variable()}));
+      else
+        bounds_failure_literals.insert(std::make_pair(expr, bvt{const_literal(false)}));
+    } else if (can_cast_expr<ssa_exprt>(expr) ){
+        auto bf = bvt();
+        bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
+        if(is_assigned(to_ssa_expr(expr)))
+          bf.push_back(bv_utils.bf_check(
+            sign ? bv_utilst::representationt::SIGNED
+                 : bv_utilst::representationt::UNSIGNED,
+            *this->abstraction_bits,
+            bv));
+        else
+          bf.push_back(prop.new_variable());
+        bounds_failure_literals.insert(std::make_pair(expr, bf));
+    } else {
+      // it could be enough to behave like nondets, i.e., any nonzero/bits not equal on top -> random bit.
+      bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
+      auto bf = bvt();
+      bf.push_back(bv_utils.bf_check(
+        sign ? bv_utilst::representationt::SIGNED
+             : bv_utilst::representationt::UNSIGNED,
+        *this->abstraction_bits,
+        bv));
+      bounds_failure_literals.insert(std::make_pair(expr, bf));
+    }
+  }
+  if(!produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.type()) && bv.size() > (size_t)*abstraction_bits){
+    // TODO anche per struct e vector
+    bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
+    const auto lit_fill = sign?bv[*abstraction_bits-1]: const_literal(false);
+    for(size_t i = *abstraction_bits; i<bv.size(); i++)
+      bv[i] = lit_fill;
+  }
 
   return bv;
 }
