@@ -31,12 +31,15 @@ bvt boolbvt::convert_if(const if_exprt &expr)
       return bv_utils.select_with_mask(cond, true_case_bv, false_case_bv, abs_bitmap_shuffled);
     }
   }*/
-  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && (int)width > *abstraction_bits){
+  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && can_cast_type<bitvector_typet>(expr.type()) && (int)width > *abstraction_bits){
     true_case_bv = bv_utils.extract_lsb(true_case_bv, *abstraction_bits);
     false_case_bv = bv_utils.extract_lsb(false_case_bv, *abstraction_bits);
   }
   auto ans = bv_utils.select(cond, true_case_bv, false_case_bv);
   auto rep = expr.type().id() == ID_signedbv?bv_utilst::representationt::SIGNED: bv_utilst::representationt::UNSIGNED;
-  ans.resize(width, bv_utils.sign_bit(rep, ans));
+  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && can_cast_type<bitvector_typet>(expr.type()) && (int)width > *abstraction_bits)
+  {
+    ans.resize(width, bv_utils.sign_bit(rep, ans));
+  }
   return ans;
 }
