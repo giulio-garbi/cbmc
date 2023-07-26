@@ -38,12 +38,39 @@ bvt boolbvt::convert_mod(const mod_exprt &expr)
     expr.type().id()==ID_signedbv?bv_utilst::representationt::SIGNED:
                                   bv_utilst::representationt::UNSIGNED;
 
-  const bvt &dividend_bv = convert_bv(expr.dividend(), width);
-  const bvt &divisor_bv = convert_bv(expr.divisor(), width);
+  bvt dividend_bv = convert_bv(expr.dividend(), width);
+  bvt divisor_bv = convert_bv(expr.divisor(), width);
 
+  auto nbits = std::max(bv_utils.how_many_bits(rep, dividend_bv), bv_utils.how_many_bits(rep, divisor_bv));
+  if(rep == bv_utilst::representationt::SIGNED)
+  {
+    bool might_dividend_maxint = true, might_divisor_minus1 = true;
+    for(unsigned long i = 0; i < nbits; i++)
+    {
+      if(divisor_bv[i].is_false())
+        might_divisor_minus1 = false;
+      if(i == nbits - 2)
+      {
+        if(dividend_bv[i].is_false())
+          might_dividend_maxint = false;
+      } else {
+        if(dividend_bv[i].is_true())
+          might_dividend_maxint = false;
+      }
+    }
+    if(might_dividend_maxint && might_divisor_minus1)
+      nbits = std::min(nbits+1, width);
+  }
+  dividend_bv.resize(nbits);
+  divisor_bv.resize(nbits);
   bvt res, rem;
 
   bv_utils.divider(dividend_bv, divisor_bv, res, rem, rep);
+
+  if(nbits != width){
+    res.resize(width, bv_utilst::sign_bit(rep, res));
+    rem.resize(width, bv_utilst::sign_bit(rep, rem));
+  }
 
   return rem;
 }
