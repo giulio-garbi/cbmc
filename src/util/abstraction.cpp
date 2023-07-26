@@ -285,7 +285,11 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     // member names do not affect abstractability
     ((*targetEquation.is_abs_forbidden)[e]) =  false;
     (*targetEquation.produce_nonabs)[e] = false;
-  } else {
+  } else if(e.id() == ID_string_constant){
+    // we don't handle string constants
+    ((*targetEquation.is_abs_forbidden)[e]) =  false;
+    (*targetEquation.produce_nonabs)[e] = false;
+  }else {
     UNREACHABLE;
   }
   return *((*targetEquation.is_abs_forbidden)[e]);
