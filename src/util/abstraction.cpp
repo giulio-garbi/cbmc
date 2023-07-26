@@ -182,7 +182,8 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
           e.id() == ID_reduction_xor || e.id() == ID_reduction_xnor ||
           e.id() == ID_struct || e.id() == ID_union || e.id() == ID_update ||
           e.id() == ID_vector || e.id() == ID_with || e.id() == ID_address_of ||
-          e.id() == ID_pointer_object || e.id() == ID_pointer_offset){
+          e.id() == ID_pointer_object || e.id() == ID_pointer_offset || e.id() == ID_is_invalid_pointer ||
+          e.id() == ID_object_size || e.id() == ID_is_dynamic_object){
     // exists op with abs_forbidden => this op has abs_forbidden
     // exists op with abs_forbidden => produce nonabs for every op
     bool forbOp = false;
@@ -289,8 +290,8 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     // we don't handle string constants
     ((*targetEquation.is_abs_forbidden)[e]) =  false;
     (*targetEquation.produce_nonabs)[e] = false;
-  }else {
-    UNREACHABLE;
+  } else {
+    DATA_INVARIANT_WITH_DIAGNOSTICS(false, "unimplemented case", e.pretty());
   }
   return *((*targetEquation.is_abs_forbidden)[e]);
 }

@@ -1262,7 +1262,7 @@ void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_
     const auto stag = to_struct_tag_type(tp);
     ns.follow(stag);
     abstraction_map_rec(abmap, ns.follow(stag), bvwidth, ab_width, base_idx, ns);
-  }else if(can_cast_type<struct_typet>(tp)){
+  } else if(can_cast_type<struct_typet>(tp)){
     const auto stp = to_struct_type(tp);
     size_t idx_struct = base_idx;
     for(const auto &c:stp.components()){
@@ -1277,7 +1277,7 @@ void abstraction_map_rec(std::vector<int>& abmap, const typet& tp, const boolbv_
     }
   } else {
     for(size_t i=0; i<orig_width; i++)
-      abmap[i] = base_idx + i;
+      abmap[base_idx + i] = base_idx + i;
   }
 }
 
