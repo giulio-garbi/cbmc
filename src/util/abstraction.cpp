@@ -3,6 +3,7 @@
 //
 
 #include <util/abstraction.h>
+#include <util/namespace.h>
 
 #include "arith_tools.h"
 #include "bitvector_expr.h"
@@ -10,12 +11,12 @@
 #include "byte_operators.h"
 #include "c_types.h"
 #include "cprover_prefix.h"
+#include "floatbv_expr.h"
 #include "pointer_offset_size.h"
 
 #include <cmath>
 
 #include "solvers/flattening/boolbv_width.h"
-#include <util/namespace.h>
 
 void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
   if((*targetEquation.produce_nonabs)[e].has_value()){
@@ -278,6 +279,13 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
   } else if(const auto cast = expr_try_dynamic_cast<typecast_exprt>(e)){
     // op with abs_forbidden => this op has abs_forbidden
     bool forbOp = set_if_abs_forbidden(cast->op(), targetEquation);
+    ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
+    if(forbOp){
+      (*targetEquation.produce_nonabs)[e] = true;
+    }
+  } else if(const auto fcast = expr_try_dynamic_cast<floatbv_typecast_exprt>(e)){
+    // op with abs_forbidden => this op has abs_forbidden
+    bool forbOp = set_if_abs_forbidden(fcast->op(), targetEquation);
     ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
     if(forbOp){
       (*targetEquation.produce_nonabs)[e] = true;
