@@ -15,6 +15,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <solvers/prop/prop.h>
 #include "type.h"
+#include "bitvector_types.h"
 #include "boolbv_width.h"
 
 // Shares variables between var == const tests for registered variables.
@@ -155,6 +156,13 @@ public:
       return const_literal(false);
   }
 
+  static inline literalt sign_bit(const typet &tp,const bvt &op){
+    if(to_integer_bitvector_type(tp).smallest() < 0)
+      return sign_bit(op);
+    else
+      return const_literal(false);
+  }
+
   literalt is_zero(const bvt &op)
   { return !prop.lor(op); }
 
@@ -228,18 +236,28 @@ public:
   // extracts the n least significant bits
   static bvt extract_lsb(const bvt &a, std::size_t n);
 
+  static bvt extract_abs_map(const bvt &a, const std::vector<int> &abmap);
+
   // put a and b together, where a comes first (lower indices)
   static bvt concatenate(const bvt &a, const bvt &b);
 
   literalt verilog_bv_has_x_or_z(const bvt &);
   static bvt verilog_bv_normal_bits(const bvt &);
 
-  void abstraction_map(
+  static void abstraction_map(
     std::vector<int> &abmap,
     const typet &tp,
     const boolbv_widtht &bvwidth,
     const size_t ab_width,
     const namespacet &ns);
+
+  bvt new_var_abs_type(
+    const typet &typ,
+    const boolbv_widtht& bv_width,
+    const size_t abs_width,
+    const namespacet &namespacet);
+
+  bvt new_var_abs_type(const std::vector<int> &abmap);
 
 protected:
   propt &prop;

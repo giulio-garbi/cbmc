@@ -149,8 +149,13 @@ void boolbvt::convert_with_array(
     const std::size_t offset = numeric_cast_v<std::size_t>(i * op2_bv.size());
 
     for(std::size_t j=0; j<op2_bv.size(); j++)
-      next_bv[offset+j]=
-        prop.lselect(eq_lit, op2_bv[j], prev_bv[offset+j]);
+    {
+      if(j > 0 && op2_bv[j] == op2_bv[j-1] && prev_bv[offset + j] == prev_bv[offset + j -1])
+        next_bv[offset + j] = next_bv[offset + j - 1];
+      else
+        next_bv[offset + j] =
+          prop.lselect(eq_lit, op2_bv[j], prev_bv[offset + j]);
+    }
   }
   for(mp_integer i=max_index; i<size; i=i+1){
     const std::size_t offset = numeric_cast_v<std::size_t>(i * op2_bv.size());

@@ -6,7 +6,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-
+#include "bitvector_types.h"
 #include "boolbv.h"
 
 bvt boolbvt::convert_if(const if_exprt &expr)
@@ -21,25 +21,19 @@ bvt boolbvt::convert_if(const if_exprt &expr)
   bvt true_case_bv = convert_bv(expr.true_case(), width);
   bvt false_case_bv = convert_bv(expr.false_case(), width);
 
-  /*if(!is_unbounded_array(expr.type()) && (is_abstract_op(expr.true_case()) || is_abstract_op(expr.false_case()))){
-    std::vector<bool> abs_bitmap(true_case_bv.size(), true);
-    if(!keep_all_bits(expr.type(), abs_bitmap, 0, abs_bitmap.size())){
-      const auto bitshuffle = endianness_map(expr.type());
-      std::vector<bool> abs_bitmap_shuffled(true_case_bv.size(), true);
-      for(size_t i=0; i<abs_bitmap.size(); i++)
-        abs_bitmap_shuffled[bitshuffle.map_bit(i)] = abs_bitmap[i];
-      return bv_utils.select_with_mask(cond, true_case_bv, false_case_bv, abs_bitmap_shuffled);
-    }
-  }*/
-  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && can_cast_type<bitvector_typet>(expr.type()) && (int)width > *abstraction_bits){
-    true_case_bv = bv_utils.extract_lsb(true_case_bv, *abstraction_bits);
-    false_case_bv = bv_utils.extract_lsb(false_case_bv, *abstraction_bits);
+  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && (produce_nonabs(expr.true_case()) || produce_nonabs(expr.false_case()))){
+    std::vector<int> abmap;
+    bv_utilst::abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    if(produce_nonabs(expr.true_case()))
+      true_case_bv = bv_utilst::extract_abs_map(true_case_bv, abmap);
+    if(produce_nonabs(expr.false_case()))
+      false_case_bv = bv_utilst::extract_abs_map(false_case_bv, abmap);
   }
   auto ans = bv_utils.select(cond, true_case_bv, false_case_bv);
-  auto rep = expr.type().id() == ID_signedbv?bv_utilst::representationt::SIGNED: bv_utilst::representationt::UNSIGNED;
-  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && can_cast_type<bitvector_typet>(expr.type()) && (int)width > *abstraction_bits)
+  /*auto rep = expr.type().id() == ID_signedbv?bv_utilst::representationt::SIGNED: bv_utilst::representationt::UNSIGNED;
+  if(!is_unbounded_array(expr.type()) && !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.type()) && (int)width > *abstraction_bits)
   {
-    ans.resize(width, bv_utils.sign_bit(rep, ans));
-  }
+    ans.resize(width, bv_utilst::sign_bit(rep, ans));
+  }*/
   return ans;
 }

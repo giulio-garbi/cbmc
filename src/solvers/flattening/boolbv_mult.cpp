@@ -86,7 +86,7 @@ bvt boolbvt::convert_mult(const mult_exprt &expr)
         bv.resize(mul_bits, bv_utils.sign_bit(rep, bv));
         op.resize(mul_bits, bv_utils.sign_bit(rep, op));
         bv = bv_utils.multiplier(bv, op, rep);
-        op[0] = prop.lor(op[0], bv_utils.bf_check(rep, *abstraction_bits, bv));
+        of[0] = prop.lor(of[0], bv_utils.bf_check(rep, *abstraction_bits, bv));
       }
       mul_bits = std::min(bv_utils.how_many_bits(rep, bv), operation_max_width);
       bv.resize(mul_bits, bv_utils.sign_bit(rep, bv));

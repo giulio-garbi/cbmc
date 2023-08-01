@@ -190,6 +190,9 @@ literalt bv_pointerst::convert_rest(const exprt &expr)
       // do the same-object-test via an expression as this may permit re-using
       // already cached encodings of the equality test
       const exprt same_object = ::same_object(operands[0], operands[1]);
+      (*produce_nonabs_map)[same_object.operands()[0]] = true;
+      (*produce_nonabs_map)[same_object.operands()[1]] = true;
+      (*produce_nonabs_map)[same_object] = true;
       const literalt same_object_lit = convert(same_object);
       if(same_object_lit.is_false())
         return same_object_lit;
@@ -698,6 +701,9 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
     bvt offset_bv =
       offset_literals(pointer_bv, to_pointer_type(pointer.type()));
 
+    /*if(!produce_nonabs(expr) && (int)width > *abstraction_bits)
+      offset_bv.resize(*abstraction_bits);*/
+
     // we do a sign extension to permit negative offsets
     return bv_utils.sign_extension(offset_bv, width);
   }
@@ -726,6 +732,8 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
     bvt object_bv =
       object_literals(pointer_bv, to_pointer_type(pointer.type()));
 
+    assert(produce_nonabs(expr));
+
     return bv_utils.zero_extension(object_bv, width);
   }
   else if(
@@ -737,6 +745,14 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
 
     // squeeze it in!
     std::size_t width=boolbv_width(expr.type());
+
+    if(!produce_nonabs(expr) && (int)op0.size() > *abstraction_bits)
+    {
+      if(expr.type().id() == ID_signedbv)
+        op0.resize(*abstraction_bits-1);
+      else
+        op0.resize(*abstraction_bits);
+    }
 
     return bv_utils.zero_extension(op0, width);
   }

@@ -25,7 +25,7 @@ bvt boolbvt::convert_unary_minus(const unary_minus_exprt &expr)
 
   const exprt &op = expr.op();
 
-  const bvt &op_bv = convert_bv(op, width);
+  bvt op_bv = convert_bv(op, width);
 
   bvtypet bvtype=get_bvtype(type);
   bvtypet op_bvtype = get_bvtype(op.type());
@@ -84,7 +84,11 @@ bvt boolbvt::convert_unary_minus(const unary_minus_exprt &expr)
   else if((op_bvtype==bvtypet::IS_SIGNED || op_bvtype==bvtypet::IS_UNSIGNED) &&
           (bvtype==bvtypet::IS_SIGNED || bvtype==bvtypet::IS_UNSIGNED))
   {
-    return bv_utils.negate(op_bv);
+    if(!produce_nonabs(expr) && width > (size_t)*abstraction_bits)
+      op_bv.resize(*abstraction_bits);
+    auto ans = bv_utils.negate(op_bv);
+    ans.resize(width, bv_utilst::sign_bit(expr.type(), ans));
+    return ans;
   }
 
   return conversion_failed(expr);

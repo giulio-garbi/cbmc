@@ -37,12 +37,13 @@ bvt boolbvt::convert_bv_typecast(const typecast_exprt &expr)
     }
   }
   if(!produce_nonabs(expr)){
-    if(const auto ibt = type_try_dynamic_cast<integer_bitvector_typet>(expr.type())){
-      if((int)ibt->get_width() > *abstraction_bits){
-        auto sign = ibt->smallest()<0;
-        auto lit_cover = sign?bv[*abstraction_bits-1]: const_literal(false);
-        for(size_t i = *abstraction_bits; i<bv.size(); i++)
-          bv[i] = lit_cover;
+    std::vector<int> abmap;
+    bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    for(int i=(int)abmap.size()-1; i>=0; i--){
+      if(abmap[i] == -1){
+        bv[i] = const_literal(false);
+      } else if (abmap[i] != i){
+        bv[i] = bv[abmap[i]];
       }
     }
   }

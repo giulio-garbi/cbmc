@@ -62,6 +62,7 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
   // root object
   const auto op_bytes_opt = pointer_offset_size(expr.op().type(), ns);
   auto index = numeric_cast<mp_integer>(expr.offset());
+  auto prod_na = produce_nonabs(expr);
 
   if(
     (!index.has_value() || !op_bytes_opt.has_value() ||
@@ -123,7 +124,14 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
     if(prop.has_set_to())
     {
       // free variables
-      bv = prop.new_variables(width);
+      std::vector<int> abmap;
+      if(prod_na)
+        bv = prop.new_variables(width);
+      else{
+        bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+        bv = bv_utils.new_var_abs_type(abmap);
+      }
+
 
       // add implications
 
@@ -140,16 +148,18 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
       {
         std::size_t offset = i * expr.get_bits_per_byte();
         const auto offset_check = equal_exprt(expr.offset(), from_integer(i, constant_type));
-        if(produce_nonabs(expr) && produce_nonabs_map) //TODO or detect a pattern in offset
+        if(prod_na && produce_nonabs_map) //TODO or detect a pattern in offset
           (*produce_nonabs_map)[offset_check] = true;
         const literalt is_offset_ok = convert(offset_check);
         if(!is_offset_ok.is_false())
         {
           for(std::size_t j = 0; j < width; j++)
-            if(offset + j < op_bv.size())
+          {
+            if(offset + j < op_bv.size() && (abmap.empty() || abmap[j] == (int)j))
               equal_bv[j] = prop.lequal(bv[j], op_bv[offset + j]);
             else
               equal_bv[j] = const_literal(true);
+          }
 
           prop.l_set_to_true(prop.limplies(is_offset_ok, prop.land(equal_bv)));
         }

@@ -79,6 +79,25 @@ bvt bv_utilst::extract_lsb(const bvt &a, std::size_t n)
   return result;
 }
 
+bvt bv_utilst::extract_abs_map(const bvt &a, const std::vector<int> &abmap)
+{
+  // preconditions
+  PRECONDITION(abmap.empty() || abmap.size() == a.size());
+
+  if(abmap.empty())
+    return a;
+
+  bvt result(a.size(), const_literal(false));
+  for(size_t i = 0; i < abmap.size(); i++)
+  {
+    if(abmap[i] == -1)
+      result[i] = const_literal(false);
+    else
+      result[i] = a[abmap[i]];
+  }
+  return result;
+}
+
 bvt bv_utilst::concatenate(const bvt &a, const bvt &b)
 {
   bvt result;
@@ -1539,4 +1558,30 @@ bvt bv_utilst::verilog_bv_normal_bits(const bvt &src)
   }
 
   return even_bits;
+}
+bvt bv_utilst::new_var_abs_type(
+  const typet &typ,
+  const boolbv_widtht& bv_width,
+  const size_t abs_width,
+  const namespacet &namespacet){
+  std::vector<int> abmap;
+  abstraction_map(abmap, typ, bv_width, abs_width, namespacet);
+  return new_var_abs_type(abmap);
+}
+
+bvt bv_utilst::new_var_abs_type(const std::vector<int> &abmap)
+{
+  bvt ans(abmap.size(), const_literal(false));
+  for(int i=0; i<(int)abmap.size(); i++){
+    if(abmap[i] == i){
+      ans[i] = prop.new_variable();
+    } else if(abmap[i] == -1){
+      ;
+    } else if(abmap[i] < i){
+      ans[i] = ans[abmap[i]];
+    } else {
+      PRECONDITION(false);
+    }
+  }
+  return ans;
 }

@@ -65,7 +65,10 @@ bvt boolbvt::convert_index(const index_exprt &expr)
       else
       {
         // free variables
-        bv = prop.new_variables(boolbv_width(expr.type()));
+        if(prod_na)
+          bv = prop.new_variables(boolbv_width(expr.type()));
+        else
+          bv = bv_utils.new_var_abs_type(expr.type(), bv_width, *abstraction_bits, ns);
 
         record_array_index(expr);
 
@@ -126,6 +129,8 @@ bvt boolbvt::convert_index(const index_exprt &expr)
                                      std::to_string(uniform_array_counter++);
 
       symbol_exprt result(identifier, expr.type());
+      if(produce_nonabs_map)
+        (*produce_nonabs_map)[result] = prod_na;
       bv = convert_bv(result);
 
       // return an unconstrained value in case of an empty array (the access is
@@ -227,18 +232,44 @@ bvt boolbvt::convert_index(const index_exprt &expr)
 
       bvt equal_bv;
       equal_bv.resize(width);
+      std::vector<int> abmap;
+      if(!produce_nonabs(expr))
+        bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
 
       for(mp_integer i=0; i<array_size; i=i+1)
       {
         mp_integer offset=i*width;
 
+        int nchecks = 0;
+
         for(std::size_t j=0; j<width; j++)
-          equal_bv[j] = prop.lequal(
-            bv[j], array_bv[numeric_cast_v<std::size_t>(offset + j)]);
+        {
+          if(abmap.empty() || abmap[j] == (int)j)
+          {
+            equal_bv[nchecks] = prop.lequal(
+              bv[j], array_bv[numeric_cast_v<std::size_t>(offset + j)]);
+            nchecks++;
+          }
+        }
+        equal_bv.resize(nchecks);
 
         prop.l_set_to_true(prop.limplies(
           convert(equal_exprt(index, from_integer(i, index.type()))),
           prop.land(equal_bv)));
+      }
+      if(!abmap.empty())
+      {
+        for(std::size_t j = 0; j < width; j++)
+        {
+          if(abmap[j] == -1)
+          {
+            bv[j] = const_literal(false);
+          }
+          else if(abmap[j] != (int)j)
+          {
+            bv[j] = bv[abmap[j]];
+          }
+        }
       }
     }
     else

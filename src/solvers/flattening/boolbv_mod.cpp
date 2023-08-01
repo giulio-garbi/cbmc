@@ -59,8 +59,11 @@ bvt boolbvt::convert_mod(const mod_exprt &expr)
       }
     }
     if(might_dividend_maxint && might_divisor_minus1)
-      nbits = std::min(nbits+1, width);
+      nbits = nbits+1;
   }
+  nbits = std::min(nbits, width);
+  if(!produce_nonabs(expr))
+    nbits = std::min(nbits, (size_t)*abstraction_bits);
   dividend_bv.resize(nbits);
   divisor_bv.resize(nbits);
   bvt res, rem;

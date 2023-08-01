@@ -53,7 +53,7 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||
           e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal ||
           e.id() == ID_forall || e.id() == ID_exists || e.id() == ID_not ||
-          e.id() == ID_implies || e.id() == ID_address_of || e.id() == ID_and ||
+          e.id() == ID_implies || e.id() == ID_and ||
           e.id() == ID_or || e.id() == ID_nand || e.id() == ID_nor ||
           e.id() == ID_xor || e.id() == ID_pointer_object || e.id() == ID_pointer_offset) {
     (*targetEquation.produce_nonabs)[e] = true;
@@ -66,10 +66,11 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
     for(std::vector<exprt>::size_type i=2; i<e.operands().size(); i+=2){
       produce_nonabs(e.operands()[i], targetEquation);
     }
-  } else if (e.id() == ID_constant){
+  } else if (e.id() == ID_address_of){
+    // addressed element does not have to be nonabs
     (*targetEquation.produce_nonabs)[e] = true;
-  } else if (e.id() == ID_nondet_symbol){
-    (*targetEquation.produce_nonabs)[e] = false;
+  }else if (e.id() == ID_constant || e.id() == ID_nondet_symbol){
+    (*targetEquation.produce_nonabs)[e] = true;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // produce nonabs for then and else AND this op has produce nonabs
     (*targetEquation.produce_nonabs)[e] = true;
@@ -183,7 +184,7 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
           e.id() == ID_reduction_xor || e.id() == ID_reduction_xnor ||
           e.id() == ID_struct || e.id() == ID_union || e.id() == ID_update ||
           e.id() == ID_vector || e.id() == ID_with || e.id() == ID_address_of ||
-          e.id() == ID_pointer_object || e.id() == ID_pointer_offset || e.id() == ID_is_invalid_pointer ||
+          e.id() == ID_is_invalid_pointer ||
           e.id() == ID_object_size || e.id() == ID_is_dynamic_object){
     // exists op with abs_forbidden => this op has abs_forbidden
     // exists op with abs_forbidden => produce nonabs for every op
@@ -192,11 +193,23 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
       forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
     }
     ((*targetEquation.is_abs_forbidden)[e]) = forbOp;
-    if(forbOp || test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) || test_pattern_ptroffset_const(e)){
+    if(forbOp || test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) ||
+       test_pattern_ptroffset_const(e) || e.id() == ID_pointer_offset ||
+       e.id() == ID_object_size){
       (*targetEquation.produce_nonabs)[e] = true;
       Forall_operands(op, e){
         produce_nonabs(*op, targetEquation);
       }
+    }
+  } else if(e.id() == ID_pointer_object || e.id() == ID_pointer_offset){
+    bool forbOp = false;
+    Forall_operands(op, e){
+      forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
+    }
+    (*targetEquation.is_abs_forbidden)[e] = forbOp;
+    (*targetEquation.produce_nonabs)[e] = true;
+    Forall_operands(op, e){
+      produce_nonabs(*op, targetEquation);
     }
   } else if(e.id() == ID_ge || e.id() == ID_le || e.id() == ID_gt ||
           e.id() == ID_lt || e.id() == ID_equal || e.id() == ID_notequal ||

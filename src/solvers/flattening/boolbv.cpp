@@ -64,6 +64,29 @@ boolbvt::convert_bv(const exprt &expr, optionalt<std::size_t> expected_width)
     "bitvector width shall match the indicated expected width",
     expr.find_source_location(),
     irep_pretty_diagnosticst(expr));
+  if(!produce_nonabs(expr))
+  {
+    std::vector<int> abmap;
+    bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    for(size_t i=0; i<abmap.size(); i++){
+      if(abmap[i] == -1)
+        INVARIANT_WITH_DIAGNOSTICS(
+          cache_entry[i].is_false(),
+          "this bit should be 0",
+          std::to_string(i),
+          expr.find_source_location(),
+          irep_pretty_diagnosticst(expr));
+      else if (abmap[i] != (int)i){
+        INVARIANT_WITH_DIAGNOSTICS(
+          cache_entry[i] == cache_entry[abmap[i]],
+          "those bits should match",
+          std::to_string(i),
+          std::to_string(abmap[i]),
+          expr.find_source_location(),
+          irep_pretty_diagnosticst(expr));
+      }
+    }
+  }
 
   // check
   for(const auto &literal : cache_entry)
@@ -88,8 +111,13 @@ bvt boolbvt::conversion_failed(const exprt &expr)
   ignoring(expr);
 
   // try to make it free bits
-  std::size_t width=boolbv_width(expr.type());
-  return prop.new_variables(width);
+  if(produce_nonabs(expr))
+  {
+    std::size_t width = boolbv_width(expr.type());
+    return prop.new_variables(width);
+  } else {
+    return bv_utils.new_var_abs_type(expr.type(), bv_width, *abstraction_bits, ns);
+  }
 }
 
 /// Converts an expression into its gate-level representation and returns a
@@ -303,6 +331,7 @@ bvt boolbvt::convert_symbol(const exprt &expr)
   bool is_nondet = map.get_mapping().count(identifier) == 0;
   auto where_abstr_text = as_string(identifier).find("__ABSTR__");
   bool is_abstr = where_abstr_text != std::string::npos;
+  bool prod_na = produce_nonabs(expr);
   bvt bv;
   if(is_nondet && is_abstr){
     // TODO dovresti controllare se il tipo della var originale e' astraibile e se il nome non e' escluso da astraazione
@@ -364,12 +393,21 @@ bvt boolbvt::convert_symbol(const exprt &expr)
       bounds_failure_literals.insert(std::make_pair(expr, bf));
     }
   }
-  if(!produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.type()) && bv.size() > (size_t)*abstraction_bits){
+  if(!prod_na){// && can_cast_type<integer_bitvector_typet>(expr.type()) && bv.size() > (size_t)*abstraction_bits){
     // TODO anche per struct e vector
-    bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
+    std::vector<int> abmap;
+    bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    for(size_t i=0; i<abmap.size(); i++)
+    {
+      if(abmap[i] == -1)
+          bv[i] = const_literal(false);
+      else if(abmap[i] < (int)i)
+          bv[i] = bv[abmap[i]];
+    }
+    /*bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
     const auto lit_fill = sign?bv[*abstraction_bits-1]: const_literal(false);
     for(size_t i = *abstraction_bits; i<bv.size(); i++)
-      bv[i] = lit_fill;
+      bv[i] = lit_fill;*/
   }
 
   return bv;

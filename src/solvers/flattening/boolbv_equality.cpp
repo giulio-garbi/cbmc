@@ -106,10 +106,12 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
     }
   }*/
   bvt rhs_bv = convert_bv(expr.rhs());
-  if(!produce_nonabs(expr) && (int)lhs_bv.size() > *abstraction_bits){
-    lhs_bv = bv_utils.extract_lsb(lhs_bv, *abstraction_bits);
-    rhs_bv = bv_utils.extract_lsb(rhs_bv, *abstraction_bits);
-  }
+  /*if(!produce_nonabs(expr)){
+    std::vector<int> abmap;
+    bv_utilst::abstraction_map(abmap, expr.lhs().type(), bv_width, *abstraction_bits, ns);
+    lhs_bv = bv_utilst::extract_abs_map(lhs_bv, abmap);
+    rhs_bv = bv_utilst::extract_abs_map(rhs_bv, abmap);
+  }*/
 
   //abstraction_disabled = abstraction_disabled_bak;
 

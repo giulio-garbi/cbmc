@@ -33,12 +33,11 @@ bvt boolbvt::convert_array_of(const array_of_exprt &expr)
   const auto size = numeric_cast_v<mp_integer>(to_constant_expr(array_size));
 
   bvt tmp = convert_bv(expr.what());
-  const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(expr.what().type()) && (int)to_integer_bitvector_type(expr.what().type()).get_width() > *abstraction_bits;
-  if(should_abstract){
-    const auto sign = to_integer_bitvector_type(expr.what().type()).smallest() < 0;
-    const auto lit_cover = sign?tmp[*abstraction_bits-1]: const_literal(false);
-    for(size_t i = *abstraction_bits; i < tmp.size(); i++)
-      tmp[i] = lit_cover;
+  if(!produce_nonabs(expr))
+  {
+    std::vector<int> abmap;
+    bv_utilst::abstraction_map(abmap, expr.what().type(), bv_width, *abstraction_bits, ns);
+    tmp = bv_utilst::extract_abs_map(tmp, abmap);
   }
 
   INVARIANT(

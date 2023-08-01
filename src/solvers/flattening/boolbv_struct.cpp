@@ -31,6 +31,7 @@ bvt boolbvt::convert_struct(const struct_exprt &expr)
   std::size_t bit_idx = 0;
 
   exprt::operandst::const_iterator op_it=expr.operands().begin();
+  const auto should_abstract = !produce_nonabs(expr);// && can_cast_type<integer_bitvector_typet>(op.type()) && (int) to_integer_bitvector_type(op.type()).get_width() > *abstraction_bits;
   for(const auto &comp : components)
   {
     const typet &subtype=comp.type();
@@ -49,19 +50,21 @@ bvt boolbvt::convert_struct(const struct_exprt &expr)
     if(subtype_width!=0)
     {
       const bvt &op_bv = convert_bv(op, subtype_width);
-      const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(op.type()) && (int) to_integer_bitvector_type(op.type()).get_width() > *abstraction_bits;
-      const auto sign = should_abstract && to_integer_bitvector_type(op.type()).smallest() < 0;
+      std::vector<int> abmap;
+      if(should_abstract)
+        bv_utilst::abstraction_map(abmap, op.type(), bv_width, *abstraction_bits, ns);
 
       INVARIANT(
         bit_idx + op_bv.size() <= width, "bit index shall be within bounds");
 
       for(size_t i = 0; i<op_bv.size(); i++)
       {
-        if(should_abstract && (int) i>=*abstraction_bits){
-          bv[bit_idx] = sign?op_bv[*abstraction_bits-1]: const_literal(false);
-        } else {
+        if(abmap.empty())
           bv[bit_idx] = op_bv[i];
-        }
+        else if(abmap[i] == -1)
+          bv[bit_idx] = const_literal(false);
+        else
+          bv[bit_idx] = op_bv[abmap[i]];
         bit_idx++;
       }
     }
