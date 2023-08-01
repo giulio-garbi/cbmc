@@ -62,7 +62,7 @@ bvt boolbvt::convert_mult(const mult_exprt &expr)
       expr.type().id()==ID_signedbv?bv_utilst::representationt::SIGNED:
                                     bv_utilst::representationt::UNSIGNED;
 
-    const size_t operation_max_width = produce_nonabs(expr)?width:std::min((size_t)*abstraction_bits, width);
+    const size_t operation_max_width = width;//produce_nonabs(expr)?width:std::min((size_t)*abstraction_bits, width);
     bv = bv_utils.extract_lsb(convert_bv(op0, width), operation_max_width);
     size_t mul_bits = bv_utils.how_many_bits(rep, bv);
     bvt of = bvt(1, const_literal(false));
@@ -75,7 +75,7 @@ bvt boolbvt::convert_mult(const mult_exprt &expr)
         "multiplication operands should have same type as expression");
 
       bvt op = bv_utils.extract_lsb(convert_bv(*it, width), operation_max_width);
-      size_t op_bits = bv_utils.how_many_bits(rep, op);
+      size_t op_bits = width;//bv_utils.how_many_bits(rep, op);
       mul_bits = mul_bits + op_bits;
       if(!compute_bounds_failure(expr) || *abstraction_bits > (int) mul_bits){
         mul_bits = std::min(mul_bits, operation_max_width);
@@ -88,7 +88,7 @@ bvt boolbvt::convert_mult(const mult_exprt &expr)
         bv = bv_utils.multiplier(bv, op, rep);
         of[0] = prop.lor(of[0], bv_utils.bf_check(rep, *abstraction_bits, bv));
       }
-      mul_bits = std::min(bv_utils.how_many_bits(rep, bv), operation_max_width);
+      mul_bits = width;//std::min(bv_utils.how_many_bits(rep, bv), operation_max_width);
       bv.resize(mul_bits, bv_utils.sign_bit(rep, bv));
     }
     if(compute_bounds_failure(expr))

@@ -93,11 +93,11 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
   }
 }
 
-bool test_pattern_ptr_index_times_offset(const exprt &e)
+/*bool test_pattern_ptr_index_times_offset(const exprt &e)
 {
-  /* special pattern: a + (idx * const)
+  / * special pattern: a + (idx * const)
    * where a is a pointer and const is the size of a's elements. Produce it fully,
-   * it is used in expressions like &a[idx] */
+   * it is used in expressions like &a[idx] * /
   if(
     e.type().id() == ID_pointer && e.id() == ID_plus &&
     e.operands()[1].id() == ID_mult &&
@@ -114,9 +114,9 @@ bool test_pattern_ptr_index_times_offset(const exprt &e)
 
 bool test_pattern_ptr_offset(const exprt &e)
 {
-  /* special pattern: a + const
+  / * special pattern: a + const
    * where a is a pointer and const is a constant offset. Produce it fully,
-   * it is used in expressions like &a.field */
+   * it is used in expressions like &a.field * /
   if(
     e.type().id() == ID_pointer && e.id() == ID_plus &&
     e.operands()[1].is_constant())
@@ -127,7 +127,7 @@ bool test_pattern_ptr_offset(const exprt &e)
   {
     return false;
   }
-}
+}*/
 
 bool test_pattern_ptroffset_const(const exprt &e)
 {
@@ -193,7 +193,8 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
       forbOp = set_if_abs_forbidden(*op, targetEquation) || forbOp;
     }
     ((*targetEquation.is_abs_forbidden)[e]) = forbOp;
-    if(forbOp || test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) ||
+    if(forbOp || /*test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) ||*/
+       (e.id() == ID_plus && e.type().id() == ID_pointer) ||
        test_pattern_ptroffset_const(e) || e.id() == ID_pointer_offset ||
        e.id() == ID_object_size){
       (*targetEquation.produce_nonabs)[e] = true;
@@ -293,8 +294,10 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     // op with abs_forbidden => this op has abs_forbidden
     bool forbOp = set_if_abs_forbidden(cast->op(), targetEquation);
     ((*targetEquation.is_abs_forbidden)[e]) =  forbOp;
-    if(forbOp){
+    if(forbOp || cast->type().id() == ID_pointer){
       (*targetEquation.produce_nonabs)[e] = true;
+      if(cast->type().id() == ID_pointer)
+        produce_nonabs(cast->op(), targetEquation);
     }
   } else if(const auto fcast = expr_try_dynamic_cast<floatbv_typecast_exprt>(e)){
     // op with abs_forbidden => this op has abs_forbidden
@@ -831,7 +834,8 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
   } else if (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
           e.id() == ID_shl || e.id() == ID_div || e.id() == ID_rol ||
           e.id() == ID_ror || /*e.id() == ID_power ||*/ e.id() == ID_mod) {
-    if(test_pattern_ptr_index_times_offset(e))
+    /* TODO check that (e.id() == ID_plus && e.type().id() == ID_pointer)
+     * if(test_pattern_ptr_index_times_offset(e))
     {
       auto arr = e.operands()[0];
       auto idx = e.operands()[1].operands()[0];
@@ -849,7 +853,7 @@ exprt abstr_check(const exprt &e, bool abs_result, const size_t width, symex_tar
       auto arr = e.operands()[0];
       auto offs = e.operands()[1];
       abs_check = abstr_check(arr, abs_result, width, targetEquation, ns, bv_width);
-    } else if(test_pattern_ptroffset_const(e))
+    } else*/ if(test_pattern_ptroffset_const(e))
     {
       auto poff = e.operands()[0].is_constant() ? e.operands()[1] : e.operands()[0];
       abs_check = abstr_check(poff, abs_result, width, targetEquation, ns, bv_width);

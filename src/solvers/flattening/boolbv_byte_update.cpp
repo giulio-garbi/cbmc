@@ -146,8 +146,11 @@ bvt boolbvt::convert_byte_update(const byte_update_exprt &expr)
         {
           // no abs or keep the same bit -> do as usual
           if(!equal_op){
-            if(produce_nonabs(expr) && produce_nonabs_map) //TODO or detect a pattern in offset
+            if(/*produce_nonabs(expr) && */produce_nonabs_map) //TODO or detect a pattern in offset
+            {
               (*produce_nonabs_map)[equality] = true;
+              (*produce_nonabs_map)[equality.rhs()] = true;
+            }
             equal_op = convert(equality);
           }
           bv[bv_o] = prop.lselect(*equal_op, value_bv[value_bv_o], bv[bv_o]);
@@ -164,7 +167,7 @@ bvt boolbvt::convert_byte_update(const byte_update_exprt &expr)
       }
   }
 
-  if(!op_abmap.empty()){
+  /*if(!op_abmap.empty()){
     //ensure that the higher bits of abstracted vars are (signed? the sign bit of the abstraction : 0)
     endianness_mapt map_op = endianness_map(op.type(), little_endian);
     for(std::size_t i = 0; i < bv.size(); i++){
@@ -176,7 +179,7 @@ bvt boolbvt::convert_byte_update(const byte_update_exprt &expr)
         bv[bv_o] = bv[index_op_sign];
       }
     }
-  }
+  }*/
 
   return bv;
 }

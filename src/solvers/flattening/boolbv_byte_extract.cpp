@@ -148,7 +148,7 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
       {
         std::size_t offset = i * expr.get_bits_per_byte();
         const auto offset_check = equal_exprt(expr.offset(), from_integer(i, constant_type));
-        if(prod_na && produce_nonabs_map) //TODO or detect a pattern in offset
+        if(produce_nonabs_map) //TODO or detect a pattern in offset
           (*produce_nonabs_map)[offset_check] = true;
         const literalt is_offset_ok = convert(offset_check);
         if(!is_offset_ok.is_false())

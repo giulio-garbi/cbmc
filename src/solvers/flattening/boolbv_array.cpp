@@ -34,8 +34,11 @@ bvt boolbvt::convert_array(const exprt &expr)
     bv.reserve(width);
 
     const auto elem_type = to_array_type(expr.type()).element_type();
-    const auto should_abstract = !produce_nonabs(expr) && can_cast_type<integer_bitvector_typet>(elem_type) && (int) to_integer_bitvector_type(elem_type).get_width() > *abstraction_bits;
-    const auto sign = should_abstract && to_integer_bitvector_type(elem_type).smallest() < 0;
+    const auto should_abstract = !produce_nonabs(expr) && false;// && can_cast_type<integer_bitvector_typet>(elem_type) && (int) to_integer_bitvector_type(elem_type).get_width() > *abstraction_bits;
+    //const auto sign = should_abstract && to_integer_bitvector_type(elem_type).smallest() < 0;
+    std::vector<int> abmap;
+    if(should_abstract)
+      bv_utilst::abstraction_map(abmap, elem_type, bv_width, *abstraction_bits, ns);
 
     for(const auto &op : operands)
     {
@@ -43,9 +46,12 @@ bvt boolbvt::convert_array(const exprt &expr)
 
       if(should_abstract)
       {
-        bv.insert(bv.end(), tmp.begin(), tmp.begin()+*abstraction_bits);
-        auto lit_cover = sign?tmp[*abstraction_bits-1]: const_literal(false);
-        bv.insert(bv.end(), op_width-*abstraction_bits, lit_cover);
+        for(size_t i = 0; i < op_width; i++){
+          if(abmap[i] == -1)
+            bv.push_back(const_literal(false));
+          else
+            bv.push_back(tmp[abmap[i]]);
+        }
       } else {
         bv.insert(bv.end(), tmp.begin(), tmp.end());
       }
