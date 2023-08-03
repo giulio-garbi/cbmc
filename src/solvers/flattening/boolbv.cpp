@@ -64,7 +64,7 @@ boolbvt::convert_bv(const exprt &expr, optionalt<std::size_t> expected_width)
     "bitvector width shall match the indicated expected width",
     expr.find_source_location(),
     irep_pretty_diagnosticst(expr));
-  if(!produce_nonabs(expr))
+  if(!expr.is_constant() && !produce_nonabs(expr))
   {
     std::vector<int> abmap;
     bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
@@ -397,13 +397,22 @@ bvt boolbvt::convert_symbol(const exprt &expr)
     // TODO anche per struct e vector
     std::vector<int> abmap;
     bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    //bool any_change = false;
     for(size_t i=0; i<abmap.size(); i++)
     {
       if(abmap[i] == -1)
+      {
+          //any_change = any_change || !bv[i].is_false();
           bv[i] = const_literal(false);
+      }
       else if(abmap[i] < (int)i)
+      {
+          //any_change = any_change || (bv[i] != bv[abmap[i]]);
           bv[i] = bv[abmap[i]];
+      }
     }
+    /*if(any_change)
+      map.set_literals(identifier, type, bv);*/
     /*bool sign = to_integer_bitvector_type(expr.type()).smallest() < 0;
     const auto lit_fill = sign?bv[*abstraction_bits-1]: const_literal(false);
     for(size_t i = *abstraction_bits; i<bv.size(); i++)

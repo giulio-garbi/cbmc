@@ -190,9 +190,9 @@ literalt bv_pointerst::convert_rest(const exprt &expr)
       // do the same-object-test via an expression as this may permit re-using
       // already cached encodings of the equality test
       const exprt same_object = ::same_object(operands[0], operands[1]);
-      (*produce_nonabs_map)[same_object.operands()[0]] = true;
+      /*(*produce_nonabs_map)[same_object.operands()[0]] = true;
       (*produce_nonabs_map)[same_object.operands()[1]] = true;
-      (*produce_nonabs_map)[same_object] = true;
+      (*produce_nonabs_map)[same_object] = true;*/
       const literalt same_object_lit = convert(same_object);
       if(same_object_lit.is_false())
         return same_object_lit;

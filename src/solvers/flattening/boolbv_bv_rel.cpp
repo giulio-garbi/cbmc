@@ -6,13 +6,78 @@ Author: Daniel Kroening, kroening@kroening.com
 
 \*******************************************************************/
 
-#include "boolbv.h"
-
 #include <util/bitvector_types.h>
 
+#include <solvers/floatbv/float_utils.h>
+
+#include "arith_tools.h"
+#include "boolbv.h"
 #include "boolbv_type.h"
 
-#include <solvers/floatbv/float_utils.h>
+optionalt<literalt> try_simplified_check(const bool sign, const constant_exprt& lhs, const dstringt& cmp, const int rhs_bits){
+  mp_integer val_lhs;
+  if(!to_integer(to_constant_expr(lhs), val_lhs))
+  {
+    mp_integer rhs_lowerbound;
+    mp_integer rhs_upperbound;
+    if(sign)
+    {
+      rhs_lowerbound = -power(2, rhs_bits - 1);
+      rhs_upperbound = power(2, rhs_bits - 1) - 1;
+    }
+    else
+    {
+      rhs_lowerbound = 0;
+      rhs_upperbound = power(2, rhs_bits) - 1;
+    }
+    if(cmp == ID_ge){
+      if(val_lhs >= rhs_upperbound)
+        return {const_literal(true)};
+      else if(val_lhs < rhs_lowerbound)
+        return {const_literal(false)};
+      else
+        return {};
+    }
+    else if(cmp == ID_gt){
+      if(val_lhs > rhs_upperbound)
+        return {const_literal(true)};
+      else if(val_lhs <= rhs_lowerbound)
+        return {const_literal(false)};
+      else
+        return {};
+    }
+    else if(cmp == ID_le){
+      if(val_lhs > rhs_upperbound)
+        return {const_literal(false)};
+      else if(val_lhs <= rhs_lowerbound)
+        return {const_literal(true)};
+      else
+        return {};
+    }
+    else if(cmp == ID_lt){
+      if(val_lhs >= rhs_upperbound)
+        return {const_literal(false)};
+      else if(val_lhs < rhs_lowerbound)
+        return {const_literal(true)};
+      else
+        return {};
+    }
+  }
+  return {};
+}
+
+inline dstringt invert(const dstringt& cmp){
+  if(cmp == ID_ge)
+    return ID_lt;
+  else if(cmp == ID_gt)
+    return ID_le;
+  else if(cmp == ID_le)
+    return ID_gt;
+  else if(cmp == ID_lt)
+    return ID_ge;
+  else
+    return cmp;
+}
 
 /// Flatten <, >, <= and >= expressions.
 literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
@@ -63,6 +128,45 @@ literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
       if(!produce_nonabs(expr) && bv_lhs.size() > (size_t)*abstraction_bits && (bvtype_lhs == bvtypet::IS_SIGNED || bvtype_lhs == bvtypet::IS_UNSIGNED)) {
         bv_lhs.resize(*abstraction_bits);
         bv_rhs.resize(*abstraction_bits);
+      }
+      if(bvtype_lhs == bvtypet::IS_SIGNED || bvtype_lhs == bvtypet::IS_UNSIGNED){
+        auto lhs_bits = bv_utils.how_many_bits(rep, bv_lhs);
+        auto rhs_bits = bv_utils.how_many_bits(rep, bv_rhs);
+        if(lhs.is_constant())
+        {
+          if(lhs.is_zero() && bvtype_lhs == bvtypet::IS_SIGNED){
+            if(expr.id() == ID_gt)
+              return bv_rhs.back();
+            else if(expr.id() == ID_le)
+              return neg(bv_rhs.back());
+          }
+          auto const_test = try_simplified_check(
+            bvtype_lhs == bvtypet::IS_SIGNED,
+            to_constant_expr(lhs),
+            expr.id(),
+            rhs_bits);
+          if(const_test)
+            return *const_test;
+        }
+        if(rhs.is_constant())
+        {
+          if(rhs.is_zero() && bvtype_lhs == bvtypet::IS_SIGNED){
+            if(expr.id() == ID_lt)
+              return bv_lhs.back();
+            else if(expr.id() == ID_ge)
+              return neg(bv_lhs.back());
+          }
+          auto const_test = try_simplified_check(
+            bvtype_lhs == bvtypet::IS_SIGNED,
+            to_constant_expr(rhs),
+            invert(expr.id()),
+            lhs_bits);
+          if(const_test)
+            return *const_test;
+        }
+        auto bits = std::max(lhs_bits, rhs_bits);
+        bv_lhs.resize(bits);
+        bv_rhs.resize(bits);
       }
       return bv_utils.rel(bv_lhs, expr.id(), bv_rhs, rep);
 

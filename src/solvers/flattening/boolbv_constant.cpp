@@ -62,12 +62,12 @@ bvt boolbvt::convert_constant(const constant_exprt &expr)
 
     for(std::size_t i=0; i<width; i++)
     {
-      if(should_abstract && (int)i >= *abstraction_bits){
+      /*if(should_abstract && (int)i >= *abstraction_bits){
         bv[i] = sign?bv[*abstraction_bits-1]: const_literal(false);
-      } else {
+      } else {*/
         const bool bit = get_bvrep_bit(value, width, i);
         bv[i] = const_literal(bit);
-      }
+      //}
     }
 
     return bv;

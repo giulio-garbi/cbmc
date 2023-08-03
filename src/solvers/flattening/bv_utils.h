@@ -86,6 +86,7 @@ public:
   bvt unsigned_multiplier(const bvt &op0, const bvt &op1);
   bvt signed_multiplier(const bvt &op0, const bvt &op1);
   bvt multiplier(const bvt &op0, const bvt &op1, representationt rep);
+  bvt opt_multiplier(const bvt &op0, const bvt &op1, representationt rep);
   bvt multiplier_no_overflow(
     const bvt &op0,
     const bvt &op1,

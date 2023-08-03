@@ -382,7 +382,8 @@ bvt boolbvt::convert_index(
       plus_exprt(
         o.offset(), from_integer(index * (*subtype_bytes_opt), o.offset().type())),
       ns);
-    (*produce_nonabs_map)[new_offset] = true;
+    if(!is_ssa_expr(new_offset))
+      (*produce_nonabs_map)[new_offset] = true;
 
     byte_extract_exprt be =
       make_byte_extract(o.root_object(), new_offset, array_type.element_type());
@@ -406,7 +407,8 @@ bvt boolbvt::convert_index(
         from_integer(
           index * (*subtype_bytes_opt), byte_extract_expr.offset().type())},
       ns);
-    (*produce_nonabs_map)[new_offset] = true;
+    if(!is_ssa_expr(new_offset))
+      (*produce_nonabs_map)[new_offset] = true;
 
     byte_extract_exprt be = byte_extract_expr;
     be.offset() = new_offset;

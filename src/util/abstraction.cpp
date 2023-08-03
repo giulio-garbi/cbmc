@@ -22,7 +22,9 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
   if((*targetEquation.produce_nonabs)[e].has_value()){
     return;
   }
-  if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
+  if (e.id() == ID_constant || e.id() == ID_nondet_symbol){
+    (*targetEquation.produce_nonabs)[e] = true;
+  } else if(const auto ssa = expr_try_dynamic_cast<ssa_exprt>(e)){
     (*targetEquation.produce_nonabs)[e] = !is_abstractable_name(as_string(ssa->get_original_name()));
   } else if (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
           e.id() == ID_div || e.id() == ID_shl || e.id() == ID_shr ||
@@ -68,8 +70,6 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
     }
   } else if (e.id() == ID_address_of){
     // addressed element does not have to be nonabs
-    (*targetEquation.produce_nonabs)[e] = true;
-  }else if (e.id() == ID_constant || e.id() == ID_nondet_symbol){
     (*targetEquation.produce_nonabs)[e] = true;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // produce nonabs for then and else AND this op has produce nonabs
@@ -264,6 +264,8 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     }
   } else if (e.id() == ID_constant || e.id() == ID_nondet_symbol) {
     (*targetEquation.is_abs_forbidden)[e] = false;
+    if(e.id() == ID_constant)
+      (*targetEquation.produce_nonabs)[e] = true;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
     // then or else with abs_forbidden => produce nonabs for then and else AND this op has abs_forbidden
     set_if_abs_forbidden(ifexp->cond(), targetEquation);

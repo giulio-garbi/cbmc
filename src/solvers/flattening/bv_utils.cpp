@@ -948,6 +948,55 @@ bvt bv_utilst::multiplier(
   UNREACHABLE;
 }
 
+bvt bv_utilst::opt_multiplier(
+  const bvt &op0,
+  const bvt &op1,
+  representationt rep){
+  // >=0: placement of the only true bit; -1: no true bit; -2: more that one true bit or there's a non constant bit or this is a negative number
+  int op0_status = (rep == representationt::SIGNED && op0.back().is_true())?-2:-1;
+  int op1_status = (rep == representationt::SIGNED && op1.back().is_true())?-2:-1;
+  for(int i=0; i<(int)op0.size() && (op0_status != -2 || op1_status != -2) ; i++){
+    if(!op0[i].is_constant()){
+      op0_status = -2;
+    } else if(op0[i].is_true()){
+      if(op0_status == -1)
+        op0_status = i;
+      else
+        op0_status = -2;
+    }
+
+    if(!op1[i].is_constant()){
+      op1_status = -2;
+    } else if(op1[i].is_true()){
+      if(op1_status == -1)
+        op1_status = i;
+      else
+        op1_status = -2;
+    }
+  }
+
+  if(op0_status != -2){
+    if(op0_status == -1){
+      return {op1.size(), const_literal(false)};
+    } else {
+      bvt ans(op0_status, const_literal(false));
+      ans.insert(ans.end(), op1.begin(), op1.begin()+op1.size()-op0_status);
+      return ans;
+    }
+  }
+  else if(op1_status != -2){
+    if(op1_status == -1){
+      return {op0.size(), const_literal(false)};
+    } else {
+      bvt ans(op1_status, const_literal(false));
+      ans.insert(ans.end(), op0.begin(), op0.begin()+op0.size()-op1_status);
+      return ans;
+    }
+  } else {
+    return bv_utilst::multiplier(op0, op1, rep);
+  }
+}
+
 bvt bv_utilst::multiplier_no_overflow(
   const bvt &op0,
   const bvt &op1,
