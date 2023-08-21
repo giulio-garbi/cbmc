@@ -66,15 +66,15 @@ optionalt<literalt> try_simplified_check(const bool sign, const constant_exprt& 
   return {};
 }
 
-inline dstringt invert(const dstringt& cmp){
+inline dstringt flip_dir(const dstringt& cmp){
   if(cmp == ID_ge)
-    return ID_lt;
-  else if(cmp == ID_gt)
     return ID_le;
+  else if(cmp == ID_gt)
+    return ID_lt;
   else if(cmp == ID_le)
-    return ID_gt;
-  else if(cmp == ID_lt)
     return ID_ge;
+  else if(cmp == ID_lt)
+    return ID_gt;
   else
     return cmp;
 }
@@ -159,7 +159,7 @@ literalt boolbvt::convert_bv_rel(const binary_relation_exprt &expr)
           auto const_test = try_simplified_check(
             bvtype_lhs == bvtypet::IS_SIGNED,
             to_constant_expr(rhs),
-            invert(expr.id()),
+            flip_dir(expr.id()),
             lhs_bits);
           if(const_test)
             return *const_test;
