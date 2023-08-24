@@ -100,6 +100,9 @@ void multi_path_symex_only_checkert::generate_equation()
   if(options.get_option("absmode") == "cut"){
     apply_cut(equation, ns);
   }
+  if(options.get_option("absmode") == "ofquit"){
+    apply_ofquit(equation, (size_t) options.get_unsigned_int_option("abssize"), ns);
+  }
 }
 
 void multi_path_symex_only_checkert::update_properties(

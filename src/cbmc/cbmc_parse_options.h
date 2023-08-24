@@ -62,6 +62,7 @@ class optionst;
   "(copy-shadow-memory)" \
   "(under):"         \
   "(cut):"         \
+  "(ofquit):"         \
   "(sm-extract)" \
   "(phi-extract):" \
   "(version)" \

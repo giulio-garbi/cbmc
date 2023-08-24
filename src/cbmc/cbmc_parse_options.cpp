@@ -254,6 +254,12 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
     options.set_option("absmode", "cut");
   }
 
+  if(cmdline.isset("ofquit"))
+  {
+    options.set_option("abssize", cmdline.get_value("ofquit"));
+    options.set_option("absmode", "ofquit");
+  }
+
   if(cmdline.isset("no-simplify"))
     options.set_option("simplify", false);
 

@@ -86,6 +86,7 @@ bool is_abstractable_name(const std::string);
 bool is_abstractable_type(const typet&, size_t, symex_target_equationt&);
 void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 void apply_cut(symex_target_equationt &targetEquation, namespacet &ns);
+void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 void annotate_ssa_exprs_tree(symex_target_equationt& targetEquation);
 
 

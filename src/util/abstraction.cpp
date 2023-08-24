@@ -1502,6 +1502,264 @@ exprt abstr_guard(symex_target_equationt &targetEquation, const exprt &e){
   return *(*targetEquation.abs_guards_symbol)[e];
 }
 
+exprt cast_by_removing(const exprt &e, const typet &tp, symex_target_equationt &targetEquation){
+  if(e.type() == tp){
+    return e;
+  } else if(can_cast_expr<typecast_exprt>(e) &&
+          to_typecast_expr(e).op().type() == tp){
+    return to_typecast_expr(e).op();
+  } else {
+    auto cst = typecast_exprt(e, tp);
+    targetEquation.merge_irep.merged1L(cst);
+    return cst;
+  }
+}
+
+exprt ofquit_bitor(std::vector<exprt> &stack, size_t from, size_t to, symex_target_equationt &targetEquation){
+  if(from == to)
+    return unsignedbv_typet(1).zero_expr();
+  else if(to == from + 1)
+    return stack[from];
+  std::vector<exprt> parts(to-from);
+  for(size_t i = 0; i<parts.size(); i++)
+  {
+    parts[i] = cast_by_removing(stack[from + i], bool_typet(), targetEquation);
+  }
+  auto orexpr = or_exprt(parts);
+  targetEquation.merge_irep.merged1L(orexpr);
+  return cast_by_removing(orexpr, unsignedbv_typet(1), targetEquation);
+}
+
+void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &targetEquation, std::vector<exprt> &stack, bool alwaysNonAbstr){
+  PRECONDITION(width>0);
+  // IDEA: assume e is abstract unless it's abstr_forbidden. The same for special constructs (e.g sum of pointers).
+  alwaysNonAbstr = alwaysNonAbstr || *((*targetEquation.is_abs_forbidden)[e]); // either is nonabstr or I was required to do no checks
+  if(alwaysNonAbstr)
+    return;
+  auto sz_stack_begin = stack.size();
+  // OR(added elements of stack, i.e., stack[sz_stack_begin:]) is the of_evaluation of e.
+  if(const auto ife = expr_try_dynamic_cast<if_exprt>(e)){
+    compute_ofquit(ife->cond(), width, targetEquation, stack, false);
+    auto sz_stack_aftercond = stack.size();
+    compute_ofquit(ife->true_case(), width, targetEquation, stack, false);
+    auto sz_stack_aftertrue = stack.size();
+    compute_ofquit(ife->false_case(), width, targetEquation, stack, false);
+    auto sz_stack_afterfalse = stack.size();
+
+    auto true_of = ofquit_bitor(stack, sz_stack_aftercond, sz_stack_aftertrue, targetEquation);
+    auto false_of = ofquit_bitor(stack, sz_stack_aftertrue, sz_stack_afterfalse, targetEquation);
+
+    if(true_of.is_zero() && false_of.is_zero()){
+      // neither cond leads to of
+      stack.resize(sz_stack_aftercond);
+    } else if (!true_of.is_zero() && false_of.is_zero()) {
+      // only then leads to of
+      stack.resize(sz_stack_aftercond);
+      auto true_of_bool = cast_by_removing(true_of, bool_typet(), targetEquation);
+      auto cond_and_of = and_exprt(ife->cond(), true_of);
+      targetEquation.merge_irep.merged1L(cond_and_of);
+      stack.push_back(cast_by_removing(cond_and_of, unsignedbv_typet(1), targetEquation));
+    } else if (true_of.is_zero() && !false_of.is_zero()) {
+      // only else leads to of
+      stack.resize(sz_stack_aftercond);
+      auto false_of_bool = cast_by_removing(false_of, bool_typet(), targetEquation);
+      auto not_cond = not_exprt(ife->cond());
+      targetEquation.merge_irep.merged1L(not_cond);
+      auto not_cond_and_of = and_exprt(not_cond, true_of);
+      targetEquation.merge_irep.merged1L(not_cond_and_of);
+      stack.push_back(cast_by_removing(not_cond_and_of, unsignedbv_typet(1), targetEquation));
+    } else {
+      // both sides lead to of
+      stack.resize(sz_stack_aftercond);
+      auto ans = if_exprt(ife->cond(), true_of, false_of);
+      targetEquation.merge_irep.merged1L(ans);
+      stack.push_back(ans);
+    }
+  } else if(!alwaysNonAbstr && can_cast_expr<constant_exprt>(e) && is_signed_or_unsigned_bitvector(e.type()) &&
+          to_integer_bitvector_type(e.type()).get_width() > width){
+    mp_integer val;
+    to_integer(to_constant_expr(e), val);
+    auto sign = to_integer_bitvector_type(e.type()).smallest() < 0;
+    mp_integer lb, ub;
+    if(sign)
+    {
+      lb = -power(2, width - 1);
+      ub = power(2, width - 1) - 1;
+    }
+    else
+    {
+      lb = 0;
+      ub = power(2, width) - 1;
+    }
+    if(val < lb || val > ub)
+      stack.push_back(unsignedbv_typet(1).largest_expr());
+  }
+  else
+  {
+    bool special_pattern_sum =  (e.id() == ID_plus && e.type().id() == ID_pointer) ||
+                     test_pattern_ptroffset_const(e);
+    forall_operands(op, e)
+    {
+      if(*((*targetEquation.is_abs_forbidden)[*op])){
+        //dont abstract
+        stack.resize(sz_stack_begin);
+        return;
+      }
+      compute_ofquit(*op, width, targetEquation, stack, special_pattern_sum);
+    }
+    if(!alwaysNonAbstr && !special_pattern_sum && (
+      is_signed_or_unsigned_bitvector(e.type()) &&
+      to_integer_bitvector_type(e.type()).get_width() > width &&
+      (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
+       e.id() == ID_shl || e.id() == ID_div || e.id() == ID_rol ||
+       e.id() == ID_ror || /*e.id() == ID_power ||*/ e.id() == ID_mod)))
+    {
+      stack.push_back(make_bf(e, width, targetEquation));
+      (*targetEquation.compute_bounds_failure)[e] = true;
+    }
+  }
+}
+
+void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespacet &ns){
+  /*symbol_exprt(abstr_ident, get_abs_type(orig.type(), ns))*/
+  size_t ofquit_cnt = 1;
+  std::vector<exprt> stack;
+  symex_target_equationt::SSA_stepst abs_steps;
+  targetEquation.is_abs_forbidden = {std::map<exprt,optionalt<bool>>()};
+  targetEquation.produce_nonabs = {std::map<exprt,optionalt<bool>>()};
+  targetEquation.compute_bounds_failure = {std::map<exprt,optionalt<bool>>()};
+  for(SSA_stept &step:targetEquation.SSA_steps)
+  {
+    if(!step.ignore){
+      stack.clear();
+      switch(step.type)
+      {
+      case goto_trace_stept::typet::ASSIGNMENT:
+      {
+        bool lhs_abs_forbidden = set_if_abs_forbidden(step.ssa_lhs, targetEquation);
+        set_if_abs_forbidden(step.ssa_rhs, targetEquation);
+        set_if_abs_forbidden(step.guard, targetEquation);
+        if(lhs_abs_forbidden)
+        {
+          produce_nonabs(step.ssa_lhs, targetEquation);
+          produce_nonabs(step.ssa_rhs, targetEquation);
+        }
+        else
+          compute_ofquit(step.ssa_rhs, width, targetEquation, stack, false);
+        abs_steps.emplace_back(step);
+        if(!stack.empty()){
+          auto oq_lhs = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt), unsignedbv_typet(1)));
+          targetEquation.merge_irep(oq_lhs);
+          exprt oq_rhs;
+          if(ofquit_cnt == 1){
+            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+          } else {
+            // you can keep this from previous iteration?
+            auto oq_prev = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt-1), unsignedbv_typet(1)));
+            targetEquation.merge_irep(oq_prev);
+            stack.push_back(oq_prev);
+            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+          }
+          abs_steps.emplace_back(SSA_assignment_stept{
+            step.source,
+            true_exprt(),
+            oq_lhs,
+            nil_exprt(),
+            nil_exprt(),
+            oq_rhs,
+            step.assignment_type});
+          ofquit_cnt++;
+        }
+        break ;
+      }
+      case goto_trace_stept::typet::ASSERT:
+      {
+        set_if_abs_forbidden(step.cond_expr, targetEquation);
+        compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
+        if(!stack.empty()){
+          auto oq_lhs = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt), unsignedbv_typet(1)));
+          targetEquation.merge_irep(oq_lhs);
+          exprt oq_rhs;
+          if(ofquit_cnt == 1){
+            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+          } else {
+            // you can keep this from previous iteration?
+            auto oq_prev = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt-1), unsignedbv_typet(1)));
+            targetEquation.merge_irep(oq_prev);
+            stack.push_back(oq_prev);
+            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+          }
+          abs_steps.emplace_back(SSA_assignment_stept{
+            step.source,
+            true_exprt(),
+            oq_lhs,
+            nil_exprt(),
+            nil_exprt(),
+            oq_rhs,
+            symex_targett::assignment_typet::STATE});
+          ofquit_cnt++;
+        }
+
+        if(ofquit_cnt > 1)
+        {
+          auto oq_prev = ssa_exprt(symbol_exprt(
+            "PAC_ofquit#" + std::to_string(ofquit_cnt - 1),
+            unsignedbv_typet(1)));
+          auto not_oq_prev = equal_exprt(oq_prev, unsignedbv_typet(1).zero_expr());
+          targetEquation.merge_irep(not_oq_prev);
+          step.cond_expr = implies_exprt(not_oq_prev, step.cond_expr);
+          targetEquation.merge_irep(step.cond_expr);
+        }
+        abs_steps.emplace_back(step);
+        break;
+      }
+      case goto_trace_stept::typet::ASSUME:
+      {
+        set_if_abs_forbidden(step.cond_expr, targetEquation);
+        compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
+        if(ofquit_cnt > 1)
+        {
+          stack.push_back(ssa_exprt(symbol_exprt(
+            "PAC_ofquit#" + std::to_string(ofquit_cnt - 1),
+            unsignedbv_typet(1))));
+          targetEquation.merge_irep(stack.back());
+        }
+        if(!stack.empty()){
+          auto oq = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+          auto not_oq = equal_exprt(oq, unsignedbv_typet(1).zero_expr());
+          targetEquation.merge_irep.merged1L(not_oq);
+          step.cond_expr = and_exprt(not_oq, step.cond_expr);
+          targetEquation.merge_irep.merged1L(step.cond_expr);
+        }
+        abs_steps.emplace_back(step);
+        break;
+      }
+      case goto_trace_stept::typet::NONE:
+      case goto_trace_stept::typet::GOTO:
+      case goto_trace_stept::typet::LOCATION:
+      case goto_trace_stept::typet::INPUT:
+      case goto_trace_stept::typet::OUTPUT:
+      case goto_trace_stept::typet::DECL:
+      case goto_trace_stept::typet::DEAD:
+      case goto_trace_stept::typet::FUNCTION_CALL:
+      case goto_trace_stept::typet::FUNCTION_RETURN:
+      case goto_trace_stept::typet::CONSTRAINT:
+      case goto_trace_stept::typet::SHARED_READ:
+      case goto_trace_stept::typet::SHARED_WRITE:
+      case goto_trace_stept::typet::SPAWN:
+      case goto_trace_stept::typet::MEMORY_BARRIER:
+      case goto_trace_stept::typet::ATOMIC_BEGIN:
+      case goto_trace_stept::typet::ATOMIC_END:
+        abs_steps.emplace_back(step);
+        break;
+      }
+    } else {
+      abs_steps.emplace_back(step);
+    }
+  }
+  targetEquation.SSA_steps = std::move(abs_steps);
+}
+
 void apply_cut(symex_target_equationt &targetEquation, namespacet &ns){
   targetEquation.is_abs_forbidden = {std::map<exprt,optionalt<bool>>()};
   targetEquation.produce_nonabs = {std::map<exprt,optionalt<bool>>()};
