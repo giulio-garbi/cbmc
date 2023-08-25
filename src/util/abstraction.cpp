@@ -1652,13 +1652,19 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
           targetEquation.merge_irep(oq_lhs);
           exprt oq_rhs;
           if(ofquit_cnt == 1){
-            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+            oq_rhs = bitand_exprt(typecast_exprt(step.guard, unsignedbv_typet(1)), ofquit_bitor(stack, 0, stack.size(), targetEquation));
+            targetEquation.merge_irep.merged1L(oq_rhs.operands()[0]);
+            targetEquation.merge_irep.merged1L(oq_rhs);
           } else {
             // you can keep this from previous iteration?
             auto oq_prev = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt-1), unsignedbv_typet(1)));
             targetEquation.merge_irep(oq_prev);
-            stack.push_back(oq_prev);
-            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+            //stack.push_back(oq_prev);
+            oq_rhs = bitand_exprt(typecast_exprt(step.guard, unsignedbv_typet(1)), ofquit_bitor(stack, 0, stack.size(), targetEquation));
+            targetEquation.merge_irep.merged1L(oq_rhs.operands()[0]);
+            targetEquation.merge_irep.merged1L(oq_rhs);
+            oq_rhs = bitor_exprt(oq_prev, oq_rhs);
+            targetEquation.merge_irep.merged1L(oq_rhs);
           }
           abs_steps.emplace_back(SSA_assignment_stept{
             step.source,
@@ -1686,8 +1692,12 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
             // you can keep this from previous iteration?
             auto oq_prev = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt-1), unsignedbv_typet(1)));
             targetEquation.merge_irep(oq_prev);
-            stack.push_back(oq_prev);
-            oq_rhs = ofquit_bitor(stack, 0, stack.size(), targetEquation);
+            //stack.push_back(oq_prev);
+            oq_rhs = bitand_exprt(typecast_exprt(step.guard, unsignedbv_typet(1)), ofquit_bitor(stack, 0, stack.size(), targetEquation));
+            targetEquation.merge_irep.merged1L(oq_rhs.operands()[0]);
+            targetEquation.merge_irep.merged1L(oq_rhs);
+            oq_rhs = bitor_exprt(oq_prev, oq_rhs);
+            targetEquation.merge_irep.merged1L(oq_rhs);
           }
           abs_steps.emplace_back(SSA_assignment_stept{
             step.source,
