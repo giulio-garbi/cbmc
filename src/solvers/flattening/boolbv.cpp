@@ -277,8 +277,9 @@ bvt boolbvt::convert_bitvector(const exprt &expr)
   {
     //return {const_literal(false)};
     PRECONDITION(compute_bounds_failure(expr.operands()[0]));
-    //convert_bv(expr.operands()[0]);
-    PRECONDITION(bounds_failure_literals.count(expr.operands()[0]) == 1);
+    // this should only happen when ASSERT(... bounds_failure inside ...)
+    if(bounds_failure_literals.count(expr.operands()[0]) == 0)
+      convert_bv(expr.operands()[0]);
     return bounds_failure_literals[expr.operands()[0]];
   }
 

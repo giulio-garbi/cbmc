@@ -1682,6 +1682,8 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
       {
         set_if_abs_forbidden(step.cond_expr, targetEquation);
         compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
+        optionalt<SSA_assignment_stept> update_ofquit_step{}; //update the ofquit AFTER the assert
+        optionalt<exprt> ofquit_expr{}; //to be used in the assert
         if(!stack.empty()){
           auto oq_lhs = ssa_exprt(symbol_exprt("PAC_ofquit#"+std::to_string(ofquit_cnt), unsignedbv_typet(1)));
           targetEquation.merge_irep(oq_lhs);
@@ -1699,17 +1701,40 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
             oq_rhs = bitor_exprt(oq_prev, oq_rhs);
             targetEquation.merge_irep.merged1L(oq_rhs);
           }
-          abs_steps.emplace_back(SSA_assignment_stept{
+          ofquit_expr = oq_rhs;
+          /*abs_steps.emplace_back*/
+          update_ofquit_step = SSA_assignment_stept{
             step.source,
             true_exprt(),
             oq_lhs,
             nil_exprt(),
             nil_exprt(),
             oq_rhs,
-            symex_targett::assignment_typet::STATE});
+            symex_targett::assignment_typet::STATE};
           ofquit_cnt++;
+        } else if(ofquit_cnt > 1)
+        {
+          auto oq_prev = ssa_exprt(symbol_exprt(
+            "PAC_ofquit#" + std::to_string(ofquit_cnt - 1),
+            unsignedbv_typet(1)));
+          targetEquation.merge_irep(oq_prev);
+          ofquit_expr = oq_prev;
         }
 
+        if(ofquit_expr){
+          // do assert only if ofquit_expr == 0
+          auto has_oq_prev = notequal_exprt(*ofquit_expr, unsignedbv_typet(1).zero_expr());
+          targetEquation.merge_irep.merged1L(has_oq_prev);
+          step.cond_expr = or_exprt(step.cond_expr, has_oq_prev);
+          targetEquation.merge_irep.merged1L(step.cond_expr);
+        }
+        abs_steps.emplace_back(step);
+
+        if(update_ofquit_step){
+          abs_steps.emplace_back(*update_ofquit_step);
+        }
+
+        /*
         if(ofquit_cnt > 1)
         {
           auto oq_prev = ssa_exprt(symbol_exprt(
@@ -1720,7 +1745,7 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
           step.cond_expr = implies_exprt(not_oq_prev, step.cond_expr);
           targetEquation.merge_irep(step.cond_expr);
         }
-        abs_steps.emplace_back(step);
+        abs_steps.emplace_back(step);*/
         break;
       }
       case goto_trace_stept::typet::ASSUME:
@@ -1738,7 +1763,7 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
           auto oq = ofquit_bitor(stack, 0, stack.size(), targetEquation);
           auto not_oq = equal_exprt(oq, unsignedbv_typet(1).zero_expr());
           targetEquation.merge_irep.merged1L(not_oq);
-          step.cond_expr = and_exprt(not_oq, step.cond_expr);
+          step.cond_expr = and_exprt( step.cond_expr, not_oq);
           targetEquation.merge_irep.merged1L(step.cond_expr);
         }
         abs_steps.emplace_back(step);
