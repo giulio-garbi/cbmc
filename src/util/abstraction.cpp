@@ -1556,7 +1556,7 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
       // only then leads to of
       stack.resize(sz_stack_aftercond);
       auto true_of_bool = cast_by_removing(true_of, bool_typet(), targetEquation);
-      auto cond_and_of = and_exprt(ife->cond(), true_of);
+      auto cond_and_of = and_exprt(ife->cond(), true_of_bool);
       targetEquation.merge_irep.merged1L(cond_and_of);
       stack.push_back(cast_by_removing(cond_and_of, unsignedbv_typet(1), targetEquation));
     } else if (true_of.is_zero() && !false_of.is_zero()) {
@@ -1565,7 +1565,7 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
       auto false_of_bool = cast_by_removing(false_of, bool_typet(), targetEquation);
       auto not_cond = not_exprt(ife->cond());
       targetEquation.merge_irep.merged1L(not_cond);
-      auto not_cond_and_of = and_exprt(not_cond, true_of);
+      auto not_cond_and_of = and_exprt(not_cond, false_of_bool);
       targetEquation.merge_irep.merged1L(not_cond_and_of);
       stack.push_back(cast_by_removing(not_cond_and_of, unsignedbv_typet(1), targetEquation));
     } else {
@@ -1667,7 +1667,7 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
             nil_exprt(),
             nil_exprt(),
             oq_rhs,
-            step.assignment_type});
+            symex_targett::assignment_typet::STATE});
           ofquit_cnt++;
         }
         break ;
