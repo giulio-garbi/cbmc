@@ -419,6 +419,9 @@ bvt boolbvt::convert_index(
   else
   {
     // out of bounds
-    return prop.new_variables(width);
+    if(prod_na)
+      return prop.new_variables(width);
+    else
+      return bv_utils.new_var_abs_type(array_type.element_type(), bv_width, *abstraction_bits, ns);
   }
 }
