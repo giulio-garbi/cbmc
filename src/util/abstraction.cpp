@@ -1612,7 +1612,7 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
       to_integer_bitvector_type(e.type()).get_width() > width &&
       (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
        e.id() == ID_shl || e.id() == ID_div || e.id() == ID_rol ||
-       e.id() == ID_ror || /*e.id() == ID_power ||*/ e.id() == ID_mod)))
+       e.id() == ID_ror /*|| e.id() == ID_power || e.id() == ID_mod*/)))
     {
       stack.push_back(make_bf(e, width, targetEquation));
       (*targetEquation.compute_bounds_failure)[e] = true;
