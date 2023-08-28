@@ -1681,7 +1681,10 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
       case goto_trace_stept::typet::ASSERT:
       {
         set_if_abs_forbidden(step.cond_expr, targetEquation);
-        compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
+        if(step.cond_expr.id() == ID_implies && to_implies_expr(step.cond_expr).lhs() == step.guard)
+          compute_ofquit(to_implies_expr(step.cond_expr).rhs(), width, targetEquation, stack, false);
+        else
+          compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
         optionalt<SSA_assignment_stept> update_ofquit_step{}; //update the ofquit AFTER the assert
         optionalt<exprt> ofquit_expr{}; //to be used in the assert
         if(!stack.empty()){
@@ -1751,7 +1754,10 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
       case goto_trace_stept::typet::ASSUME:
       {
         set_if_abs_forbidden(step.cond_expr, targetEquation);
-        compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
+        if(step.cond_expr.id() == ID_implies && to_implies_expr(step.cond_expr).lhs() == step.guard)
+          compute_ofquit(to_implies_expr(step.cond_expr).rhs(), width, targetEquation, stack, false);
+        else
+          compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
         if(ofquit_cnt > 1)
         {
           stack.push_back(ssa_exprt(symbol_exprt(
