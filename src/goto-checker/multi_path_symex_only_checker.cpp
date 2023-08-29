@@ -91,17 +91,31 @@ void multi_path_symex_only_checkert::generate_equation()
 
   postprocess_equation(symex, equation, options, ns, ui_message_handler);
 
+  const auto abs_start = std::chrono::steady_clock::now();
+  bool abs_on = false;
   if(options.get_option("absmode") == "under"){
+    abs_on = true;
     apply_approx(equation, (size_t) options.get_unsigned_int_option("under"), ns);
     // that's costly and breaks the equation merging. Do it only if unavoidable
     if(options.is_set("program-only"))
       annotate_ssa_exprs_tree(equation);
   }
-  if(options.get_option("absmode") == "cut"){
+  else if(options.get_option("absmode") == "cut"){
+    abs_on = true;
     apply_cut(equation, ns);
   }
-  if(options.get_option("absmode") == "ofquit"){
+  else if(options.get_option("absmode") == "ofquit"){
+    abs_on = true;
     apply_ofquit(equation, (size_t) options.get_unsigned_int_option("abssize"), ns);
+  }
+  if(abs_on)
+  {
+    const auto abs_stop = std::chrono::steady_clock::now();
+    std::chrono::duration<double> abs_runtime =
+      std::chrono::duration<double>(abs_stop - abs_start);
+    log.status() << "Runtime Abstraction (" << options.get_option("absmode")
+                 << " " << options.get_unsigned_int_option("abssize")
+                 << " bits) : " << abs_runtime.count() << "s" << messaget::eom;
   }
 }
 
