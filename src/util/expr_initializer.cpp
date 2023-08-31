@@ -230,7 +230,8 @@ optionalt<exprt> expr_initializert::expr_initializer_rec(
     if(!component_value.has_value())
       return {};
 
-    typecast_exprt value{union_exprt{widest_member->first.get_name(), *component_value, type}, type};
+    /*typecast_exprt value{union_exprt{widest_member->first.get_name(), *component_value, type}, type};*/
+    union_exprt value{widest_member->first.get_name(), *component_value, type}; // copied from 5.90
     value.add_source_location() = source_location;
 
     return std::move(value);
