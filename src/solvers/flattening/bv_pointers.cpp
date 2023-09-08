@@ -732,7 +732,7 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
     bvt object_bv =
       object_literals(pointer_bv, to_pointer_type(pointer.type()));
 
-    assert(produce_nonabs(expr));
+    //assert(produce_nonabs(expr));
 
     return bv_utils.zero_extension(object_bv, width);
   }

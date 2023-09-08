@@ -24,6 +24,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "boolbv_map.h"
 #include "boolbv_width.h"
 #include "bv_utils.h" // IWYU pragma: keep
+#include "pointer_expr.h"
 #include "ssa_expr.h"
 
 class binary_overflow_exprt;
@@ -152,7 +153,7 @@ protected:
   }
 
   inline bool produce_nonabs(const exprt &e){
-    return !produce_nonabs_map || ((*produce_nonabs_map)[e] && *((*produce_nonabs_map)[e]));
+    return !produce_nonabs_map || ((*produce_nonabs_map)[e] && *((*produce_nonabs_map)[e])) || can_cast_expr<pointer_object_exprt>(e);
   }
 
   inline bool is_assigned(const ssa_exprt &e){

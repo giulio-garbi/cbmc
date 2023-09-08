@@ -202,11 +202,22 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
     auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
     bounds_failure_literals[expr] = {bv_utils.bf_check(rep, *abstraction_bits, bv)};
   }
-  if(!produce_nonabs(expr) && (int)bv.size() > *abstraction_bits && can_cast_type<integer_bitvector_typet>(expr.type())){
+  /*if(!produce_nonabs(expr) && (int)bv.size() > *abstraction_bits && can_cast_type<integer_bitvector_typet>(expr.type())){
     auto rep = to_integer_bitvector_type(expr.type()).smallest() < 0 ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
     const auto lit_cover = rep == bv_utilst::representationt::UNSIGNED ? const_literal(false) : bv[*abstraction_bits-1];
     for(size_t idx = *abstraction_bits; idx < bv.size(); idx++)
       bv[idx] = lit_cover;
+  }*/
+  if(!produce_nonabs(expr)){
+    std::vector<int> abmap;
+    bv_utilst::abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+    for(size_t i=0; i<abmap.size(); i++){
+      if(abmap[i] == -1){
+        bv[i] = const_literal(false);
+      } else {
+        bv[i] = bv[abmap[i]];
+      }
+    }
   }
 
   return bv;

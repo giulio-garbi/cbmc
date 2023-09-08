@@ -57,6 +57,17 @@ bvt boolbvt::convert_array(const exprt &expr)
       }
     }
 
+    if(!produce_nonabs(expr)){
+      bv_utilst::abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+      for(size_t i=0; i<abmap.size(); i++){
+        if(abmap[i] == -1){
+          bv[i] = const_literal(false);
+        } else {
+          bv[i] = bv[abmap[i]];
+        }
+      }
+    }
+
     return bv;
   }
 

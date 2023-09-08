@@ -1639,7 +1639,12 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
         bool lhs_abs_forbidden = set_if_abs_forbidden(step.ssa_lhs, targetEquation);
         set_if_abs_forbidden(step.ssa_rhs, targetEquation);
         set_if_abs_forbidden(step.guard, targetEquation);
-        if(lhs_abs_forbidden)
+        // calloc: (tmp_overflow_result.*), alloc_size
+        auto lhs_name = as_string(step.ssa_lhs.get_identifier());
+        bool calloc_nonabs = lhs_name.find("calloc") == 0 && (
+          lhs_name.find("tmp_overflow_result") != std::string::npos ||
+          lhs_name.find("alloc_size") != std::string::npos);
+        if(lhs_abs_forbidden || calloc_nonabs)
         {
           produce_nonabs(step.ssa_lhs, targetEquation);
           produce_nonabs(step.ssa_rhs, targetEquation);
