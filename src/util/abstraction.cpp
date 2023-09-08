@@ -1644,7 +1644,9 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
         bool calloc_nonabs = lhs_name.find("calloc") == 0 && (
           lhs_name.find("tmp_overflow_result") != std::string::npos ||
           lhs_name.find("alloc_size") != std::string::npos);
-        if(lhs_abs_forbidden || calloc_nonabs)
+        bool malloc_nonabs = lhs_name.find("malloc") == 0 && (lhs_name.find("malloc_size") != std::string::npos);
+        bool memset_nonabs = lhs_name.find("memset") == 0 && (lhs_name.find('n') != std::string::npos);
+        if(lhs_abs_forbidden || calloc_nonabs || malloc_nonabs || memset_nonabs)
         {
           produce_nonabs(step.ssa_lhs, targetEquation);
           produce_nonabs(step.ssa_rhs, targetEquation);
