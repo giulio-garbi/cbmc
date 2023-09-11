@@ -1761,7 +1761,8 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
       case goto_trace_stept::typet::ASSUME:
       {
         set_if_abs_forbidden(step.cond_expr, targetEquation);
-        if(step.cond_expr.id() == ID_implies && to_implies_expr(step.cond_expr).lhs() == step.guard)
+        bool is_guard_implies = step.cond_expr.id() == ID_implies && to_implies_expr(step.cond_expr).lhs() == step.guard;
+        if(is_guard_implies)
           compute_ofquit(to_implies_expr(step.cond_expr).rhs(), width, targetEquation, stack, false);
         else
           compute_ofquit(step.cond_expr, width, targetEquation, stack, false);
@@ -1776,8 +1777,17 @@ void apply_ofquit(symex_target_equationt &targetEquation, size_t width, namespac
           auto oq = ofquit_bitor(stack, 0, stack.size(), targetEquation);
           auto not_oq = equal_exprt(oq, unsignedbv_typet(1).zero_expr());
           targetEquation.merge_irep.merged1L(not_oq);
-          step.cond_expr = and_exprt( step.cond_expr, not_oq);
-          targetEquation.merge_irep.merged1L(step.cond_expr);
+          if(is_guard_implies)
+          {
+            auto rhs_and_not_oq = and_exprt(to_implies_expr(step.cond_expr).rhs(), not_oq);
+            targetEquation.merge_irep.merged1L(rhs_and_not_oq);
+            step.cond_expr = implies_exprt(step.guard, rhs_and_not_oq);
+            targetEquation.merge_irep.merged1L(step.cond_expr);
+          } else
+          {
+            step.cond_expr = and_exprt(step.cond_expr, not_oq);
+            targetEquation.merge_irep.merged1L(step.cond_expr);
+          }
         }
         abs_steps.emplace_back(step);
         break;
