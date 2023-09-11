@@ -1594,6 +1594,18 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
     if(val < lb || val > ub)
       stack.push_back(unsignedbv_typet(1).largest_expr());
   }
+  else if(e.id() == ID_index && to_index_expr(e).index().id() == ID_constant){
+    //a[c] with c constant: c is always ok (it directly picks the literals -> no multiplexers needed)
+    compute_ofquit(to_index_expr(e).array(), width, targetEquation, stack, false);
+  }
+  else if(e.id() == ID_byte_extract_little_endian && to_byte_extract_expr(e).offset().id() == ID_constant){
+    //byte extract with constant offset: offset is always ok (it directly picks the literals -> no multiplexers needed)
+    compute_ofquit(to_byte_extract_expr(e).op(), width, targetEquation, stack, false);
+  }
+  else if(e.id() == ID_byte_update_little_endian && to_byte_update_expr(e).offset().id() == ID_constant){
+    //byte update with constant offset: offset is always ok (it directly picks the literals -> no multiplexers needed)
+    compute_ofquit(to_byte_update_expr(e).op(), width, targetEquation, stack, false);
+  }
   else
   {
     bool special_pattern_sum =  (e.id() == ID_plus && e.type().id() == ID_pointer) ||
