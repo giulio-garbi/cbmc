@@ -10,6 +10,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/invariant.h>
 #include <util/std_expr.h>
 
+#include "arith_tools.h"
 #include "bitvector_types.h"
 #include "boolbv.h"
 #include "cprover_prefix.h"
@@ -82,6 +83,32 @@ literalt boolbvt::convert_equality(const equal_exprt &expr)
     }
 
     return record_array_equality(expr);
+  }
+
+  auto is_const_lhs = expr.lhs().is_constant();
+  auto is_const_rhs = expr.lhs().is_constant();
+  if(can_cast_type<integer_bitvector_typet>(expr.lhs().type()) && is_const_lhs != is_const_rhs){
+    //is_const_lhs XOR is_const_rhs
+    mp_integer val_const;
+    bv_utilst::representationt rep = can_cast_type<signedbv_typet>(expr.lhs().type())
+                                       ? bv_utilst::representationt::SIGNED
+                                       : bv_utilst::representationt::UNSIGNED;
+    const constant_exprt cons = is_const_lhs?to_constant_expr(expr.lhs()):to_constant_expr(expr.rhs());
+    const exprt other = is_const_lhs?expr.rhs():expr.lhs();
+    if(!to_integer(cons, val_const)){
+      if(!produce_nonabs(other)){
+        auto abs_lowerbound = rep == bv_utilst::representationt::SIGNED ? -power(2, *abstraction_bits - 1) : 0;
+        auto abs_upperbound = rep == bv_utilst::representationt::SIGNED ? power(2, *abstraction_bits - 1) - 1 : power(2, *abstraction_bits) - 1;
+        if(val_const > abs_upperbound || val_const < abs_lowerbound)
+          return const_literal(false);
+      }
+      bvt other_bv = convert_bv(other);
+      auto other_bits = bv_utils.how_many_bits(rep, other_bv);
+      auto other_lowerbound = rep == bv_utilst::representationt::SIGNED ? -power(2, other_bits - 1) : 0;
+      auto other_upperbound = rep == bv_utilst::representationt::SIGNED ? power(2, other_bits - 1) - 1 : power(2, other_bits) - 1;
+      if(val_const > other_upperbound || val_const < other_lowerbound)
+        return const_literal(false);
+    }
   }
 
   bvt lhs_bv = convert_bv(expr.lhs());

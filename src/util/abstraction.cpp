@@ -1530,15 +1530,20 @@ exprt ofquit_bitor(std::vector<exprt> &stack, size_t from, size_t to, symex_targ
   return cast_by_removing(orexpr, unsignedbv_typet(1), targetEquation);
 }
 
-void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &targetEquation, std::vector<exprt> &stack, bool alwaysNonAbstr){
-  PRECONDITION(width>0);
+void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &targetEquation, std::vector<exprt> &stack, bool alwaysNonAbstr)
+{
+  PRECONDITION(width > 0);
   // IDEA: assume e is abstract unless it's abstr_forbidden. The same for special constructs (e.g sum of pointers).
-  alwaysNonAbstr = alwaysNonAbstr || *((*targetEquation.is_abs_forbidden)[e]); // either is nonabstr or I was required to do no checks
+  alwaysNonAbstr =
+    alwaysNonAbstr ||
+    *((*targetEquation.is_abs_forbidden)
+        [e]); // either is nonabstr or I was required to do no checks
   if(alwaysNonAbstr)
     return;
   auto sz_stack_begin = stack.size();
   // OR(added elements of stack, i.e., stack[sz_stack_begin:]) is the of_evaluation of e.
-  if(const auto ife = expr_try_dynamic_cast<if_exprt>(e)){
+  if(const auto ife = expr_try_dynamic_cast<if_exprt>(e))
+  {
     compute_ofquit(ife->cond(), width, targetEquation, stack, false);
     auto sz_stack_aftercond = stack.size();
     compute_ofquit(ife->true_case(), width, targetEquation, stack, false);
@@ -1546,37 +1551,54 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
     compute_ofquit(ife->false_case(), width, targetEquation, stack, false);
     auto sz_stack_afterfalse = stack.size();
 
-    auto true_of = ofquit_bitor(stack, sz_stack_aftercond, sz_stack_aftertrue, targetEquation);
-    auto false_of = ofquit_bitor(stack, sz_stack_aftertrue, sz_stack_afterfalse, targetEquation);
+    auto true_of = ofquit_bitor(
+      stack, sz_stack_aftercond, sz_stack_aftertrue, targetEquation);
+    auto false_of = ofquit_bitor(
+      stack, sz_stack_aftertrue, sz_stack_afterfalse, targetEquation);
 
-    if(true_of.is_zero() && false_of.is_zero()){
+    if(true_of.is_zero() && false_of.is_zero())
+    {
       // neither cond leads to of
       stack.resize(sz_stack_aftercond);
-    } else if (!true_of.is_zero() && false_of.is_zero()) {
+    }
+    else if(!true_of.is_zero() && false_of.is_zero())
+    {
       // only then leads to of
       stack.resize(sz_stack_aftercond);
-      auto true_of_bool = cast_by_removing(true_of, bool_typet(), targetEquation);
+      auto true_of_bool =
+        cast_by_removing(true_of, bool_typet(), targetEquation);
       auto cond_and_of = and_exprt(ife->cond(), true_of_bool);
       targetEquation.merge_irep.merged1L(cond_and_of);
-      stack.push_back(cast_by_removing(cond_and_of, unsignedbv_typet(1), targetEquation));
-    } else if (true_of.is_zero() && !false_of.is_zero()) {
+      stack.push_back(
+        cast_by_removing(cond_and_of, unsignedbv_typet(1), targetEquation));
+    }
+    else if(true_of.is_zero() && !false_of.is_zero())
+    {
       // only else leads to of
       stack.resize(sz_stack_aftercond);
-      auto false_of_bool = cast_by_removing(false_of, bool_typet(), targetEquation);
+      auto false_of_bool =
+        cast_by_removing(false_of, bool_typet(), targetEquation);
       auto not_cond = not_exprt(ife->cond());
       targetEquation.merge_irep.merged1L(not_cond);
       auto not_cond_and_of = and_exprt(not_cond, false_of_bool);
       targetEquation.merge_irep.merged1L(not_cond_and_of);
-      stack.push_back(cast_by_removing(not_cond_and_of, unsignedbv_typet(1), targetEquation));
-    } else {
+      stack.push_back(
+        cast_by_removing(not_cond_and_of, unsignedbv_typet(1), targetEquation));
+    }
+    else
+    {
       // both sides lead to of
       stack.resize(sz_stack_aftercond);
       auto ans = if_exprt(ife->cond(), true_of, false_of);
       targetEquation.merge_irep.merged1L(ans);
       stack.push_back(ans);
     }
-  } else if(!alwaysNonAbstr && can_cast_expr<constant_exprt>(e) && is_signed_or_unsigned_bitvector(e.type()) &&
-          to_integer_bitvector_type(e.type()).get_width() > width){
+  }
+  else if(
+    !alwaysNonAbstr && can_cast_expr<constant_exprt>(e) &&
+    is_signed_or_unsigned_bitvector(e.type()) &&
+    to_integer_bitvector_type(e.type()).get_width() > width)
+  {
     mp_integer val;
     to_integer(to_constant_expr(e), val);
     auto sign = to_integer_bitvector_type(e.type()).smallest() < 0;
@@ -1594,37 +1616,68 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
     if(val < lb || val > ub)
       stack.push_back(unsignedbv_typet(1).largest_expr());
   }
-  else if(e.id() == ID_index && to_index_expr(e).index().id() == ID_constant){
+  else if(e.id() == ID_index && to_index_expr(e).index().id() == ID_constant)
+  {
     //a[c] with c constant: c is always ok (it directly picks the literals -> no multiplexers needed)
-    compute_ofquit(to_index_expr(e).array(), width, targetEquation, stack, false);
+    compute_ofquit(
+      to_index_expr(e).array(), width, targetEquation, stack, false);
   }
-  else if(e.id() == ID_byte_extract_little_endian && to_byte_extract_expr(e).offset().id() == ID_constant){
+  else if(
+    e.id() == ID_byte_extract_little_endian &&
+    to_byte_extract_expr(e).offset().id() == ID_constant)
+  {
     //byte extract with constant offset: offset is always ok (it directly picks the literals -> no multiplexers needed)
-    compute_ofquit(to_byte_extract_expr(e).op(), width, targetEquation, stack, false);
+    compute_ofquit(
+      to_byte_extract_expr(e).op(), width, targetEquation, stack, false);
   }
-  else if(e.id() == ID_byte_update_little_endian && to_byte_update_expr(e).offset().id() == ID_constant){
+  else if(
+    e.id() == ID_byte_update_little_endian &&
+    to_byte_update_expr(e).offset().id() == ID_constant)
+  {
     //byte update with constant offset: offset is always ok (it directly picks the literals -> no multiplexers needed)
-    compute_ofquit(to_byte_update_expr(e).op(), width, targetEquation, stack, false);
+    compute_ofquit(
+      to_byte_update_expr(e).op(), width, targetEquation, stack, false);
+  }
+  else if(
+    (e.id() == ID_equal || e.id() == ID_notequal || e.id() == ID_gt ||
+     e.id() == ID_lt || e.id() == ID_ge || e.id() == ID_le) &&
+    (e.operands()[0].is_constant() || e.operands()[1].is_constant()))
+  {
+    // comparison with constant is always fine, will precompute the answer if out of bound
+    forall_operands(op, e)
+    {
+      if(*((*targetEquation.is_abs_forbidden)[*op]))
+      {
+        //dont abstract
+        stack.resize(sz_stack_begin);
+        return;
+      }
+      if(!op->is_constant())
+        compute_ofquit(*op, width, targetEquation, stack, false);
+    }
   }
   else
   {
-    bool special_pattern_sum =  (e.id() == ID_plus && e.type().id() == ID_pointer) ||
-                     test_pattern_ptroffset_const(e);
+    bool special_pattern_sum =
+      (e.id() == ID_plus && e.type().id() == ID_pointer) ||
+      test_pattern_ptroffset_const(e);
     forall_operands(op, e)
     {
-      if(*((*targetEquation.is_abs_forbidden)[*op])){
+      if(*((*targetEquation.is_abs_forbidden)[*op]))
+      {
         //dont abstract
         stack.resize(sz_stack_begin);
         return;
       }
       compute_ofquit(*op, width, targetEquation, stack, special_pattern_sum);
     }
-    if(!alwaysNonAbstr && !special_pattern_sum && (
-      is_signed_or_unsigned_bitvector(e.type()) &&
-      to_integer_bitvector_type(e.type()).get_width() > width &&
-      (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
-       e.id() == ID_shl || e.id() == ID_div || e.id() == ID_rol ||
-       e.id() == ID_ror /*|| e.id() == ID_power || e.id() == ID_mod*/)))
+    if(
+      !alwaysNonAbstr && !special_pattern_sum &&
+      (is_signed_or_unsigned_bitvector(e.type()) &&
+       to_integer_bitvector_type(e.type()).get_width() > width &&
+       (e.id() == ID_plus || e.id() == ID_minus || e.id() == ID_mult ||
+        e.id() == ID_shl || e.id() == ID_div || e.id() == ID_rol ||
+        e.id() == ID_ror /*|| e.id() == ID_power || e.id() == ID_mod*/)))
     {
       stack.push_back(make_bf(e, width, targetEquation));
       (*targetEquation.compute_bounds_failure)[e] = true;
