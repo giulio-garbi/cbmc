@@ -254,6 +254,10 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
     options.set_option("absmode", "cut");
   }
 
+  if(cmdline.isset("annotate-tree")){
+    options.set_option("annotate-tree", true);
+  }
+
   if(cmdline.isset("ofquit"))
   {
     options.set_option("abssize", cmdline.get_value("ofquit"));

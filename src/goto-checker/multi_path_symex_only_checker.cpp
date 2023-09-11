@@ -57,6 +57,10 @@ operator()(propertiest &properties)
     show_vcc(options, ui_message_handler, equation);
   }
 
+  if(options.get_bool_option("annotate-tree")){
+    annotate_ssa_exprs_tree(equation);
+  }
+
   if(options.get_bool_option("program-only"))
   {
     show_program(ns, equation);

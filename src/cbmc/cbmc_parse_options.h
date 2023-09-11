@@ -62,7 +62,8 @@ class optionst;
   "(copy-shadow-memory)" \
   "(under):"         \
   "(cut):"         \
-  "(ofquit):"         \
+  "(ofquit):"        \
+  "(annotate-tree)"   \
   "(sm-extract)" \
   "(phi-extract):" \
   "(version)" \
