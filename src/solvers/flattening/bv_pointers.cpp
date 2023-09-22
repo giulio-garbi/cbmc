@@ -630,10 +630,20 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
 
     // compute the object size (again, possibly using cached results)
     const exprt object_size = ::object_size(minus_expr.lhs());
+    if(produce_nonabs_map){
+      (*produce_nonabs_map)[object_size] = true;
+    }
     const bvt object_size_bv =
       bv_utils.zero_extension(convert_bv(object_size), width);
 
-    bvt bv = prop.new_variables(width);
+    bvt bv;
+    if(!produce_nonabs(expr) && (int)width > *abstraction_bits){
+      bv = prop.new_variables(*abstraction_bits);
+      bv = bv_utils.extension(bv, width, bv_utilst::representationt::SIGNED);
+    } else {
+      bv = prop.new_variables(width);
+    }
+    bvt of = {const_literal(false)};
 
     if(!same_object_lit.is_false())
     {
@@ -681,11 +691,22 @@ bvt bv_pointerst::convert_bitvector(const exprt &expr)
             difference, element_size_bv, bv_utilst::representationt::SIGNED);
         }
       }
+      if(compute_bounds_failure(expr)){
+        of[0] = bv_utils.bf_check(bv_utilst::representationt::SIGNED, *abstraction_bits, difference);
+      }
+
+      if(!produce_nonabs(expr) && (int)width > *abstraction_bits){
+        difference.resize(*abstraction_bits);
+        difference = bv_utils.extension(difference, width, bv_utilst::representationt::SIGNED);
+      }
 
       prop.l_set_to_true(prop.limplies(
         prop.land(same_object_lit, prop.land(lhs_in_bounds, rhs_in_bounds)),
         bv_utils.equal(difference, bv)));
     }
+
+    if(compute_bounds_failure(expr))
+      bounds_failure_literals[expr] = of;
 
     return bv;
   }

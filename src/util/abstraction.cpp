@@ -68,7 +68,7 @@ void produce_nonabs(exprt &e, symex_target_equationt &targetEquation){
     for(std::vector<exprt>::size_type i=2; i<e.operands().size(); i+=2){
       produce_nonabs(e.operands()[i], targetEquation);
     }
-  } else if (e.id() == ID_address_of){
+  } else if (e.id() == ID_address_of || e.id() == ID_object_size){
     // addressed element does not have to be nonabs
     (*targetEquation.produce_nonabs)[e] = true;
   } else if(const auto ifexp = expr_try_dynamic_cast<if_exprt>(e)){
@@ -196,7 +196,7 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     if(forbOp || /*test_pattern_ptr_index_times_offset(e) || test_pattern_ptr_offset(e) ||*/
        (e.id() == ID_plus && e.type().id() == ID_pointer) ||
        test_pattern_ptroffset_const(e) || e.id() == ID_pointer_offset ||
-       e.id() == ID_object_size){
+       e.id() == ID_object_size || (e.id() == ID_minus && e.type().id() == ID_pointer)){
       (*targetEquation.produce_nonabs)[e] = true;
       Forall_operands(op, e){
         produce_nonabs(*op, targetEquation);
@@ -238,6 +238,9 @@ bool set_if_abs_forbidden(exprt &e, symex_target_equationt &targetEquation){
     }
     ((*targetEquation.is_abs_forbidden)[e]) = false;
     //(*targetEquation.produce_nonabs)[e] = true;
+  } else if(e.id() == ID_object_size){
+    ((*targetEquation.is_abs_forbidden)[e]) = false;
+    produce_nonabs(e, targetEquation);
   } else if(e.id() == ID_case){
     // exists op[o] with abs_forbidden AND (o=0 OR o is odd) => produce nonabs for every op[o'] (o'=0 OR o' is odd)
     // exists op[e] with abs_forbidden AND e>0 AND e is even => produce nonabs for every op[e'] (e>0 AND e' is even) AND this op has abs_forbidden
@@ -1655,9 +1658,7 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
       if(!op->is_constant())
         compute_ofquit(*op, width, targetEquation, stack, false);
     }
-  }
-  else
-  {
+  } else {
     bool special_pattern_sum =
       (e.id() == ID_plus && e.type().id() == ID_pointer) ||
       test_pattern_ptroffset_const(e);
