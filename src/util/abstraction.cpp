@@ -1662,15 +1662,26 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
     bool special_pattern_sum =
       (e.id() == ID_plus && e.type().id() == ID_pointer) ||
       test_pattern_ptroffset_const(e);
-    forall_operands(op, e)
-    {
-      if(*((*targetEquation.is_abs_forbidden)[*op]))
+    if((e.id() == ID_shl || e.id() == ID_shr) && e.operands()[1].id() == ID_constant){
+      if(*((*targetEquation.is_abs_forbidden)[e.operands()[0]]) || *((*targetEquation.is_abs_forbidden)[e.operands()[1]]))
       {
         //dont abstract
         stack.resize(sz_stack_begin);
         return;
       }
-      compute_ofquit(*op, width, targetEquation, stack, special_pattern_sum);
+      compute_ofquit(e.operands()[0], width, targetEquation, stack, false);
+    } else
+    {
+      forall_operands(op, e)
+      {
+        if(*((*targetEquation.is_abs_forbidden)[*op]))
+        {
+          //dont abstract
+          stack.resize(sz_stack_begin);
+          return;
+        }
+        compute_ofquit(*op, width, targetEquation, stack, special_pattern_sum);
+      }
     }
     if(
       !alwaysNonAbstr && !special_pattern_sum &&

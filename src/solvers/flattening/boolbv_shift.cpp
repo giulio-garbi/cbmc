@@ -47,6 +47,8 @@ bvt boolbvt::convert_shift(const binary_exprt &expr)
   // we optimise for the special case where the shift distance
   // is a constant
 
+  bv_utilst::representationt type_sign = type_id == ID_signedbv ? bv_utilst::representationt::SIGNED : bv_utilst::representationt::UNSIGNED;
+
   if(expr.op1().is_constant())
   {
     mp_integer i = numeric_cast_v<mp_integer>(to_constant_expr(expr.op1()));
@@ -62,11 +64,31 @@ bvt boolbvt::convert_shift(const binary_exprt &expr)
        type_id==ID_verilog_unsignedbv)
       distance*=2;
 
-    return bv_utils.shift(op, shift, distance);
+    auto ans = bv_utils.shift(op, shift, distance);
+
+    if(compute_bounds_failure(expr)){
+      bounds_failure_literals[expr] = {bv_utils.bf_check(type_sign, *abstraction_bits, ans)};
+    }
+    if(!produce_nonabs(expr)){
+      std::vector<int> abmap;
+      bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+      ans = bv_utils.extract_abs_map(ans, abmap);
+    }
+    return ans;
   }
   else
   {
     const bvt &distance=convert_bv(expr.op1());
-    return bv_utils.shift(op, shift, distance);
+    auto ans = bv_utils.shift(op, shift, distance);
+
+    if(compute_bounds_failure(expr)){
+      bounds_failure_literals[expr] = {bv_utils.bf_check(type_sign, *abstraction_bits, ans)};
+    }
+    if(!produce_nonabs(expr)){
+      std::vector<int> abmap;
+      bv_utils.abstraction_map(abmap, expr.type(), bv_width, *abstraction_bits, ns);
+      ans = bv_utils.extract_abs_map(ans, abmap);
+    }
+    return ans;
   }
 }
