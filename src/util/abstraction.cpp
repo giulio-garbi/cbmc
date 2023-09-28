@@ -1536,6 +1536,10 @@ exprt ofquit_bitor(std::vector<exprt> &stack, size_t from, size_t to, symex_targ
 void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &targetEquation, std::vector<exprt> &stack, bool alwaysNonAbstr)
 {
   PRECONDITION(width > 0);
+  mp_integer num;
+  mp_integer pow2_width;
+  mp_integer pow2_typesize;
+  pow2_width.setPower2(width);
   // IDEA: assume e is abstract unless it's abstr_forbidden. The same for special constructs (e.g sum of pointers).
   alwaysNonAbstr =
     alwaysNonAbstr ||
@@ -1658,6 +1662,15 @@ void compute_ofquit(const exprt& e, const size_t width, symex_target_equationt &
       if(!op->is_constant())
         compute_ofquit(*op, width, targetEquation, stack, false);
     }
+  } else if(e.id() == ID_plus && e.operands()[1].is_constant() && e.type().id() == ID_unsignedbv &&
+          e.operands()[1].type().id() == ID_unsignedbv && !to_integer(to_constant_expr(e.operands()[1]), num) &&
+          num >= pow2_width &&
+          (pow2_typesize.setPower2(to_unsignedbv_type(e.operands()[1].type()).get_width()), pow2_typesize-num<pow2_width)) {
+    // unsigned int x; x = x - 10; gets converted to x = x + (4294967296-10) which fails with e.g. 5 bits
+    // what I do here, is failing only if x < 10 and letting the operation be done without bf_check.
+    compute_ofquit(e.operands()[0], width, targetEquation, stack, false);
+    //targetEquation.merge_irep.merged1L(not_cond_and_of);
+    stack.push_back(less_than_exprt(e.operands()[0], from_integer(pow2_typesize-num, e.operands()[1].type())));
   } else {
     bool special_pattern_sum =
       (e.id() == ID_plus && e.type().id() == ID_pointer) ||
