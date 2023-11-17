@@ -9,6 +9,9 @@ Author: Daniel Kroening, kroening@kroening.com
 /// \file
 /// Symbolic Execution
 
+#include <util/arith_tools.h>
+#include <util/bitvector_expr.h>
+#include <util/byte_operators.h>
 #include <util/exception_utils.h>
 #include <util/expr_util.h>
 #include <util/invariant.h>
@@ -21,14 +24,13 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <pointer-analysis/add_failed_symbols.h>
 #include <pointer-analysis/value_set_dereference.h>
 
-#include <util/arith_tools.h>
-#include <util/bitvector_expr.h>
-#include <util/byte_operators.h>
 #include "goto_symex.h"
 #include "goto_symex_is_constant.h"
 #include "path_storage.h"
 
 #include <algorithm>
+#include <climits>
+#include <iostream>
 
 void goto_symext::apply_goto_condition(
   goto_symex_statet &current_state,
@@ -683,6 +685,300 @@ static guardt merge_state_guards(
   }
 }
 
+void goto_symext::fix_guard(uint guard_to_edit, bool isand, bool sign, const ssa_exprt& guard_to_add){
+  //is_and == true ? guard_to_edit == `guard_to_edit old expr` && sign*guard_to_add
+  //is_and == false ? guard_to_edit == `guard_to_edit old expr` || sign*guard_to_add
+  // normal form: (`guard_text` && s1*g1 && s2*g2 && ... && sm*gm) || sm+1*gm+1 || ... || sn*gn
+
+  if(target.guard_assignments.count(guard_to_edit))
+  {
+    // skip closed jumps
+    SSA_stept &assn_step =
+      target.guard_assignments.find(guard_to_edit)->second;
+    exprt signed_guard_to_add;
+    if(sign)
+      signed_guard_to_add = guard_to_add;
+    else
+    {
+      signed_guard_to_add = not_exprt(guard_to_add);
+      target.merge_irep.merged1L(signed_guard_to_add);
+    }
+    if(isand)
+    {
+      if(can_cast_expr<and_exprt>(assn_step.ssa_rhs))
+      {
+        assn_step.ssa_rhs.operands().push_back(signed_guard_to_add);
+      }
+      else if(
+        can_cast_expr<or_exprt>(assn_step.ssa_rhs) &&
+        can_cast_expr<and_exprt>(assn_step.ssa_rhs.operands()[0]))
+      {
+        assn_step.ssa_rhs.operands()[0].operands().push_back(
+          signed_guard_to_add);
+        target.merge_irep.merged1L(assn_step.ssa_rhs.operands()[0]);
+      }
+      else
+      {
+        assn_step.ssa_rhs = and_exprt(assn_step.ssa_rhs, signed_guard_to_add);
+      }
+      target.merge_irep.merged1L(assn_step.ssa_rhs);
+      to_equal_expr(assn_step.cond_expr).op1() = assn_step.ssa_rhs;
+      target.merge_irep.merged1L(assn_step.cond_expr);
+    }
+    else
+    {
+      if(can_cast_expr<or_exprt>(assn_step.ssa_rhs))
+      {
+        assn_step.ssa_rhs.operands().push_back(signed_guard_to_add);
+      }
+      else
+      {
+        assn_step.ssa_rhs = or_exprt(assn_step.ssa_rhs, signed_guard_to_add);
+      }
+      target.merge_irep.merged1L(assn_step.ssa_rhs);
+      to_equal_expr(assn_step.cond_expr).op1() = assn_step.ssa_rhs;
+      target.merge_irep.merged1L(assn_step.cond_expr);
+    }
+  } /*else {
+    INVARIANT(false, "already closed jump");
+  }*/
+}
+
+void check_lt(const exprt& e1, const exprt& e2){
+  if(is_ssa_expr(e1) && is_ssa_expr(e2)){
+    //INVARIANT(e1 < e2, "ordered insertion");
+  } else if(is_ssa_expr(e1)) {
+    check_lt(e1, to_not_expr(e2).op());
+  } else if(is_ssa_expr(e2)) {
+    check_lt(to_not_expr(e1).op(), e2);
+  } else {
+    check_lt(to_not_expr(e1).op(), to_not_expr(e2).op());
+  }
+}
+
+inline uint get_guard_l2(const exprt& e){
+  if(is_ssa_expr(e))
+    return (uint)e.get_int(ID_L2);
+  else
+    return (uint)(to_not_expr(e).op().get_int(ID_L2));
+}
+
+inline uint get_guard_l2(std::vector<exprt>::iterator eitr, const bool valid_check = true){
+  if(!valid_check)
+    return UINT_MAX;
+  else
+    return get_guard_l2(*eitr);
+}
+
+guardt goto_symext::merge_guards(goto_statet &goto_state, goto_symex_statet &state){
+  //TODO handle the case when some state is unreachable
+  if(goto_state.guard.is_true())
+    return std::move(goto_state.guard);
+  if(state.guard.is_true())
+    return std::move(state.guard);
+  if(!state.reachable && state.guard.is_false())
+    return std::move(goto_state.guard);
+  if(!goto_state.reachable && goto_state.guard.is_false())
+    return std::move(state.guard);
+
+  //both guards are sorted
+  if(!can_cast_expr<and_exprt>(state.guard.edit_expr()) && !can_cast_expr<and_exprt>(goto_state.guard.edit_expr())){
+    //they must be `g` and `!g`. Merge point without any jumps open
+    if(can_cast_expr<not_exprt>(goto_state.guard.edit_expr())){
+      PRECONDITION(goto_state.guard.edit_expr().operands()[0] == state.guard.edit_expr());
+    } else {
+      PRECONDITION(can_cast_expr<not_exprt>(state.guard.edit_expr()));
+      PRECONDITION(state.guard.edit_expr().operands()[0] == goto_state.guard.edit_expr());
+    }
+    target.guard_assignments.erase(get_guard_l2(state.guard.edit_expr()));
+    state.guard.set_to_and({});
+    return std::move(state.guard);
+  }
+
+  optionalt<ssa_exprt> merging_guard;
+  bool merging_guard_sign = false;
+
+  if(!can_cast_expr<and_exprt>(state.guard.edit_expr())){
+    merging_guard_sign = is_ssa_expr(state.guard.edit_expr());
+    auto merging_guard_in_GS = boolean_negate(state.guard.edit_expr());
+    if(merging_guard_sign)
+      merging_guard = to_ssa_expr(state.guard.edit_expr());
+    else
+      merging_guard = to_ssa_expr(merging_guard_in_GS);
+    bool deleted = false;
+    auto &operands = goto_state.guard.edit_expr().operands();
+
+    auto op_itr = operands.begin();
+    while(op_itr != operands.end()){
+      if(*op_itr == merging_guard_in_GS){
+        // remove it
+        PRECONDITION(!deleted);
+        deleted = true;
+        op_itr = operands.erase(op_itr);
+      } else {
+        // mark the guard
+        bool si = is_ssa_expr(*op_itr);
+        if(si){
+          fix_guard(get_guard_l2(*op_itr), false, !merging_guard_sign, *merging_guard);
+        } else {
+          fix_guard(get_guard_l2(*op_itr), true, merging_guard_sign, *merging_guard);
+        }
+        // keep it in the final expression
+        auto prev = op_itr;
+        op_itr++;
+        if(op_itr != operands.end())
+          check_lt(*prev, *op_itr);
+      }
+    }
+    PRECONDITION(deleted);
+    if(operands.size() == 1){
+      goto_state.guard.set_to(operands[0]);
+    } else {
+      state.guard.set_to_and(operands);
+      target.merge_irep.merged1L(goto_state.guard.edit_expr());
+    }
+    // mark merging_guard as closed
+    target.guard_assignments.erase(get_guard_l2(*merging_guard));
+    return std::move(goto_state.guard);
+  }
+
+  if(!can_cast_expr<and_exprt>(goto_state.guard.edit_expr())){
+    merging_guard_sign = is_ssa_expr(goto_state.guard.edit_expr());
+    auto merging_guard_in_S = boolean_negate(goto_state.guard.edit_expr());
+    if(merging_guard_sign)
+      merging_guard = to_ssa_expr(goto_state.guard.edit_expr());
+    else
+      merging_guard = to_ssa_expr(merging_guard_in_S);
+    bool deleted = false;
+    auto &operands = state.guard.edit_expr().operands();
+
+    auto op_itr = operands.begin();
+    while(op_itr != operands.end()){
+      if(*op_itr == merging_guard_in_S){
+        // remove it
+        PRECONDITION(!deleted);
+        deleted = true;
+        op_itr = operands.erase(op_itr);
+      } else {
+        // mark the guard
+        bool si = is_ssa_expr(*op_itr);
+        if(si){
+          fix_guard(get_guard_l2(*op_itr), false, merging_guard_sign, *merging_guard);
+        } else {
+          fix_guard(get_guard_l2(*op_itr), true, !merging_guard_sign, *merging_guard);
+        }
+        // keep it in the final expression
+        auto prev = op_itr;
+        op_itr++;
+        if(op_itr != operands.end())
+          check_lt(*prev, *op_itr);
+      }
+    }
+    PRECONDITION(deleted);
+    if(operands.size() == 1){
+      state.guard.set_to(operands[0]);
+    } else {
+      state.guard.set_to_and(operands);
+      target.merge_irep.merged1L(state.guard.edit_expr());
+    }
+    target.guard_assignments.erase(get_guard_l2(*merging_guard));
+    return std::move(state.guard);
+  }
+
+  auto &operands_goto_state = goto_state.guard.edit_expr().operands();
+  auto op_goto_state = operands_goto_state.begin();
+  auto &operands_state = state.guard.edit_expr().operands();
+  auto op_state = operands_state.begin();
+  std::vector<exprt> answer;
+  std::vector<bool> in_goto_state;
+  std::vector<bool> in_state;
+
+  //bool has_goto_state = true, has_state = true;
+
+  for(size_t i=0; i<operands_goto_state.size()-1; i++)
+    check_lt(operands_goto_state[i], operands_goto_state[i+1]);
+  for(size_t i=0; i<operands_state.size()-1; i++)
+    check_lt(operands_state[i], operands_state[i+1]);
+
+  uint guardGS_l2 = get_guard_l2(op_goto_state, op_goto_state != operands_goto_state.end());
+  uint guardS_l2 = get_guard_l2(op_state, op_state != operands_state.end());
+
+  while(guardGS_l2 != UINT_MAX || guardS_l2 != UINT_MAX){
+    //bool signGS = !has_goto_state || is_ssa_expr(*op_goto_state);
+    //bool signS = !has_state || is_ssa_expr(*op_state);
+    //auto guardGS = has_goto_state?(signGS ? *op_goto_state : to_not_expr(*op_goto_state).op()):nil_exprt();
+    //auto guardS = has_state?(signS ? *op_state : to_not_expr(*op_state).op()):nil_exprt();
+    if(guardGS_l2 < guardS_l2){
+      // *guardGS only in the goto_state
+      if(target.guard_assignments.count(guardGS_l2)){
+        // open jump, keep
+        answer.push_back(*op_goto_state);
+        if(answer.size()>1)
+          check_lt(*(answer.end()-2), answer.back());
+        in_goto_state.push_back(true);
+        in_state.push_back(false);
+      } //else closed jump, it will be indirectly encoded in the final or.
+      op_goto_state++; guardGS_l2 = get_guard_l2(op_goto_state, op_goto_state != operands_goto_state.end());
+    }
+    else if(guardS_l2 < guardGS_l2){
+      // *guardS only in the state
+      if(target.guard_assignments.count(guardS_l2)){
+        // open jump, keep
+        answer.push_back(*op_state);
+        if(answer.size()>1)
+          check_lt(*(answer.end()-2), answer.back());
+        in_goto_state.push_back(false);
+        in_state.push_back(true);
+      } //else closed jump, it will be indirectly encoded in the final or.
+      op_state++; guardS_l2 = get_guard_l2(op_state, op_state != operands_state.end());
+    } else {
+      // it is not closed: otherwise, it would not appear in both guards
+      PRECONDITION(target.guard_assignments.count(guardS_l2));
+      // in both guards
+      if(*op_goto_state == *op_state){
+        // same sign, it's a common path
+        answer.push_back(*op_state);
+        if(answer.size()>1)
+          check_lt(*(answer.end()-2), answer.back());
+        in_goto_state.push_back(true);
+        in_state.push_back(true);
+      } else {
+        // that's a merging point! there's one and only one
+        INVARIANT(!merging_guard, "there's only one merging guard");
+        merging_guard_sign = is_ssa_expr(*op_goto_state);
+        merging_guard = to_ssa_expr(merging_guard_sign?*op_goto_state:*op_state);
+      }
+      op_state++; guardS_l2 = get_guard_l2(op_state, op_state != operands_state.end());
+      op_goto_state++; guardGS_l2 = get_guard_l2(op_goto_state, op_goto_state != operands_goto_state.end());
+    }
+  }
+  INVARIANT(merging_guard, "there's one merging guard");
+  for(size_t i=0; i<answer.size(); i++){
+    if(in_goto_state[i] && in_state[i]){
+      //common branch, no updates. It's an open jump
+    } else if(in_goto_state[i]){
+      if(is_ssa_expr(answer[i]))
+      { //si == true
+        fix_guard(get_guard_l2(answer[i]), false, !merging_guard_sign, *merging_guard);
+      } else { // si == false
+        fix_guard(get_guard_l2(answer[i]), true, merging_guard_sign, *merging_guard);
+      }
+    } else { //if(in_state[i])
+      if(is_ssa_expr(answer[i]))
+      { //sj == true
+        fix_guard(get_guard_l2(answer[i]), false, merging_guard_sign, *merging_guard);
+      } else { // sj == false
+        fix_guard(get_guard_l2(answer[i]), true, !merging_guard_sign, *merging_guard);
+      }
+    }
+  }
+  // mark merging_guard as closed
+  target.guard_assignments.erase(get_guard_l2(*merging_guard));
+  state.guard.set_to_and(answer);
+  target.merge_irep.merged1L(state.guard.edit_expr());
+  return std::move(state.guard);
+}
+
 void goto_symext::merge_goto(
   const symex_targett::sourcet &,
   goto_statet &&goto_state,
@@ -696,7 +992,19 @@ void goto_symext::merge_goto(
 
   // Merge guards. Don't write this to `state` yet because we might move
   // goto_state over it below.
+#if 0
   guardt new_guard = merge_state_guards(goto_state, state, target.merge_irep);
+#else
+  /*static int cntr;
+  std::cerr << "*************** Merge "<<cntr<<" begin:\n";
+  std::cerr << "goto_state\n" << goto_state.guard.edit_expr().pretty(0,0) << "\n\n";
+  std::cerr << "state\n" << state.guard.edit_expr().pretty(0,0) << "\n\n";*/
+  guardt new_guard = merge_guards(goto_state, state);
+  /*std::cerr << "new_guard\n" << new_guard.edit_expr().pretty(0,0) << "\n\n";
+  std::cerr << "*************** Merge end\n";
+  cntr++;*/
+#endif
+
 
   // Merge constant propagator, value-set etc. only if the incoming state is
   // reachable:

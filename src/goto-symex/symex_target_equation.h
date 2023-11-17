@@ -53,6 +53,9 @@ public:
   optionalt<std::map<ssa_exprt,optionalt<exprt>>> abs_exprs;
   optionalt<std::map<exprt,optionalt<bool>>> is_assigned;
 
+  // where in the SSA form is the guard assigned?
+  std::map<uint, SSA_stept&> guard_assignments;
+
   friend void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 
   virtual ~symex_target_equationt() = default;

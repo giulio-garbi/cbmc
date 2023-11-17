@@ -955,6 +955,13 @@ private:
     goto_symex_statet &state,
     irep_idt operand,
     const exprt::operandst &arguments);
+  void fix_merge_expr(guardt &new_guard, guardt &goto_state_guard);
+  guardt merge_guards(goto_statet &goto_state, goto_symex_statet &state);
+  void fix_guard(
+    uint guard_to_edit,
+    bool isand,
+    bool sign,
+    const ssa_exprt &guard_to_add);
 };
 
 /// Transition to the next instruction, which increments the internal program

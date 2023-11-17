@@ -54,6 +54,11 @@ public:
     return expr;
   }
 
+  exprt& edit_expr()
+  {
+    return expr;
+  }
+
   /// The result of \ref as_expr is not always in a simplified form
   /// and may requires some simplification.
   /// This can vary according to the guard implementation.
@@ -80,6 +85,10 @@ public:
   /// expression. For `guard_exprt` in practice this means they're both
   /// conjunctions, since for other things we just OR them together.
   bool disjunction_may_simplify(const guard_exprt &other_guard);
+
+  void set_to_and(const std::vector<exprt> &exprs);
+
+  void set_to(const exprt &expr);
 
 private:
   exprt expr;

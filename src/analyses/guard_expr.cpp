@@ -15,6 +15,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/invariant.h>
 #include <util/std_expr.h>
 
+#include "ssa_expr.h"
+
 exprt guard_exprt::guard_expr(exprt expr) const
 {
   if(is_true())
@@ -59,6 +61,16 @@ void guard_exprt::add(const exprt &expr)
     op.insert(op.end(), expr.operands().begin(), expr.operands().end());
   else
     op.push_back(expr);
+}
+
+void guard_exprt::set_to_and(const std::vector<exprt> &exprs)
+{
+  this->expr = conjunction(exprs);
+}
+
+void guard_exprt::set_to(const exprt &exp)
+{
+  this->expr = exp;
 }
 
 guard_exprt &operator-=(guard_exprt &g1, const guard_exprt &g2)

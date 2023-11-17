@@ -132,6 +132,8 @@ void symex_target_equationt::assignment(
                                               assignment_type});
 
   merge_ireps(SSA_steps.back());
+  if(assignment_type == symex_targett::assignment_typet::GUARD)
+    guard_assignments.insert(std::pair<uint, SSA_stept&>((uint)(SSA_steps.back().ssa_lhs.get_int(ID_L2)), SSA_steps.back()));
 }
 
 void symex_target_equationt::decl(
