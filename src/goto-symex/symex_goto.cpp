@@ -232,6 +232,64 @@ renamedt<exprt, L2> try_evaluate_pointer_comparisons(
   return condition;
 }
 
+ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const exprt &state_guard, const exprt &new_guard, symex_target_equationt& targett, const symex_targett::sourcet &original_source)
+{
+  const exprt prev = targett.get_last_jmp_val(target_location_number);
+  exprt ans;
+  if(prev.is_false())
+  {
+    PRECONDITION(!new_guard.is_false());
+    if(state_guard.is_false())
+      PRECONDITION(false);
+    else if(state_guard.is_true()) {
+      ans = new_guard;
+    } else {
+      if (new_guard.is_true()) {
+        ans = state_guard;
+      } else {
+        ans = conjunction({state_guard, new_guard});
+        targett.merge_irep.merged1L(ans);
+      }
+    }
+  } else if(prev.is_true()){
+    PRECONDITION(!prev.is_true());
+  } else {
+    if(state_guard.is_false() || new_guard.is_false()){
+      PRECONDITION(!(state_guard.is_false() || new_guard.is_false()));
+    } else if(state_guard.is_true()){
+      if(new_guard.is_true())
+        ans = new_guard;
+      else {
+        ans = disjunction({prev, new_guard});
+        targett.merge_irep.merged1L(ans);
+      }
+    } else {
+      if(new_guard.is_true())
+      {
+        ans = disjunction({prev, state_guard});
+        targett.merge_irep.merged1L(ans);
+      } else {
+        ans = conjunction({state_guard, new_guard});
+        targett.merge_irep.merged1L(ans);
+        ans = disjunction({prev, ans});
+        targett.merge_irep.merged1L(ans);
+      }
+    }
+  }
+
+  auto jmp_lhs = targett.set_last_jmp_val(target_location_number, ans);
+  targett.assignment(
+    true_exprt(),
+    jmp_lhs,
+    jmp_lhs,
+    jmp_lhs,
+    ans,
+    original_source,
+    symex_targett::assignment_typet::STATE);
+
+  return (jmp_lhs);
+}
+
 void goto_symext::symex_goto(statet &state)
 {
   PRECONDITION(state.reachable);
@@ -449,6 +507,21 @@ void goto_symext::symex_goto(statet &state)
   // as usual.
   if(new_guard.is_true())
   {
+    unsigned int target_location_number = goto_target->location_number;
+    auto old_jmpvar = target.get_last_jmp_val(target_location_number);
+    auto jmpvar = compute_and_store_jmp(
+      target_location_number,
+      state.guard.as_expr(),
+      new_guard,
+      target,
+      original_source);
+    if(old_jmpvar.is_false())
+      state.guard.set_to(jmpvar);
+    else
+    {
+      state.guard.set_to(conjunction({boolean_negate(old_jmpvar), jmpvar}));
+      state.guard.merge_guard(target.merge_irep);
+    }
     // The move here only moves goto_statet, the base class of goto_symex_statet
     // and not the entire thing.
     goto_state_list.emplace_back(state.source, std::move(state));
@@ -481,6 +554,7 @@ void goto_symext::symex_goto(statet &state)
         ns);
     }
 
+#if 0
     // produce new guard symbol
     exprt guard_expr;
 
@@ -521,7 +595,6 @@ void goto_symext::symex_goto(statet &state)
 
       guard_expr = state.rename(boolean_negate(guard_symbol_expr), ns).get();
     }
-
     if(state.has_saved_jump_target)
     {
       if(!backward)
@@ -545,6 +618,76 @@ void goto_symext::symex_goto(statet &state)
       new_state.guard.merge_guard(target.merge_irep);
     }
     state.guard.merge_guard(target.merge_irep);
+#endif
+    //if(!state.guard.is_false())
+    {
+      goto_statet &new_state = goto_state_list.back().second;
+      unsigned int target_location_number = goto_target->location_number;
+      auto do_jump = backward ? boolean_negate(new_guard) : new_guard;
+      if(!backward)
+        target.merge_irep.merged1L(do_jump);
+      auto old_jmpvar = target.get_last_jmp_val(target_location_number);
+      auto jmpvar = compute_and_store_jmp(
+        target_location_number,
+        state.guard.as_expr(),
+        do_jump,
+        target,
+        original_source);
+      {
+        // state_guard = state_guard && !guard
+        // new_state_guard = (new_)state_guard && guard
+        //state.guard.add(boolean_negate(*jmpvar));
+        //if state.guard contains a !jmpvar.ident, replace with !jmpvar
+        //else, add !jmpvar
+        if(state.guard.is_true()){
+          state.guard.add(boolean_negate(jmpvar));
+        }
+        else if(is_ssa_expr(state.guard.as_expr())){
+          INVARIANT(to_ssa_expr(state.guard.as_expr()).get_identifier() != jmpvar.get_identifier(), "guards are AND(jump_from, !jump_to_1, ..., !jump_to_n) where foreach i, i != from");
+          state.guard.add(boolean_negate(jmpvar));
+        } else if(state.guard.as_expr().id() == ID_not) {
+          if(to_ssa_expr(state.guard.as_expr().operands()[0]).get_identifier() != jmpvar.get_identifier()){
+            state.guard.add(boolean_negate(jmpvar));
+          } else {
+            INVARIANT(to_ssa_expr(state.guard.as_expr().operands()[0]).get_int(ID_L2) < jmpvar.get_int(ID_L2), "jump vars' L2 must be strictly increasing");
+            to_ssa_expr(state.guard.as_expr().operands()[0]).set_level_2(jmpvar.get_int(ID_L2));
+          }
+        }
+        else
+        {
+          PRECONDITION_WITH_DIAGNOSTICS(
+            state.guard.as_expr().id() == ID_and,
+            "must be and",
+            state.guard.edit_expr().pretty(0, 0));
+          bool replaced = false;
+          Forall_operands(op, state.guard.edit_expr())
+          {
+            if(
+              can_cast_expr<not_exprt>(*op) &&
+              to_ssa_expr(op->operands()[0]).get_identifier() ==
+                jmpvar.get_identifier())
+            {
+              to_ssa_expr(op->operands()[0])
+                .set_level_2(jmpvar.get_int(ID_L2));
+              replaced = true;
+              break;
+            }
+          }
+          if(!replaced)
+            state.guard.add(boolean_negate(jmpvar));
+        }
+        state.guard.merge_guard(target.merge_irep);
+        // new_state_guard = add jmpvar
+        if(old_jmpvar.is_false())
+          new_state.guard.set_to(jmpvar);
+        else
+        {
+          new_state.guard.set_to(
+            conjunction({boolean_negate(old_jmpvar), jmpvar}));
+          new_state.guard.merge_guard(target.merge_irep);
+        }
+      }
+    }
   }
 }
 
@@ -648,6 +791,24 @@ void goto_symext::merge_gotos(statet &state)
 
   // clean up to save some memory
   frame.goto_state_map.erase(state_map_it);
+  unsigned int state_target_location_number = state.source.pc->location_number;
+  if(state.reachable){
+    //merge the state branch (that follows from the "main" path)
+    if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number)){
+      state.guard.set_to(true_exprt());
+    } else {
+      auto jmpvar = compute_and_store_jmp(
+        state_target_location_number,
+        state.guard.as_expr(),
+        true_exprt(),
+        target,
+        state.source);
+      state.guard.set_to(jmpvar);
+    }
+  } else {
+    state.guard.set_to(target.get_last_jmp_val(state_target_location_number));
+  }
+  target.set_last_jmp_val(state.source.pc->location_number, false_exprt());
 }
 
 static guardt merge_state_guards(
@@ -999,7 +1160,7 @@ void goto_symext::merge_goto(
   std::cerr << "*************** Merge "<<cntr<<" begin:\n";
   std::cerr << "goto_state\n" << goto_state.guard.edit_expr().pretty(0,0) << "\n\n";
   std::cerr << "state\n" << state.guard.edit_expr().pretty(0,0) << "\n\n";*/
-  guardt new_guard = merge_guards(goto_state, state);
+  //guardt new_guard = merge_guards(goto_state, state);
   /*std::cerr << "new_guard\n" << new_guard.edit_expr().pretty(0,0) << "\n\n";
   std::cerr << "*************** Merge end\n";
   cntr++;*/
@@ -1031,7 +1192,8 @@ void goto_symext::merge_goto(
   }
 
   // Save the new state guard
-  state.guard = std::move(new_guard);
+  //state.guard = std::move(new_guard);
+  //state.guard.set_to(target.get_last_jmp_val(state.source.pc->location_number));
 }
 
 /// Helper function for \c phi_function which merges the names of an identifier
@@ -1053,7 +1215,7 @@ static void merge_names(
   const goto_statet &goto_state,
   goto_symext::statet &dest_state,
   const namespacet &ns,
-  const guardt &diff_guard,
+  const exprt &diff_guard,
   messaget &log,
   const bool do_simplify_phi,
   symex_target_equationt &target,
@@ -1068,6 +1230,9 @@ static void merge_names(
 
   if(obj_identifier == goto_symext::statet::guard_identifier())
     return; // just a guard, don't bother
+
+  if(as_string(obj_identifier).find("\\jmp_", 0) == 0)
+    return; // just a jmp, don't bother
 
   if(goto_count == dest_count)
     return; // not at all changed
@@ -1171,7 +1336,7 @@ static void merge_names(
         }
       }
     }
-    rhs = if_exprt(diff_guard.as_expr(), goto_state_rhs, dest_state_rhs);
+    rhs = if_exprt(diff_guard/*.as_expr()*/, goto_state_rhs, dest_state_rhs);
     if(do_simplify_phi)
       simplify(rhs, ns);
   }
@@ -1217,9 +1382,16 @@ void goto_symext::phi_function(
     dest_state.get_level2().current_names.empty())
     return;
 
-  guardt diff_guard = goto_state.guard;
+  /*guardt diff_guard = goto_state.guard;
   // this gets the diff between the guards
-  diff_guard -= dest_state.guard;
+  diff_guard -= dest_state.guard;*/
+  exprt diff_guard;
+  if(can_cast_expr<and_exprt>(goto_state.guard.as_expr())){
+    diff_guard = goto_state.guard.as_expr().operands().back();
+  } else {
+    diff_guard = goto_state.guard.as_expr();
+  }
+  PRECONDITION(is_ssa_expr(diff_guard));
 
   symex_renaming_levelt::delta_viewt delta_view;
   goto_state.get_level2().current_names.get_delta_view(

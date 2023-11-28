@@ -56,6 +56,91 @@ public:
   // where in the SSA form is the guard assigned?
   std::map<uint, SSA_stept&> guard_assignments;
 
+  // last jump var assigned. Those vars do not
+  // participate in the symbol table, namespace, and propagation map
+  std::map<unsigned, ssa_exprt> last_jmp_assigned;
+  std::map<unsigned, constant_exprt> jmp_propagation;
+  unsigned int open_jumps = 0;
+
+  exprt get_last_jmp_val(unsigned label){
+    auto jmp_prop_pos = jmp_propagation.find(label);
+    if(jmp_prop_pos != jmp_propagation.end()){
+      /*if(jmp_prop_pos->second.is_true())
+        std::cout << "GET TRUE " << label << "\n";*/
+      return jmp_prop_pos->second;
+    }
+    auto last_jmp_pos = last_jmp_assigned.find(label);
+    if(last_jmp_pos != last_jmp_assigned.end()){
+      return last_jmp_pos->second;
+    }
+    return false_exprt();
+  }
+
+  bool is_open_jump(unsigned label){
+    auto last_jmp_pos = last_jmp_assigned.find(label);
+    bool is_new_label = last_jmp_pos == last_jmp_assigned.end();
+    if(is_new_label)
+      return false;
+    auto jmp_itr = jmp_propagation.find(label);
+    if(jmp_itr == jmp_propagation.end())
+    {
+      //it's not constant (hence not a false): an open jump
+      return true;
+    } else {
+      //if it's not a false it is an open jump
+      return !jmp_itr->second.is_false();
+    }
+  }
+
+  ssa_exprt set_last_jmp_val(unsigned label, const exprt& new_val){
+    auto identifier = "\\jmp_" + std::to_string(label);
+    ssa_exprt new_var = ssa_exprt(symbol_exprt(identifier, bool_typet()));
+
+    auto last_jmp_pos = last_jmp_assigned.find(label);
+    bool is_new_label = last_jmp_pos == last_jmp_assigned.end();
+    if(!is_new_label){
+      new_var.set_level_2(last_jmp_pos->second.get_int(ID_L2) + 1);
+      merge_irep(new_var);
+      last_jmp_pos->second = new_var;
+      auto jmp_itr = jmp_propagation.find(label);
+      if(jmp_itr == jmp_propagation.end()){
+        //it's not constant (hence not a false): an open jump
+        if(new_val.is_constant()){
+          jmp_propagation.emplace(label, to_constant_expr(new_val));
+          /*if(new_val.is_true())
+            std::cout << "TRUE " << label << "\n";*/
+          if(new_val.is_false())
+            open_jumps--;
+        }
+      } else {
+        //if it's not a false it is an open jump
+        bool was_oj = !jmp_itr->second.is_false();
+        bool is_now_oj;
+        if(new_val.is_constant()){
+          jmp_itr->second = to_constant_expr(new_val);
+          is_now_oj = !new_val.is_false();
+        } else {
+          jmp_propagation.erase(jmp_itr);
+          is_now_oj = true;
+        }
+        if(was_oj && !is_now_oj)
+          open_jumps--;
+        else if(!was_oj && is_now_oj)
+          open_jumps++;
+      }
+    } else {
+      new_var.set_level_2(1);
+      merge_irep(new_var);
+      last_jmp_assigned.emplace(label, new_var);
+      if(new_val.is_constant()){
+        jmp_propagation.emplace(label, to_constant_expr(new_val));
+      }
+      if(!new_val.is_false())
+        open_jumps++;
+    }
+    return new_var;
+  }
+
   friend void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 
   virtual ~symex_target_equationt() = default;

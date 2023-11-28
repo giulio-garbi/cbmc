@@ -31,6 +31,10 @@ symex_level0(ssa_exprt ssa_expr, const namespacet &ns, std::size_t thread_nr)
   if(obj_identifier == goto_symex_statet::guard_identifier())
     return renamedt<ssa_exprt, L0>{std::move(ssa_expr)};
 
+  // guards are not L0-renamed
+  if(as_string(obj_identifier).find("\\jmp_", 0) == 0)
+    return renamedt<ssa_exprt, L0>{std::move(ssa_expr)};
+
   const symbolt *s;
   const bool found_l0 = !ns.lookup(obj_identifier, s);
   INVARIANT(found_l0, "level0: failed to find " + id2string(obj_identifier));
