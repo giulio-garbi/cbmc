@@ -789,6 +789,9 @@ void goto_symext::merge_gotos(statet &state)
     merge_goto(list_it->first, std::move(list_it->second), state);
   }
 
+  if(reuse_assignments)
+    phi_function_assignments.clear();
+
   // clean up to save some memory
   frame.goto_state_map.erase(state_map_it);
   unsigned int state_target_location_number = state.source.pc->location_number;
@@ -1285,11 +1288,17 @@ static void merge_names(
       to_ssa_expr(goto_state_rhs).set_level_2(goto_count);
   }
 
+  bool has_older_phi_function = false;
+
   {
     const auto p_it = dest_state.propagation.find(l1_identifier);
 
     if(p_it.has_value())
       dest_state_rhs = *p_it;
+    else if(reuse_assignments && phi_function_assignments.count(ssa)){
+      dest_state_rhs = phi_function_assignments.find(ssa)->second.ssa_rhs;
+      has_older_phi_function = true;
+    }
     else
       to_ssa_expr(dest_state_rhs).set_level_2(dest_count);
   }
@@ -1336,31 +1345,66 @@ static void merge_names(
         }
       }
     }
-    rhs = if_exprt(diff_guard/*.as_expr()*/, goto_state_rhs, dest_state_rhs);
-    if(do_simplify_phi)
+    if(has_older_phi_function){
+      simplify(goto_state_rhs, ns);
+      if(diff_guard.is_true()){
+        rhs = goto_state_rhs;
+      } else if(diff_guard.is_false()) {
+        rhs = dest_state_rhs;
+      } else if(auto dest_if = expr_try_dynamic_cast<if_exprt>(dest_state_rhs)){
+        if(dest_if->cond() == diff_guard){
+          if(dest_if->true_case() == goto_state_rhs){
+            rhs = dest_state_rhs;
+          } else if(dest_if->false_case() == goto_state_rhs){
+            rhs = goto_state_rhs;
+          } else {
+            rhs = if_exprt(diff_guard, goto_state_rhs, dest_if->false_case());
+          }
+        } else if(dest_if->true_case() == goto_state_rhs){
+          rhs = if_exprt(diff_guard, goto_state_rhs, dest_if->false_case());
+        } else {
+          rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
+        }
+      } else {
+        rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
+      }
+    } else if(do_simplify_phi)
+    {
+      rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
       simplify(rhs, ns);
+    }
   }
 
   dest_state.record_events.push(false);
-  const ssa_exprt new_lhs =
-    dest_state.assignment(ssa, rhs, ns, true, true).get();
-  dest_state.record_events.pop();
+  if(has_older_phi_function){
+    phi_function_assignments.find(ssa)->second.ssa_rhs = rhs;
+    to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
+  } else
+  {
+    const ssa_exprt new_lhs =
+      dest_state.assignment(ssa, rhs, ns, true, true).get();
+    dest_state.record_events.pop();
 
-  log.conditional_output(
-    log.debug(), [ns, &new_lhs](messaget::mstreamt &mstream) {
-      mstream << "Assignment to " << new_lhs.get_identifier() << " ["
-              << pointer_offset_bits(new_lhs.type(), ns).value_or(0) << " bits]"
-              << messaget::eom;
-    });
+    log.conditional_output(
+      log.debug(),
+      [ns, &new_lhs](messaget::mstreamt &mstream)
+      {
+        mstream << "Assignment to " << new_lhs.get_identifier() << " ["
+                << pointer_offset_bits(new_lhs.type(), ns).value_or(0)
+                << " bits]" << messaget::eom;
+      });
 
-  target.assignment(
-    true_exprt(),
-    new_lhs,
-    new_lhs,
-    new_lhs.get_original_expr(),
-    rhs,
-    dest_state.source,
-    symex_targett::assignment_typet::PHI);
+    target.assignment(
+      true_exprt(),
+      new_lhs,
+      new_lhs,
+      new_lhs.get_original_expr(),
+      rhs,
+      dest_state.source,
+      symex_targett::assignment_typet::PHI);
+    if(reuse_assignments)
+      phi_function_assignments.emplace(ssa, target.SSA_steps.back());
+  }
 }
 
 
