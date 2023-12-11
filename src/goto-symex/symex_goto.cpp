@@ -770,6 +770,9 @@ bool goto_symext::check_break(const irep_idt &loop_id, unsigned unwind)
   return false;
 }
 
+std::map<ssa_exprt, SSA_stept&> phi_function_assignments;
+const bool reuse_assignments = true;
+
 void goto_symext::merge_gotos(statet &state)
 {
   framet &frame = state.call_stack().top();
@@ -1352,16 +1355,8 @@ static void merge_names(
       } else if(diff_guard.is_false()) {
         rhs = dest_state_rhs;
       } else if(auto dest_if = expr_try_dynamic_cast<if_exprt>(dest_state_rhs)){
-        if(dest_if->cond() == diff_guard){
-          if(dest_if->true_case() == goto_state_rhs){
-            rhs = dest_state_rhs;
-          } else if(dest_if->false_case() == goto_state_rhs){
-            rhs = goto_state_rhs;
-          } else {
-            rhs = if_exprt(diff_guard, goto_state_rhs, dest_if->false_case());
-          }
-        } else if(dest_if->true_case() == goto_state_rhs){
-          rhs = if_exprt(diff_guard, goto_state_rhs, dest_if->false_case());
+        if(dest_if->cond() == diff_guard || dest_if->true_case() == goto_state_rhs){
+          rhs = dest_state_rhs;
         } else {
           rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
         }
@@ -1375,12 +1370,13 @@ static void merge_names(
     }
   }
 
-  dest_state.record_events.push(false);
+
   if(has_older_phi_function){
     phi_function_assignments.find(ssa)->second.ssa_rhs = rhs;
     to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
   } else
   {
+    dest_state.record_events.push(false);
     const ssa_exprt new_lhs =
       dest_state.assignment(ssa, rhs, ns, true, true).get();
     dest_state.record_events.pop();
