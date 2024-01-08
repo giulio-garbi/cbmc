@@ -232,6 +232,42 @@ renamedt<exprt, L2> try_evaluate_pointer_comparisons(
   return condition;
 }
 
+exprt disjunction_and_simplify_jmp(const ssa_exprt &left, const exprt &right){
+  if(right == left){
+    return left;
+  }
+  else if(right == boolean_negate(left)){
+    return true_exprt();
+  }
+  else if(right.id() == ID_and){
+    auto operands = right.operands();
+    size_t j = 0;
+    for(size_t i = 0; i<operands.size(); i++)
+    {
+      if(operands[i] != boolean_negate(left))
+      {
+        if(i!=j)
+          operands[j] = operands[i];
+        j++;
+      }
+    }
+    if(j != operands.size()){
+      if(j == 0)
+        return left;
+      if(j == 1)
+        return disjunction({left, operands[0]});
+      else{
+        operands.resize(j);
+        return disjunction({left, conjunction(operands)});
+      }
+    } else {
+      return disjunction({left, right});
+    }
+  } else {
+    return disjunction({left, right});
+  }
+}
+
 ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const exprt &state_guard, const exprt &new_guard, symex_target_equationt& targett, const symex_targett::sourcet &original_source)
 {
   const exprt prev = targett.get_last_jmp_val(target_location_number);
@@ -260,18 +296,27 @@ ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const exp
       if(new_guard.is_true())
         ans = new_guard;
       else {
-        ans = disjunction({prev, new_guard});
+        ans = disjunction_and_simplify_jmp(to_ssa_expr(prev), new_guard);
+        if(prev == ans){
+          return to_ssa_expr(prev);
+        }
         targett.merge_irep.merged1L(ans);
       }
     } else {
       if(new_guard.is_true())
       {
-        ans = disjunction({prev, state_guard});
+        ans = disjunction_and_simplify_jmp(to_ssa_expr(prev), state_guard);
+        if(prev == ans){
+          return to_ssa_expr(prev);
+        }
         targett.merge_irep.merged1L(ans);
       } else {
         ans = conjunction({state_guard, new_guard});
         targett.merge_irep.merged1L(ans);
-        ans = disjunction({prev, ans});
+        ans = disjunction_and_simplify_jmp(to_ssa_expr(prev), ans);
+        if(prev == ans){
+          return to_ssa_expr(prev);
+        }
         targett.merge_irep.merged1L(ans);
       }
     }
@@ -1297,8 +1342,11 @@ static void merge_names(
     const auto p_it = dest_state.propagation.find(l1_identifier);
 
     if(p_it.has_value())
+    {
       dest_state_rhs = *p_it;
-    else if(reuse_assignments && phi_function_assignments.count(ssa)){
+      if(reuse_assignments && phi_function_assignments.count(ssa))
+        has_older_phi_function = true;
+    } else if(reuse_assignments && phi_function_assignments.count(ssa)){
       dest_state_rhs = phi_function_assignments.find(ssa)->second.ssa_rhs;
       has_older_phi_function = true;
     }
