@@ -268,9 +268,9 @@ exprt disjunction_and_simplify_jmp(const ssa_exprt &left, const exprt &right){
   }
 }
 
-ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const exprt &state_guard, const exprt &new_guard, symex_target_equationt& targett, const symex_targett::sourcet &original_source)
+ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const unsigned call_depth, const exprt &state_guard, const exprt &new_guard, symex_target_equationt& targett, const symex_targett::sourcet &original_source)
 {
-  const exprt prev = targett.get_last_jmp_val(target_location_number);
+  const exprt prev = targett.get_last_jmp_val(target_location_number, call_depth);
   exprt ans;
   if(prev.is_false())
   {
@@ -322,7 +322,7 @@ ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const exp
     }
   }
 
-  auto jmp_lhs = targett.set_last_jmp_val(target_location_number, ans);
+  auto jmp_lhs = targett.set_last_jmp_val(target_location_number, call_depth, ans);
   targett.assignment(
     true_exprt(),
     jmp_lhs,
@@ -553,9 +553,11 @@ void goto_symext::symex_goto(statet &state)
   if(new_guard.is_true())
   {
     unsigned int target_location_number = goto_target->location_number;
-    auto old_jmpvar = target.get_last_jmp_val(target_location_number);
+    unsigned int call_depth = state.call_stack().size();
+    auto old_jmpvar = target.get_last_jmp_val(target_location_number, call_depth);
     auto jmpvar = compute_and_store_jmp(
       target_location_number,
+      call_depth,
       state.guard.as_expr(),
       new_guard,
       target,
@@ -668,12 +670,14 @@ void goto_symext::symex_goto(statet &state)
     {
       goto_statet &new_state = goto_state_list.back().second;
       unsigned int target_location_number = goto_target->location_number;
+      unsigned int call_depth = state.call_stack().size();
       auto do_jump = backward ? boolean_negate(new_guard) : new_guard;
       if(!backward)
         target.merge_irep.merged1L(do_jump);
-      auto old_jmpvar = target.get_last_jmp_val(target_location_number);
+      auto old_jmpvar = target.get_last_jmp_val(target_location_number, call_depth);
       auto jmpvar = compute_and_store_jmp(
         target_location_number,
+        call_depth,
         state.guard.as_expr(),
         do_jump,
         target,
@@ -843,13 +847,15 @@ void goto_symext::merge_gotos(statet &state)
   // clean up to save some memory
   frame.goto_state_map.erase(state_map_it);
   unsigned int state_target_location_number = state.source.pc->location_number;
+  unsigned int call_depth = state.call_stack().size();
   if(state.reachable){
     //merge the state branch (that follows from the "main" path)
-    if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number)){
+    if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number, call_depth)){
       state.guard.set_to(true_exprt());
     } else {
       auto jmpvar = compute_and_store_jmp(
         state_target_location_number,
+        call_depth,
         state.guard.as_expr(),
         true_exprt(),
         target,
@@ -857,9 +863,9 @@ void goto_symext::merge_gotos(statet &state)
       state.guard.set_to(jmpvar);
     }
   } else {
-    state.guard.set_to(target.get_last_jmp_val(state_target_location_number));
+    state.guard.set_to(target.get_last_jmp_val(state_target_location_number, call_depth));
   }
-  target.set_last_jmp_val(state.source.pc->location_number, false_exprt());
+  target.set_last_jmp_val(state.source.pc->location_number, call_depth, false_exprt());
 }
 
 static guardt merge_state_guards(

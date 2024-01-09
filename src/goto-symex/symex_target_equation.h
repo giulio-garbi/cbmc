@@ -58,30 +58,35 @@ public:
 
   // last jump var assigned. Those vars do not
   // participate in the symbol table, namespace, and propagation map
-  std::map<unsigned, ssa_exprt> last_jmp_assigned;
-  std::map<unsigned, constant_exprt> jmp_propagation;
-  unsigned int open_jumps = 0;
+  // Those vars are identified by (location, call_stack_size) to disambiguate
+  // between vars talking about the same instruction at different depths in the call stack.
+  // This is needed when you have a recursive call in a loop, see heap-manipulation/dll_of_dll-2.c
+  std::map<std::pair<unsigned, unsigned>, ssa_exprt> last_jmp_assigned;
+  std::map<std::pair<unsigned, unsigned>, constant_exprt> jmp_propagation;
+  int open_jumps = 0;
 
-  exprt get_last_jmp_val(unsigned label){
-    auto jmp_prop_pos = jmp_propagation.find(label);
+  exprt get_last_jmp_val(unsigned label, unsigned call_depth){
+    const auto l_cd = std::pair<unsigned, unsigned>(label, call_depth);
+    auto jmp_prop_pos = jmp_propagation.find(l_cd);
     if(jmp_prop_pos != jmp_propagation.end()){
       /*if(jmp_prop_pos->second.is_true())
         std::cout << "GET TRUE " << label << "\n";*/
       return jmp_prop_pos->second;
     }
-    auto last_jmp_pos = last_jmp_assigned.find(label);
+    auto last_jmp_pos = last_jmp_assigned.find(l_cd);
     if(last_jmp_pos != last_jmp_assigned.end()){
       return last_jmp_pos->second;
     }
     return false_exprt();
   }
 
-  bool is_open_jump(unsigned label){
-    auto last_jmp_pos = last_jmp_assigned.find(label);
+  bool is_open_jump(unsigned label, unsigned call_depth){
+    const auto l_cd = std::pair<unsigned, unsigned>(label, call_depth);
+    auto last_jmp_pos = last_jmp_assigned.find(l_cd);
     bool is_new_label = last_jmp_pos == last_jmp_assigned.end();
     if(is_new_label)
       return false;
-    auto jmp_itr = jmp_propagation.find(label);
+    auto jmp_itr = jmp_propagation.find(l_cd);
     if(jmp_itr == jmp_propagation.end())
     {
       //it's not constant (hence not a false): an open jump
@@ -92,21 +97,22 @@ public:
     }
   }
 
-  ssa_exprt set_last_jmp_val(unsigned label, const exprt& new_val){
-    auto identifier = "\\jmp_" + std::to_string(label);
+  ssa_exprt set_last_jmp_val(unsigned label, unsigned call_depth, const exprt& new_val){
+    const auto l_cd = std::pair<unsigned, unsigned>(label, call_depth);
+    auto identifier = "\\jmp_" + std::to_string(label)+"_"+std::to_string(call_depth);
     ssa_exprt new_var = ssa_exprt(symbol_exprt(identifier, bool_typet()));
 
-    auto last_jmp_pos = last_jmp_assigned.find(label);
+    auto last_jmp_pos = last_jmp_assigned.find(l_cd);
     bool is_new_label = last_jmp_pos == last_jmp_assigned.end();
     if(!is_new_label){
       new_var.set_level_2(last_jmp_pos->second.get_int(ID_L2) + 1);
       merge_irep(new_var);
       last_jmp_pos->second = new_var;
-      auto jmp_itr = jmp_propagation.find(label);
+      auto jmp_itr = jmp_propagation.find(l_cd);
       if(jmp_itr == jmp_propagation.end()){
         //it's not constant (hence not a false): an open jump
         if(new_val.is_constant()){
-          jmp_propagation.emplace(label, to_constant_expr(new_val));
+          jmp_propagation.emplace(l_cd, to_constant_expr(new_val));
           /*if(new_val.is_true())
             std::cout << "TRUE " << label << "\n";*/
           if(new_val.is_false())
@@ -131,13 +137,14 @@ public:
     } else {
       new_var.set_level_2(1);
       merge_irep(new_var);
-      last_jmp_assigned.emplace(label, new_var);
+      last_jmp_assigned.emplace(l_cd, new_var);
       if(new_val.is_constant()){
-        jmp_propagation.emplace(label, to_constant_expr(new_val));
+        jmp_propagation.emplace(l_cd, to_constant_expr(new_val));
       }
       if(!new_val.is_false())
         open_jumps++;
     }
+    INVARIANT(open_jumps >= 0, "can't close more jumps than open");
     return new_var;
   }
 
