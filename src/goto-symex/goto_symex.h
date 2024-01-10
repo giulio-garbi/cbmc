@@ -419,8 +419,6 @@ protected:
   /// \param dest_state: Symbolic execution state to be updated
   void phi_function(const goto_statet &goto_state, statet &dest_state);
 
-  void propagate_only_common(const goto_statet &goto_state, statet &dest_state);
-
   /// Determine whether to unwind a loop
   /// \param source
   /// \param context

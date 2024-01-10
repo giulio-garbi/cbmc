@@ -1238,7 +1238,6 @@ void goto_symext::merge_goto(
     {
       // do SSA phi functions
       phi_function(goto_state, state);
-      propagate_only_common(goto_state, state);
 
       // merge value sets
       state.value_set.make_union(goto_state.value_set);
@@ -1457,15 +1456,6 @@ static void merge_names(
   }
 }
 
-
-void goto_symext::propagate_only_common(
-  const goto_statet &goto_state,
-  statet &dest_state)
-{
-  for(auto x: dest_state.propagation.get_delta_view(goto_state.propagation, false)){
-    dest_state.propagation.erase_if_exists(x.k);
-  }
-}
 
 void goto_symext::phi_function(
   const goto_statet &goto_state,

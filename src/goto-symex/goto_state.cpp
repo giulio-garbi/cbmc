@@ -106,6 +106,8 @@ void goto_statet::apply_condition(
         const ssa_exprt l1_lhs = remove_level_2(ssa_lhs);
         const irep_idt &l1_identifier = l1_lhs.get_identifier();
 
+        level2.increase_generation(
+          l1_identifier, l1_lhs, previous_state.get_l2_name_provider());
 
         const auto propagation_entry = propagation.find(l1_identifier);
         if(!propagation_entry.has_value())
@@ -113,6 +115,7 @@ void goto_statet::apply_condition(
         else if(propagation_entry->get() != rhs)
           propagation.replace(l1_identifier, rhs);
 
+        value_set.assign(l1_lhs, rhs, ns, true, false);
       }
     }
   }
