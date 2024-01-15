@@ -1238,6 +1238,7 @@ void goto_symext::merge_goto(
     {
       // do SSA phi functions
       phi_function(goto_state, state);
+      //propagate_only_common(goto_state, state);
 
       // merge value sets
       state.value_set.make_union(goto_state.value_set);
@@ -1332,10 +1333,13 @@ static void merge_names(
 
   exprt goto_state_rhs = ssa, dest_state_rhs = ssa;
 
+  bool goto_state_cp;
   {
     const auto p_it = goto_state.propagation.find(l1_identifier);
 
-    if(p_it.has_value())
+    goto_state_cp = p_it.has_value();
+
+    if(goto_state_cp)
       goto_state_rhs = *p_it;
     else
       to_ssa_expr(goto_state_rhs).set_level_2(goto_count);
@@ -1349,6 +1353,8 @@ static void merge_names(
     if(p_it.has_value())
     {
       dest_state_rhs = *p_it;
+      if(!goto_state_cp || dest_state_rhs != goto_state_rhs)
+        dest_state.propagation.erase(l1_identifier);
       if(reuse_assignments && phi_function_assignments.count(ssa))
         has_older_phi_function = true;
     } else if(reuse_assignments && phi_function_assignments.count(ssa)){
@@ -1426,7 +1432,9 @@ static void merge_names(
 
   if(has_older_phi_function){
     phi_function_assignments.find(ssa)->second.ssa_rhs = rhs;
-    to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
+    //to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
+    phi_function_assignments.find(ssa)->second.cond_expr = equal_exprt(to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op0(), rhs);
+    target.merge_irep.merged1L(phi_function_assignments.find(ssa)->second.cond_expr);
   } else
   {
     dest_state.record_events.push(false);
@@ -1455,7 +1463,6 @@ static void merge_names(
       phi_function_assignments.emplace(ssa, target.SSA_steps.back());
   }
 }
-
 
 void goto_symext::phi_function(
   const goto_statet &goto_state,
