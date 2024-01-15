@@ -1238,7 +1238,6 @@ void goto_symext::merge_goto(
     {
       // do SSA phi functions
       phi_function(goto_state, state);
-      //propagate_only_common(goto_state, state);
 
       // merge value sets
       state.value_set.make_union(goto_state.value_set);
