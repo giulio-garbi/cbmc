@@ -148,6 +148,31 @@ public:
     return new_var;
   }
 
+  void close_jump(unsigned label, unsigned call_depth){
+    const auto l_cd = std::pair<unsigned, unsigned>(label, call_depth);
+    auto identifier = "\\jmp_" + std::to_string(label)+"_"+std::to_string(call_depth);
+    auto last_jmp_pos = last_jmp_assigned.find(l_cd);
+    bool is_new_label = last_jmp_pos == last_jmp_assigned.end();
+    if(!is_new_label){
+      ssa_exprt new_var = ssa_exprt(symbol_exprt(identifier, bool_typet()));
+      new_var.set_level_2(last_jmp_pos->second.get_int(ID_L2) + 1);
+      merge_irep(new_var);
+      last_jmp_pos->second = new_var;
+      auto jmp_itr = jmp_propagation.find(l_cd);
+      if(jmp_itr == jmp_propagation.end()){
+        //it's not constant (hence not a false): an open jump
+        jmp_propagation.emplace(l_cd, false_exprt());
+        open_jumps--;
+      } else {
+        //if it's not a false it is an open jump
+        bool was_oj = !jmp_itr->second.is_false();
+        jmp_itr->second = false_exprt();
+        if(was_oj)
+          open_jumps--;
+      }
+    }
+  }
+
   friend void apply_approx(symex_target_equationt &targetEquation, size_t width, namespacet &ns);
 
   virtual ~symex_target_equationt() = default;
