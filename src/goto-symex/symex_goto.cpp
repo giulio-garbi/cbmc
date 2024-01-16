@@ -268,6 +268,7 @@ exprt disjunction_and_simplify_jmp(const ssa_exprt &left, const exprt &right){
   }
 }
 
+// returns prev || (state_guard && new_guard)
 ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const unsigned call_depth, const exprt &state_guard, const exprt &new_guard, symex_target_equationt& targett, const symex_targett::sourcet &original_source)
 {
   const exprt prev = targett.get_last_jmp_val(target_location_number, call_depth);
@@ -303,6 +304,13 @@ ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const uns
         targett.merge_irep.merged1L(ans);
       }
     } else {
+      /*
+       * TODO look for pattern: jmp_tln_cd#x || ((!jmp_tln_cd#w && other) && new_guard)
+       * where w <= x && jmp_progressive_since[tln,cd] <= w (i.e., jmp_tln_cd#x and jmp_tln_cd#w refer to the same loop)
+       * in that case, it becomes:
+       * jmp_tln_cd#x || ((other) && new_guard)
+       */
+
       if(new_guard.is_true())
       {
         ans = disjunction_and_simplify_jmp(to_ssa_expr(prev), state_guard);
@@ -562,13 +570,13 @@ void goto_symext::symex_goto(statet &state)
       new_guard,
       target,
       original_source);
-    if(old_jmpvar.is_false())
+    //if(old_jmpvar.is_false())
       state.guard.set_to(jmpvar);
-    else
+    /*else
     {
       state.guard.set_to(conjunction({boolean_negate(old_jmpvar), jmpvar}));
       state.guard.merge_guard(target.merge_irep);
-    }
+    }*/
     // The move here only moves goto_statet, the base class of goto_symex_statet
     // and not the entire thing.
     goto_state_list.emplace_back(state.source, std::move(state));
@@ -690,8 +698,7 @@ void goto_symext::symex_goto(statet &state)
         //else, add !jmpvar
         if(state.guard.is_true()){
           state.guard.add(boolean_negate(jmpvar));
-        }
-        else if(is_ssa_expr(state.guard.as_expr())){
+        } else if(is_ssa_expr(state.guard.as_expr())){
           INVARIANT(to_ssa_expr(state.guard.as_expr()).get_identifier() != jmpvar.get_identifier(), "guards are AND(jump_from, !jump_to_1, ..., !jump_to_n) where foreach i, i != from");
           state.guard.add(boolean_negate(jmpvar));
         } else if(state.guard.as_expr().id() == ID_not) {
@@ -726,15 +733,25 @@ void goto_symext::symex_goto(statet &state)
             state.guard.add(boolean_negate(jmpvar));
         }
         state.guard.merge_guard(target.merge_irep);
+        if (!state_pc->is_target()){
+          auto no_jmp_var = compute_and_store_jmp(
+            state_pc->location_number,
+            call_depth,
+            state.guard.as_expr(),
+            do_jump,
+            target,
+            original_source);
+          state.guard.set_to(no_jmp_var);
+        }
         // new_state_guard = add jmpvar
-        if(old_jmpvar.is_false())
+        //if(old_jmpvar.is_false())
           new_state.guard.set_to(jmpvar);
-        else
+        /*else
         {
           new_state.guard.set_to(
             conjunction({boolean_negate(old_jmpvar), jmpvar}));
           new_state.guard.merge_guard(target.merge_irep);
-        }
+        }*/
       }
     }
   }
