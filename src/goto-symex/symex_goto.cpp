@@ -462,7 +462,7 @@ void goto_symext::symex_goto(statet &state)
   }
 
   goto_programt::const_targett new_state_pc, state_pc;
-  symex_targett::sourcet original_source=state.source;
+  //symex_targett::sourcet original_source=state.source;
 
   if(!backward)
   {
@@ -560,6 +560,7 @@ void goto_symext::symex_goto(statet &state)
   // as usual.
   if(new_guard.is_true())
   {
+#if 0
     unsigned int target_location_number = goto_target->location_number;
     unsigned int call_depth = state.call_stack().size();
     auto old_jmpvar = target.get_last_jmp_val(target_location_number, call_depth);
@@ -572,6 +573,8 @@ void goto_symext::symex_goto(statet &state)
       original_source);
     //if(old_jmpvar.is_false())
       state.guard.set_to(jmpvar);
+#endif
+    state.guard.add(new_guard);
     /*else
     {
       state.guard.set_to(conjunction({boolean_negate(old_jmpvar), jmpvar}));
@@ -678,11 +681,18 @@ void goto_symext::symex_goto(statet &state)
     {
       goto_statet &new_state = goto_state_list.back().second;
       //unsigned int target_location_number = goto_target->location_number;
-      unsigned int call_depth = state.call_stack().size();
+      //unsigned int call_depth = state.call_stack().size();
       auto do_jump = backward ? boolean_negate(new_guard) : new_guard;
+      auto not_do_jump = backward ? new_guard : boolean_negate(new_guard);
       if(!backward)
         target.merge_irep.merged1L(do_jump);
+      else
+        target.merge_irep.merged1L(not_do_jump);
       //auto old_jmpvar = target.get_last_jmp_val(target_location_number, call_depth);
+
+      new_state.guard.add(do_jump);
+      state.guard.add(not_do_jump);
+#if 0
       auto jmpvar = compute_and_store_jmp(
         new_state_pc->location_number,
         call_depth,
@@ -694,7 +704,7 @@ void goto_symext::symex_goto(statet &state)
         state_pc->location_number,
         call_depth,
         state.guard.as_expr(),
-        boolean_negate(do_jump),
+        not_do_jump,
         target,
         original_source);
       {
@@ -761,6 +771,7 @@ void goto_symext::symex_goto(statet &state)
           new_state.guard.merge_guard(target.merge_irep);
         }*/
       }
+#endif
     }
   }
 }
@@ -858,6 +869,16 @@ void goto_symext::merge_gotos(statet &state)
 
   if(state_map_it == frame.goto_state_map.end())
   {
+    if(state.reachable && !is_ssa_expr(state.guard.as_expr()) && !state.guard.is_true())
+    {
+      state.guard.set_to(compute_and_store_jmp(
+        state_target_location_number,
+        call_depth,
+        state.guard.as_expr(),
+        true_exprt(),
+        target,
+        state.source));
+    }
     target.close_jump(state_target_location_number, call_depth);
     return; // nothing to do
   }
@@ -865,16 +886,114 @@ void goto_symext::merge_gotos(statet &state)
   // we need to merge
   framet::goto_state_listt &state_list = state_map_it->second;
 
-  if(state.reachable) {
-    auto jmpvar = compute_and_store_jmp(
-      state_target_location_number,
-      call_depth,
-      state.guard.as_expr(),
-      true_exprt(),
-      target,
-      state.source);
+  int which_guard_to_set_true = -2; //-2 : none, -1: state, oth: state_list[which_guard_to_set_true]
+  if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number, call_depth)){
+    if(state.reachable)
+      which_guard_to_set_true = -1;
+    {
+      int i = 0;
+      for(auto &list_it : state_list)
+      {
+        if(list_it.second.reachable)
+        {
+          which_guard_to_set_true = i;
+        }
+        i++;
+      }
+    }
   }
-
+  bool still_unreachable = true;
+  optionalt<exprt> first_reachable;
+  int lcnt = 0;
+  for(auto list_it = state_list.begin(); list_it != state_list.end();++list_it){
+    if(list_it->second.reachable){
+      if(which_guard_to_set_true >=0 && lcnt == which_guard_to_set_true){
+        list_it->second.guard.set_to(compute_and_store_jmp(
+          state_target_location_number,
+          call_depth,
+          true_exprt(),
+          true_exprt(),
+          target,
+          state.source));
+      }
+      else if(still_unreachable){
+        still_unreachable = false;
+        if(is_ssa_expr(list_it->second.guard.as_expr()) || list_it->second.guard.as_expr().is_constant())
+        {
+          first_reachable = list_it->second.guard.as_expr();
+        } else {
+          list_it->second.guard.set_to(compute_and_store_jmp(
+            state_target_location_number,
+            call_depth,
+            list_it->second.guard.as_expr(),
+            true_exprt(),
+            target,
+            state.source));
+        }
+      } else if(first_reachable.has_value()) {
+        list_it->second.guard.set_to(compute_and_store_jmp(
+          state_target_location_number,
+          call_depth,
+          disjunction({*first_reachable, list_it->second.guard.as_expr()}),
+          true_exprt(),
+          target,
+          state.source));
+        first_reachable.reset();
+      } else {
+        list_it->second.guard.set_to(compute_and_store_jmp(
+          state_target_location_number,
+          call_depth,
+          list_it->second.guard.as_expr(),
+          true_exprt(),
+          target,
+          state.source));
+      }
+    }
+    lcnt++;
+  }
+  if(state.reachable){
+    if(which_guard_to_set_true ==-1){
+      state.guard.set_to(compute_and_store_jmp(
+        state_target_location_number,
+        call_depth,
+        true_exprt(),
+        true_exprt(),
+        target,
+        state.source));
+    }
+    else if(still_unreachable){
+      still_unreachable = false;
+      //first_reachable = state.guard.as_expr();
+      if(is_ssa_expr(state.guard.as_expr()) || state.guard.as_expr().is_constant())
+      {
+      } else {
+        state.guard.set_to(compute_and_store_jmp(
+          state_target_location_number,
+          call_depth,
+          state.guard.as_expr(),
+          true_exprt(),
+          target,
+          state.source));
+      }
+    } else if(first_reachable.has_value()) {
+      state.guard.set_to(compute_and_store_jmp(
+        state_target_location_number,
+        call_depth,
+        disjunction({*first_reachable, state.guard.as_expr()}),
+        true_exprt(),
+        target,
+        state.source));
+      first_reachable.reset();
+    } else {
+      state.guard.set_to(compute_and_store_jmp(
+        state_target_location_number,
+        call_depth,
+        state.guard.as_expr(),
+        true_exprt(),
+        target,
+        state.source));
+    }
+  }
   for(auto list_it = state_list.rbegin(); list_it != state_list.rend();
       ++list_it)
   {
@@ -886,26 +1005,6 @@ void goto_symext::merge_gotos(statet &state)
 
   // clean up to save some memory
   frame.goto_state_map.erase(state_map_it);
-  if(state.reachable){
-    //merge the state branch (that follows from the "main" path)
-    if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number, call_depth)){
-      state.guard.set_to(true_exprt());
-    } /*else if(!original_state_guard.is_false()) {
-      auto jmpvar = compute_and_store_jmp(
-        state_target_location_number,
-        call_depth,
-        state.guard.as_expr(),
-        true_exprt(),
-        target,
-        state.source);
-      state.guard.set_to(jmpvar);
-      //state.guard.set_to(target.get_last_jmp_val(state_target_location_number, call_depth));
-    }*/ else {
-      state.guard.set_to(target.get_last_jmp_val(state_target_location_number, call_depth));
-    }
-  } else {
-    state.guard.set_to(target.get_last_jmp_val(state_target_location_number, call_depth));
-  }
   target.close_jump(state_target_location_number, call_depth);
 }
 
@@ -1393,8 +1492,8 @@ static void merge_names(
     if(p_it.has_value())
     {
       dest_state_rhs = *p_it;
-      if(!goto_state_cp || dest_state_rhs != goto_state_rhs)
-        dest_state.propagation.erase(l1_identifier);
+      /*if(!goto_state_cp || dest_state_rhs != goto_state_rhs)
+        dest_state.propagation.erase(l1_identifier);*/
       if(reuse_assignments && phi_function_assignments.count(ssa))
         has_older_phi_function = true;
     } else if(reuse_assignments && phi_function_assignments.count(ssa)){
@@ -1471,10 +1570,20 @@ static void merge_names(
 
 
   if(has_older_phi_function){
-    phi_function_assignments.find(ssa)->second.ssa_rhs = rhs;
+    dest_state.record_events.push(false);
+    const ssa_exprt new_lhs =
+      dest_state.assignment(ssa, rhs, ns, true, true).get();
+    dest_state.record_events.pop();
+
+    auto step_ref = phi_function_assignments.find(ssa);
+    step_ref->second.ssa_rhs = rhs;
+    step_ref->second.ssa_lhs = new_lhs;
+    step_ref->second.ssa_full_lhs = new_lhs;
+    step_ref->second.original_full_lhs = new_lhs.get_original_expr();
     //to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
-    phi_function_assignments.find(ssa)->second.cond_expr = equal_exprt(to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op0(), rhs);
-    target.merge_irep.merged1L(phi_function_assignments.find(ssa)->second.cond_expr);
+    step_ref->second.cond_expr = equal_exprt(new_lhs, rhs);
+    target.merge_irep.merged1L(step_ref->second.cond_expr);
+    //dest_state.replace_assignment(step_ref->second, rhs,  ns, true, true);
   } else
   {
     dest_state.record_events.push(false);
