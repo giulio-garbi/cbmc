@@ -56,6 +56,7 @@ public:
     guard_managert &guard_manager)
     : should_pause_symex(false),
       symex_config(options),
+      state_id_progr(0),
       outer_symbol_table(outer_symbol_table),
       ns(outer_symbol_table),
       guard_manager(guard_manager),
@@ -176,6 +177,7 @@ public:
 protected:
   /// The configuration to use for this symbolic execution
   const symex_configt symex_config;
+  int state_id_progr;
 
   /// Initialize the symbolic execution and the given state with
   /// the beginning of the entry point function.

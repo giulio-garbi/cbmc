@@ -331,6 +331,7 @@ ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const uns
   }
 
   auto jmp_lhs = targett.set_last_jmp_val(target_location_number, call_depth, ans);
+  //std::cout << "J " << from_expr(jmp_lhs) << " " << from_expr(ans) << "\n";
   targett.assignment(
     true_exprt(),
     jmp_lhs,
@@ -588,6 +589,10 @@ void goto_symext::symex_goto(statet &state)
 
     state.guard = guardt(false_exprt(), guard_manager);
     state.reachable = false;
+    state.id = -1;
+    state.mw = -1;
+    state.mbak = -1;
+    state.gbak = {};
   }
   else
   {
@@ -690,8 +695,17 @@ void goto_symext::symex_goto(statet &state)
         target.merge_irep.merged1L(not_do_jump);
       //auto old_jmpvar = target.get_last_jmp_val(target_location_number, call_depth);
 
+      exprt old_guard = state.guard.as_expr();
       new_state.guard.add(do_jump);
       state.guard.add(not_do_jump);
+
+      new_state.id = ++state_id_progr;
+      new_state.mw = state.id;
+      new_state.mbak = state.mw;
+      new_state.gbak = old_guard;
+      new_state.reachable = state.reachable;
+
+      state.mw = new_state.id;
 #if 0
       auto jmpvar = compute_and_store_jmp(
         new_state_pc->location_number,
@@ -856,7 +870,7 @@ bool goto_symext::check_break(const irep_idt &loop_id, unsigned unwind)
 }
 
 std::map<ssa_exprt, SSA_stept&> phi_function_assignments;
-const bool reuse_assignments = true;
+const bool reuse_assignments = false;
 
 void goto_symext::merge_gotos(statet &state)
 {
@@ -866,25 +880,157 @@ void goto_symext::merge_gotos(statet &state)
 
   // first, see if this is a target at all
   auto state_map_it = frame.goto_state_map.find(state.source.pc);
-
+  bool did_not_create_merge_symbol = true;
   if(state_map_it == frame.goto_state_map.end())
   {
-    if(state.reachable && !is_ssa_expr(state.guard.as_expr()) && !state.guard.is_true())
+    if(state.reachable && state.guard.as_expr().has_operands())
     {
-      state.guard.set_to(compute_and_store_jmp(
-        state_target_location_number,
-        call_depth,
-        state.guard.as_expr(),
-        true_exprt(),
-        target,
-        state.source));
+      did_not_create_merge_symbol = false;
+      //std::cout<<"(1) ";
+      exprt new_guard = compute_and_store_jmp(
+                                state_target_location_number,
+                                call_depth,
+                                state.guard.as_expr(),
+                                true_exprt(),
+                                target,
+                                state.source);
+      state.guard.set_to(new_guard);
     }
-    target.close_jump(state_target_location_number, call_depth);
+    if(!target.get_last_jmp_val(state_target_location_number, call_depth).is_false())
+    {
+      //state.n_to_fix_guard.reset();
+      target.close_jump(state_target_location_number, call_depth);
+    }
     return; // nothing to do
   }
 
   // we need to merge
   framet::goto_state_listt &state_list = state_map_it->second;
+
+  //std::cout << "####start#### "<<from_expr(state.guard.as_expr())<< " R " << state.reachable <<"\n";
+  for(auto list_it = state_list.rbegin(); list_it != state_list.rend();
+      ++list_it)
+  {
+    //std::cout << ".. "<<from_expr(list_it->second.guard.as_expr())<< " R " << list_it->second.reachable <<"\n";
+    auto state_gbak = state.gbak;
+    auto state_id = state.id;
+    auto state_mw = state.mw;
+    auto state_guard = state.guard.as_expr();
+    auto state_mbak = state.mbak;
+
+    if(state_id == list_it->second.mw && state_mw == list_it->second.id){
+      if(list_it->second.guard.as_expr().has_operands()){
+        PRECONDITION(!state.guard.as_expr().has_operands());
+        list_it->second.guard.set_to(boolean_negate(state.guard.as_expr()));
+      }
+      if(state_id < list_it->second.id)
+      {
+        state_guard = *list_it->second.gbak;
+        //state_id = state.id;
+        state_mw = list_it->second.mbak;
+        //state_mbak = state.mbak;
+        //state_gbak = state.gbak;
+      } else {
+        state_guard = *state.gbak;
+        state_id = list_it->second.id;
+        state_mw = state.mbak;
+        state_mbak = list_it->second.mbak;
+        state_gbak = list_it->second.gbak;
+      }
+      //std::cout << "X " << from_expr(state_guard)<<" "<<(state_n?from_expr(*state_n):"--")<<"\n";
+    }
+    // non-well-nested code: if some case is not reachable, keep only the reachable case
+    else if(!list_it->second.reachable){
+      // do nothing
+    }
+    else if(!state.reachable){
+      state_guard = list_it->second.guard.as_expr();
+      state_id = list_it->second.id;
+      state_mw = list_it->second.mw;
+      state_mbak = list_it->second.mbak;
+      state_gbak = list_it->second.gbak;
+    }
+    // non-well-nested code and both reachable: we really have to merge
+    else if (did_not_create_merge_symbol){
+      if(list_it->second.guard.as_expr().has_operands())
+      {
+        if(state.guard.as_expr().has_operands()){
+          //std::cout<<"(2) ";
+          exprt state1_guard = (compute_and_store_jmp(
+            state_target_location_number,
+            call_depth,
+            list_it->second.guard.as_expr(),
+            true_exprt(),
+            target,
+            state.source));
+          //std::cout <<"2a " << to_ssa_expr(state1_guard).get_identifier().c_str() << "\n";
+          list_it->second.guard.set_to(state1_guard);
+          //std::cout<<"(3) ";
+          state_guard = (compute_and_store_jmp(
+            state_target_location_number,
+            call_depth,
+            state.guard.as_expr(),
+            true_exprt(),
+            target,
+            state.source));
+          //std::cout <<"2b " << to_ssa_expr(state_guard).get_identifier().c_str() << "\n";
+        } else {
+          exprt old_guard = state.guard.as_expr();
+          //std::cout<<"(4) ";
+          state_guard = (compute_and_store_jmp(
+            state_target_location_number,
+            call_depth,
+            disjunction({state.guard.as_expr(), list_it->second.guard.as_expr()}),
+            true_exprt(),
+            target,
+            state.source));
+          list_it->second.guard.set_to(boolean_negate(old_guard));
+          //std::cout <<"3 " << to_ssa_expr(state_guard).get_identifier().c_str() << "\n";
+        }
+      }
+      else
+      {
+        //std::cout<<"(5) ";
+        state_guard = (compute_and_store_jmp(
+          state_target_location_number,
+          call_depth,
+          disjunction({state.guard.as_expr(), list_it->second.guard.as_expr()}),
+          true_exprt(),
+          target,
+          state.source));
+      }
+      did_not_create_merge_symbol = false;
+      //state_id = state_id; No need to create a fresh number
+      state_mw = -2; //You won't be able to merge anymore
+      state_mbak = -2; //You won't be able to merge anymore
+      state_gbak.reset();
+    } else {
+      //std::cout<<"(6) ";
+      state_guard = (compute_and_store_jmp(
+        state_target_location_number,
+        call_depth,
+        list_it->second.guard.as_expr(),
+        true_exprt(),
+        target,
+        state.source));
+      //std::cout <<"5 " << to_ssa_expr(state_guard).get_identifier().c_str() << "\n";
+      //state_id = state_id; No need to create a fresh number
+      state_mw = -2; //You won't be able to merge anymore
+      state_mbak = -2; //You won't be able to merge anymore
+      state_gbak.reset();
+      if(list_it->second.guard.as_expr().has_operands())
+      {
+        list_it->second.guard.set_to(boolean_negate(state.guard.as_expr()));
+      }
+    }
+    merge_goto(list_it->first, std::move(list_it->second), state);
+    state.guard.set_to(state_guard);
+    state.id = state_id;
+    state.mw = state_mw;
+    state.mbak = state_mbak;
+    state.gbak = state_gbak;
+  }
+#if 0
 
   int which_guard_to_set_true = -2; //-2 : none, -1: state, oth: state_list[which_guard_to_set_true]
   if(target.open_jumps == 1 && target.is_open_jump(state_target_location_number, call_depth)){
@@ -999,9 +1145,29 @@ void goto_symext::merge_gotos(statet &state)
   {
     merge_goto(list_it->first, std::move(list_it->second), state);
   }
-
+#endif
+  if(state.reachable && !is_ssa_expr(state.guard.as_expr()) && !state.guard.is_true())
+  {
+    did_not_create_merge_symbol = false;
+    //std::cout<<"(7) ";
+    exprt new_guard = compute_and_store_jmp(
+      state_target_location_number,
+      call_depth,
+      state.guard.as_expr(),
+      true_exprt(),
+      target,
+      state.source);
+    //std::cout <<"6 " << from_expr(state.guard.as_expr()) << " -> " << to_ssa_expr(new_guard).get_identifier().c_str() << "\n";
+    state.guard.set_to(new_guard);
+  }
+  //state.n_to_fix_guard.reset();
   if(reuse_assignments)
     phi_function_assignments.clear();
+
+  //std::cout <<"-> " << from_expr(state.guard.as_expr()) << " R " << state.reachable <<"\n";
+
+  //std::cout << "####end####\n";
+  INVARIANT_WITH_DIAGNOSTICS(!state.reachable || state.guard.is_true() || is_ssa_expr(state.guard.as_expr()), "Guard not ok", state.guard.as_expr().pretty(0,0));
 
   // clean up to save some memory
   frame.goto_state_map.erase(state_map_it);
@@ -1631,7 +1797,7 @@ void goto_symext::phi_function(
   } else {
     diff_guard = goto_state.guard.as_expr();
   }
-  PRECONDITION(is_ssa_expr(diff_guard));
+  INVARIANT_WITH_DIAGNOSTICS(is_ssa_expr(diff_guard) || is_ssa_expr(boolean_negate(diff_guard)), "Precondition", diff_guard.pretty());
 
   symex_renaming_levelt::delta_viewt delta_view;
   goto_state.get_level2().current_names.get_delta_view(

@@ -91,6 +91,10 @@ public:
     const exprt &condition, // L2
     const goto_symex_statet &previous_state,
     const namespacet &ns);
+
+  /// The uncle of this path.
+  optionalt<exprt> gbak;
+  int id, mw, mbak;
 };
 
 #endif // CPROVER_GOTO_SYMEX_GOTO_STATE_H
