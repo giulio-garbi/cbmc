@@ -93,8 +93,8 @@ public:
     const namespacet &ns);
 
   /// The uncle of this path.
-  optionalt<exprt> gbak;
-  int id, mw, mbak;
+  optionalt<exprt> gbak = {};
+  int id = 0, mw = -2, mbak = -2;
 };
 
 #endif // CPROVER_GOTO_SYMEX_GOTO_STATE_H

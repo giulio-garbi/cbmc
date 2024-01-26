@@ -818,6 +818,10 @@ void goto_symext::symex_unreachable_goto(statet &state)
     goto_statet new_state(state.guard_manager);
     new_state.guard = state.guard;
     new_state.reachable = false;
+    new_state.id = state.id;
+    new_state.mw = state.mw;
+    new_state.mbak = state.mbak;
+    new_state.gbak = state.gbak;
     goto_state_list.emplace_back(state.source, std::move(new_state));
   };
 
@@ -870,7 +874,7 @@ bool goto_symext::check_break(const irep_idt &loop_id, unsigned unwind)
 }
 
 std::map<ssa_exprt, SSA_stept&> phi_function_assignments;
-const bool reuse_assignments = false;
+const bool reuse_assignments = true;
 
 void goto_symext::merge_gotos(statet &state)
 {
@@ -1719,7 +1723,9 @@ static void merge_names(
       } else if(diff_guard.is_false()) {
         rhs = dest_state_rhs;
       } else if(auto dest_if = expr_try_dynamic_cast<if_exprt>(dest_state_rhs)){
-        if(dest_if->cond() == diff_guard || dest_if->true_case() == goto_state_rhs){
+        if(dest_if->cond() == diff_guard) {
+          rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_if->false_case());
+        } else if(dest_if->true_case() == goto_state_rhs){
           rhs = dest_state_rhs;
         } else {
           rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
@@ -1746,10 +1752,8 @@ static void merge_names(
     step_ref->second.ssa_lhs = new_lhs;
     step_ref->second.ssa_full_lhs = new_lhs;
     step_ref->second.original_full_lhs = new_lhs.get_original_expr();
-    //to_equal_expr(phi_function_assignments.find(ssa)->second.cond_expr).op1() = rhs;
     step_ref->second.cond_expr = equal_exprt(new_lhs, rhs);
     target.merge_irep.merged1L(step_ref->second.cond_expr);
-    //dest_state.replace_assignment(step_ref->second, rhs,  ns, true, true);
   } else
   {
     dest_state.record_events.push(false);
