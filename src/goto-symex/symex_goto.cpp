@@ -941,7 +941,7 @@ void goto_symext::merge_gotos(statet &state)
         state_mbak = list_it->second.mbak;
         state_gbak = list_it->second.gbak;
       }
-      //std::cout << "X " << from_expr(state_guard)<<" "<<(state_n?from_expr(*state_n):"--")<<"\n";
+      //std::cout << "X " << from_expr(state_guard)<<"\n";
     }
     // non-well-nested code: if some case is not reachable, keep only the reachable case
     else if(!list_it->second.reachable){
@@ -963,21 +963,23 @@ void goto_symext::merge_gotos(statet &state)
           exprt state1_guard = (compute_and_store_jmp(
             state_target_location_number,
             call_depth,
-            list_it->second.guard.as_expr(),
-            true_exprt(),
-            target,
-            state.source));
-          //std::cout <<"2a " << to_ssa_expr(state1_guard).get_identifier().c_str() << "\n";
-          list_it->second.guard.set_to(state1_guard);
-          //std::cout<<"(3) ";
-          state_guard = (compute_and_store_jmp(
-            state_target_location_number,
-            call_depth,
             state.guard.as_expr(),
             true_exprt(),
             target,
             state.source));
+          //std::cout <<"2a " << to_ssa_expr(state1_guard).get_identifier().c_str() << "\n";
+          auto old_list_guard = list_it->second.guard.as_expr();
+          list_it->second.guard.set_to(boolean_negate(state1_guard));
+          //std::cout<<"(3) ";
+          state_guard = (compute_and_store_jmp(
+            state_target_location_number,
+            call_depth,
+            old_list_guard,
+            true_exprt(),
+            target,
+            state.source));
           //std::cout <<"2b " << to_ssa_expr(state_guard).get_identifier().c_str() << "\n";
+          //std::cout <<"***\n";
         } else {
           exprt old_guard = state.guard.as_expr();
           //std::cout<<"(4) ";
@@ -994,7 +996,7 @@ void goto_symext::merge_gotos(statet &state)
       }
       else
       {
-        //std::cout<<"(5) ";
+        //std::cout<<"(5) "<< from_expr(state_guard) << " " << from_expr(list_it->second.guard.as_expr()) << "\n";
         state_guard = (compute_and_store_jmp(
           state_target_location_number,
           call_depth,
@@ -1009,7 +1011,7 @@ void goto_symext::merge_gotos(statet &state)
       state_mbak = -2; //You won't be able to merge anymore
       state_gbak.reset();
     } else {
-      //std::cout<<"(6) ";
+      //std::cout<<"(6) " << from_expr(state_guard) << " " << from_expr(list_it->second.guard.as_expr()) << "\n";
       state_guard = (compute_and_store_jmp(
         state_target_location_number,
         call_depth,
@@ -1027,6 +1029,7 @@ void goto_symext::merge_gotos(statet &state)
         list_it->second.guard.set_to(boolean_negate(state.guard.as_expr()));
       }
     }
+    state.guard.set_to(state_guard);
     merge_goto(list_it->first, std::move(list_it->second), state);
     state.guard.set_to(state_guard);
     state.id = state_id;
@@ -1640,7 +1643,7 @@ static void merge_names(
     return;
   }
 
-  exprt goto_state_rhs = ssa, dest_state_rhs = ssa;
+  exprt goto_state_rhs = ssa, dest_state_rhs = ssa, dest_state_guard;
 
   bool goto_state_cp;
   {
@@ -1665,9 +1668,13 @@ static void merge_names(
       /*if(!goto_state_cp || dest_state_rhs != goto_state_rhs)
         dest_state.propagation.erase(l1_identifier);*/
       if(reuse_assignments && phi_function_assignments.count(ssa))
+      {
+        dest_state_guard = phi_function_assignments.find(ssa)->second.guard;
         has_older_phi_function = true;
+      }
     } else if(reuse_assignments && phi_function_assignments.count(ssa)){
       dest_state_rhs = phi_function_assignments.find(ssa)->second.ssa_rhs;
+      dest_state_guard = phi_function_assignments.find(ssa)->second.guard;
       has_older_phi_function = true;
     }
     else
@@ -1716,27 +1723,38 @@ static void merge_names(
         }
       }
     }
-    if(has_older_phi_function){
-      simplify(goto_state_rhs, ns);
+    if(has_older_phi_function)
+    {
+      if(do_simplify_phi)
+        simplify(goto_state_rhs, ns);
+      rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
       if(diff_guard.is_true()){
         rhs = goto_state_rhs;
       } else if(diff_guard.is_false()) {
         rhs = dest_state_rhs;
-      } else if(auto dest_if = expr_try_dynamic_cast<if_exprt>(dest_state_rhs)){
+      }
+      else if(auto dest_if = expr_try_dynamic_cast<if_exprt>(dest_state_rhs)){
         if(dest_if->cond() == diff_guard) {
           rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_if->false_case());
-        } else if(dest_if->true_case() == goto_state_rhs){
+        } /*else if(dest_if->true_case() == goto_state_rhs){
+          rhs = if_exprt(disjunction({diff_guard, dest_if->cond()}), goto_state_rhs, dest_if->false_case());
+        }*/ else if(dest_if->false_case() == goto_state_rhs){
           rhs = dest_state_rhs;
         } else {
           rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
         }
-      } else {
+      }
+      else {
+        //rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
         rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
       }
-    } else if(do_simplify_phi)
+      if(do_simplify_phi)
+        simplify(rhs, ns);
+    } else
     {
       rhs = if_exprt(diff_guard /*.as_expr()*/, goto_state_rhs, dest_state_rhs);
-      simplify(rhs, ns);
+      if(do_simplify_phi)
+        simplify(rhs, ns);
     }
   }
 
@@ -1753,6 +1771,7 @@ static void merge_names(
     step_ref->second.ssa_full_lhs = new_lhs;
     step_ref->second.original_full_lhs = new_lhs.get_original_expr();
     step_ref->second.cond_expr = equal_exprt(new_lhs, rhs);
+    target.SSA_steps.back().guard = dest_state.guard.as_expr();
     target.merge_irep.merged1L(step_ref->second.cond_expr);
   } else
   {
@@ -1778,6 +1797,7 @@ static void merge_names(
       rhs,
       dest_state.source,
       symex_targett::assignment_typet::PHI);
+    target.SSA_steps.back().guard = dest_state.guard.as_expr();
     if(reuse_assignments)
       phi_function_assignments.emplace(ssa, target.SSA_steps.back());
   }
