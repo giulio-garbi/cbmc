@@ -1790,7 +1790,7 @@ static void merge_names(
       });
 
     target.assignment(
-      true_exprt(),
+      dest_state.guard.as_expr(),
       new_lhs,
       new_lhs,
       new_lhs.get_original_expr(),
