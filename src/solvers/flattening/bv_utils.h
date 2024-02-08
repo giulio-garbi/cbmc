@@ -260,9 +260,9 @@ public:
 
   bvt new_var_abs_type(const std::vector<int> &abmap);
 
-protected:
   propt &prop;
 
+protected:
   /// Return the sum and carry-out when adding \p op0 and \p op1 under initial
   /// carry \p carry_in.
   NODISCARD std::pair<bvt, literalt>

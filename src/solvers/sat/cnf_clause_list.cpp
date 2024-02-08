@@ -19,6 +19,9 @@ void cnf_clause_listt::lcnf(const bvt &bv)
 
   if(process_clause(bv, new_bv))
     return;
+  if(!TST_guard.is_true() && new_bv[0] != TST_guard){
+    new_bv.insert(new_bv.begin(), TST_guard);
+  }
 
   clauses.push_back(new_bv);
 }

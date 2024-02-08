@@ -68,6 +68,7 @@ public:
   // overloading
   exprt get(const exprt &expr) const override;
   void set_to(const exprt &expr, bool value) override;
+  void set_to_guard(const exprt &expr, const exprt &guard, bool value);
   void print_assignment(std::ostream &out) const override;
 
   void clear_cache() override
@@ -133,7 +134,7 @@ protected:
 
   // overloading
   literalt convert_rest(const exprt &expr) override;
-  virtual bool boolbv_set_equality_to_true(const equal_exprt &expr);
+  virtual bool boolbv_set_equality_to_true(const equal_exprt &expr, const exprt &guard);
 
   // NOLINTNEXTLINE(readability/identifiers)
   typedef arrayst SUB;

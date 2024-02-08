@@ -380,7 +380,7 @@ void symex_target_equationt::convert_assignments(
         mstream << messaget::eom;
       });
 
-      decision_procedure.set_to_true(step.cond_expr);
+      decision_procedure.set_to_true_guard(step.cond_expr, step.guard);
       step.converted = true;
       with_solver_hardness(
         decision_procedure, hardness_register_ssa(step_index, step));
@@ -649,7 +649,7 @@ void symex_target_equationt::convert_function_calls(
           equal_exprt eq(arg, symbol);
           merge_irep(eq);
 
-          decision_procedure.set_to(eq, true);
+          decision_procedure.set_to_guard(eq, step.guard, true);
           conjuncts.push_back(eq);
           step.converted_function_arguments.push_back(symbol);
         }
@@ -687,7 +687,7 @@ void symex_target_equationt::convert_io(decision_proceduret &decision_procedure)
           equal_exprt eq(arg, symbol);
           merge_irep(eq);
 
-          decision_procedure.set_to(eq, true);
+          decision_procedure.set_to_guard(eq, step.guard, true);
           conjuncts.push_back(eq);
           step.converted_io_args.push_back(symbol);
         }

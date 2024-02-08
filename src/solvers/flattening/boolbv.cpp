@@ -593,7 +593,9 @@ literalt boolbvt::convert_rest(const exprt &expr)
   return SUB::convert_rest(expr);
 }
 
-bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr)
+const bool use_guard = false;
+
+bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr, const exprt &guard)
 {
   if(!equality_propagation)
     return true;
@@ -608,7 +610,18 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr)
     if(is_unbounded_array(type))
       return true;
 
+    literalt oldTSTguard;
+    if(use_guard)
+    {
+      const bvt &g = convert_bv(guard);
+      oldTSTguard = bv_utils.prop.TST_guard;
+      bv_utils.prop.TST_guard = g[0];
+    }
     const bvt &bv1=convert_bv(expr.rhs());
+    if(use_guard)
+    {
+      bv_utils.prop.TST_guard = oldTSTguard;
+    }
 
     const irep_idt &identifier=
       to_symbol_expr(expr.lhs()).get_identifier();
@@ -626,10 +639,15 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr)
 
 void boolbvt::set_to(const exprt &expr, bool value)
 {
+  set_to_guard(expr, true_exprt(), value);
+}
+
+void boolbvt::set_to_guard(const exprt &expr, const exprt &guard, bool value)
+{
   PRECONDITION(expr.type().id() == ID_bool);
 
   const auto equal_expr = expr_try_dynamic_cast<equal_exprt>(expr);
-  if(value && equal_expr && !boolbv_set_equality_to_true(*equal_expr))
+  if(value && equal_expr && !boolbv_set_equality_to_true(*equal_expr, guard))
     return;
   SUB::set_to(expr, value);
 }

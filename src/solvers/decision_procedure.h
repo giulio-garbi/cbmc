@@ -24,6 +24,8 @@ public:
   /// is `true`, otherwise add 'not expr'
   virtual void set_to(const exprt &expr, bool value) = 0;
 
+  virtual void set_to_guard(const exprt &expr, const exprt &guard, bool value);
+
   /// For a Boolean expression \p expr, add the constraint 'expr'
   void set_to_true(const exprt &expr);
 
@@ -65,6 +67,8 @@ public:
   virtual std::size_t get_number_of_solver_calls() const = 0;
 
   virtual ~decision_proceduret();
+
+  void set_to_true_guard(const exprt &expr, const exprt &guard);
 
 protected:
   /// Run the decision procedure to solve the problem

@@ -26,6 +26,8 @@ public:
   {
   }
 
+  literalt TST_guard = const_literal(true);
+
   virtual ~propt() { }
 
   // boolean operators
