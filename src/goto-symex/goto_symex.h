@@ -70,7 +70,8 @@ public:
       complexity_module(mh, options),
       enable_copy_shadow_memory(options.get_bool_option("copy-shadow-memory")),
       extract_shadow_memory(options.get_bool_option("sm-extract")),
-      extract_phi(options.is_set("phi-extract")?optionalt<int>{options.get_signed_int_option("phi-extract")}:optionalt<int>{})
+      extract_phi(options.is_set("phi-extract")?optionalt<int>{options.get_signed_int_option("phi-extract")}:optionalt<int>{}),
+      reuse_phi(options.get_bool_option("reuse-phi"))
   {
   }
 
@@ -962,6 +963,7 @@ private:
     bool isand,
     bool sign,
     const ssa_exprt &guard_to_add);
+  bool reuse_phi;
 };
 
 /// Transition to the next instruction, which increments the internal program

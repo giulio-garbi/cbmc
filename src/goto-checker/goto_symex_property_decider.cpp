@@ -29,6 +29,7 @@ goto_symex_property_decidert::goto_symex_property_decidert(
     ui_message_handler,
     ui_message_handler.get_ui() == ui_message_handlert::uit::XML_UI);
   solver = solvers.get_solver();
+  solver->decision_procedure().guarded_clauses = options.get_bool_option("guarded-clauses");
 }
 
 exprt goto_symex_property_decidert::goalt::as_expr() const

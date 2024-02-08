@@ -874,7 +874,6 @@ bool goto_symext::check_break(const irep_idt &loop_id, unsigned unwind)
 }
 
 std::map<ssa_exprt, SSA_stept&> phi_function_assignments;
-const bool reuse_assignments = true;
 
 void goto_symext::merge_gotos(statet &state)
 {
@@ -1168,7 +1167,7 @@ void goto_symext::merge_gotos(statet &state)
     state.guard.set_to(new_guard);
   }
   //state.n_to_fix_guard.reset();
-  if(reuse_assignments)
+  if(reuse_phi)
     phi_function_assignments.clear();
 
   //std::cout <<"-> " << from_expr(state.guard.as_expr()) << " R " << state.reachable <<"\n";
@@ -1592,6 +1591,7 @@ static void merge_names(
   const ssa_exprt &ssa,
   const unsigned goto_count,
   const unsigned dest_count,
+  const bool reuse_phi,
   const optionalt<int> extract_phi)
 {
   const irep_idt l1_identifier = ssa.get_identifier();
@@ -1667,12 +1667,12 @@ static void merge_names(
       dest_state_rhs = *p_it;
       /*if(!goto_state_cp || dest_state_rhs != goto_state_rhs)
         dest_state.propagation.erase(l1_identifier);*/
-      if(reuse_assignments && phi_function_assignments.count(ssa))
+      if(reuse_phi && phi_function_assignments.count(ssa))
       {
         dest_state_guard = phi_function_assignments.find(ssa)->second.guard;
         has_older_phi_function = true;
       }
-    } else if(reuse_assignments && phi_function_assignments.count(ssa)){
+    } else if(reuse_phi && phi_function_assignments.count(ssa)){
       dest_state_rhs = phi_function_assignments.find(ssa)->second.ssa_rhs;
       dest_state_guard = phi_function_assignments.find(ssa)->second.guard;
       has_older_phi_function = true;
@@ -1798,7 +1798,7 @@ static void merge_names(
       dest_state.source,
       symex_targett::assignment_typet::PHI);
     target.SSA_steps.back().guard = dest_state.guard.as_expr();
-    if(reuse_assignments)
+    if(reuse_phi)
       phi_function_assignments.emplace(ssa, target.SSA_steps.back());
   }
 }
@@ -1847,6 +1847,7 @@ void goto_symext::phi_function(
       ssa,
       goto_count,
       dest_count,
+      reuse_phi,
       extract_phi);
   }
 
@@ -1875,6 +1876,7 @@ void goto_symext::phi_function(
       ssa,
       goto_count,
       dest_count,
+      reuse_phi,
       extract_phi);
   }
 }

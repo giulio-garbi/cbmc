@@ -63,6 +63,7 @@ class optionst;
   "(under):"         \
   "(cut):"         \
   "(ofquit):"        \
+  "(no-reuse-phi)(guarded-clauses)" \
   "(annotate-tree)"   \
   "(sm-extract)" \
   "(phi-extract):" \

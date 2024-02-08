@@ -593,8 +593,6 @@ literalt boolbvt::convert_rest(const exprt &expr)
   return SUB::convert_rest(expr);
 }
 
-const bool use_guard = false;
-
 bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr, const exprt &guard)
 {
   if(!equality_propagation)
@@ -611,14 +609,15 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr, const exprt &
       return true;
 
     literalt oldTSTguard;
-    if(use_guard)
+    PRECONDITION(guarded_clauses.has_value());
+    if(*guarded_clauses)
     {
       const bvt &g = convert_bv(guard);
       oldTSTguard = bv_utils.prop.TST_guard;
       bv_utils.prop.TST_guard = g[0];
     }
     const bvt &bv1=convert_bv(expr.rhs());
-    if(use_guard)
+    if(*guarded_clauses)
     {
       bv_utils.prop.TST_guard = oldTSTguard;
     }

@@ -14,12 +14,15 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <iosfwd>
 #include <string>
+#include "optional.h"
 
 class exprt;
 
 class decision_proceduret
 {
 public:
+  optionalt<bool> guarded_clauses;
+
   /// For a Boolean expression \p expr, add the constraint 'expr' if \p value
   /// is `true`, otherwise add 'not expr'
   virtual void set_to(const exprt &expr, bool value) = 0;

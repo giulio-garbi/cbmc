@@ -264,6 +264,9 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
     options.set_option("absmode", "ofquit");
   }
 
+  options.set_option("reuse-phi", !cmdline.isset("no-reuse-phi"));
+  options.set_option("guarded-clauses", cmdline.isset("guarded-clauses"));
+
   if(cmdline.isset("no-simplify"))
     options.set_option("simplify", false);
 
@@ -996,6 +999,8 @@ void cbmc_parse_optionst::help()
     HELP_GOTO_TRACE
     HELP_FLUSH
     " --verbosity #                verbosity level\n"
+    " --no-reuse-phi               avoid creating compact phi-functions (e.g. jmp1?a:(jmp2?b:...))\n"
+    " --guarded-clauses            put guards in front of clauses\n"
     HELP_TIMESTAMP
     "\n";
   // clang-format on
