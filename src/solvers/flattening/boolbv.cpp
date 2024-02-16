@@ -614,7 +614,7 @@ bool boolbvt::boolbv_set_equality_to_true(const equal_exprt &expr, const exprt &
     {
       const bvt &g = convert_bv(guard);
       oldTSTguard = bv_utils.prop.TST_guard;
-      bv_utils.prop.TST_guard = g[0];
+      bv_utils.prop.TST_guard = !g[0];
     }
     const bvt &bv1=convert_bv(expr.rhs());
     if(*guarded_clauses)
@@ -644,6 +644,52 @@ void boolbvt::set_to(const exprt &expr, bool value)
 void boolbvt::set_to_guard(const exprt &expr, const exprt &guard, bool value)
 {
   PRECONDITION(expr.type().id() == ID_bool);
+
+  if(!guard.is_true() && value == false)
+  { //TODO special code for guards and phi, refactor
+    auto equal = to_equal_expr(expr);
+    auto new_guard = equal.lhs();
+    auto addition = equal.rhs();
+    if(is_ssa_expr(new_guard) && new_guard.type().id() == ID_bool)
+    {
+      // guard
+      literalt oldTSTguard;
+      const bvt &g = convert_bv(guard);
+      const bvt &g_new = convert_bv(new_guard);
+      oldTSTguard = bv_utils.prop.TST_guard;
+      bv_utils.prop.TST_guard = !g[0];
+      const bvt &bv_addition = convert_bv(addition);
+      bv_utils.prop.TST_guard = const_literal(true);
+      bv_utils.prop.lcnf(!g[0], g_new[0], !bv_addition[0]);
+      bv_utils.prop.lcnf(!g[0], !g_new[0], bv_addition[0]);
+      bv_utils.prop.lcnf(g[0], !g_new[0]);
+      bv_utils.prop.TST_guard = oldTSTguard;
+      return;
+    } else {
+      // phi
+      const bvt &phi_res = convert_bv(new_guard);
+      exprt &remaining_phi = addition;
+      literalt not_cond;
+      while(auto if_expr = expr_try_dynamic_cast<if_exprt>(remaining_phi)){
+        literalt cond = convert_bv(if_expr->cond())[0];
+        const bvt val = convert_bv(if_expr->true_case());
+        for(size_t i = 0; i<phi_res.size(); i++)
+        {
+          bv_utils.prop.lcnf(!cond, phi_res[i], !val[i]);
+          bv_utils.prop.lcnf(!cond, !phi_res[i], val[i]);
+        }
+        not_cond = !cond;
+        remaining_phi = if_expr->false_case();
+      }
+      /*const bvt val = convert_bv(remaining_phi);
+      for(size_t i = 0; i<phi_res.size(); i++)
+      {
+        bv_utils.prop.lcnf(!not_cond, phi_res[i], !val[i]);
+        bv_utils.prop.lcnf(!not_cond, !phi_res[i], val[i]);
+      }*/
+      return;
+    }
+  }
 
   const auto equal_expr = expr_try_dynamic_cast<equal_exprt>(expr);
   if(value && equal_expr && !boolbv_set_equality_to_true(*equal_expr, guard))

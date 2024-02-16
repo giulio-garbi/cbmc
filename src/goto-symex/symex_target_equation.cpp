@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/std_expr.h>
 
+#include "expr_util.h"
 #include "solver_hardness.h"
 #include "ssa_step.h"
 
@@ -380,7 +381,45 @@ void symex_target_equationt::convert_assignments(
         mstream << messaget::eom;
       });
 
-      decision_procedure.set_to_true_guard(step.cond_expr, step.guard);
+      const bool new_guard_assn = false;
+      const bool new_phi_assn = true;
+      if(*decision_procedure.guarded_clauses && new_phi_assn &&
+         step.assignment_type == symex_targett::assignment_typet::PHI &&
+         to_equal_expr(step.cond_expr).rhs().id() == ID_if){
+        decision_procedure.set_to_guard(step.cond_expr, nil_exprt(), false);
+      } else
+      if(*decision_procedure.guarded_clauses && new_guard_assn && step.assignment_type == symex_targett::assignment_typet::GUARD){
+        auto equal = expr_try_dynamic_cast<equal_exprt>(step.cond_expr);
+        if(equal){
+          auto rhs_and = expr_try_dynamic_cast<and_exprt>(equal->rhs());
+          if(rhs_and && rhs_and->operands().size() > 1 && can_cast_expr<symbol_exprt>(rhs_and->op0()) && as_string(to_symbol_expr(rhs_and->op0()).get_identifier()).rfind("\\jmp_",0) == 0){
+            /*auto assn_self = equal_exprt(equal->lhs(), equal->lhs());
+            merge_irep(assn_self);
+            decision_procedure.set_to_true_guard(assn_self, true_exprt());*/
+            exprt assn_gtrue_rhs = rhs_and->op1();
+            if(rhs_and->operands().size() > 2)
+            {
+              auto ops = rhs_and->operands();
+              ops.erase(ops.begin());
+              assn_gtrue_rhs = and_exprt(ops);
+            }
+            auto assn_gtrue = equal_exprt(equal->lhs(), assn_gtrue_rhs);
+            merge_irep(assn_gtrue);
+            /*decision_procedure.set_to_true_guard(assn_gtrue, rhs_and->op0());
+            auto assn_gfalse = equal_exprt(equal->lhs(), false_exprt());
+            merge_irep(assn_gfalse);
+            decision_procedure.set_to_true_guard(assn_gfalse, boolean_negate(rhs_and->op0()));*/
+            decision_procedure.set_to_guard(assn_gtrue, rhs_and->op0(), false);
+          } else {
+            decision_procedure.set_to_true_guard(step.cond_expr, step.guard);
+          }
+        } else {
+          decision_procedure.set_to_true_guard(step.cond_expr, step.guard);
+        }
+      } else
+      {
+        decision_procedure.set_to_true_guard(step.cond_expr, step.guard);
+      }
       step.converted = true;
       with_solver_hardness(
         decision_procedure, hardness_register_ssa(step_index, step));

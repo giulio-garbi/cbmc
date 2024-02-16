@@ -339,7 +339,7 @@ ssa_exprt compute_and_store_jmp(const unsigned target_location_number, const uns
     jmp_lhs,
     ans,
     original_source,
-    symex_targett::assignment_typet::STATE);
+    symex_targett::assignment_typet::GUARD);
 
   return (jmp_lhs);
 }
