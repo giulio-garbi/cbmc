@@ -18,6 +18,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "ssa_step.h"
 
 #include <chrono> // IWYU pragma: keep
+#include <iostream>
 
 #include "solvers/flattening/boolbv.h"
 
@@ -380,6 +381,59 @@ void symex_target_equationt::convert_assignments(
         mstream << messaget::eom;
       });
 
+      if(auto assn = expr_try_dynamic_cast<equal_exprt>(step.cond_expr)){
+        auto lhs = expr_try_dynamic_cast<symbol_exprt>(assn->lhs());
+        if(lhs && id2string(lhs->get_identifier()).find("\\jmp_") == 0)
+        {
+          auto rhs = assn->rhs();
+          if(auto and_ = expr_try_dynamic_cast<and_exprt>(rhs))
+          {
+            auto exp0 = expr_try_dynamic_cast<symbol_exprt>(and_->op0());
+            if(exp0 && id2string(exp0->get_identifier()).find("\\jmp_") == 0)
+            {
+              std::cout << "guard " << lhs->hash() << " is child of "
+                        << exp0->hash() << "\n";
+            }
+            else
+            {
+              std::cout << "guard " << lhs->hash() << " is child of true\n";
+            }
+          }
+          else
+          {
+            auto symb = expr_try_dynamic_cast<symbol_exprt>(rhs);
+            if(symb && id2string(symb->get_identifier()).find("\\jmp_") == 0)
+            {
+              std::cout << "guard " << lhs->hash() << " aliases " << symb->hash()
+                        << "\n";
+            }
+            else if(rhs.is_true())
+            {
+              std::cout << "guard " << lhs->hash() << " aliases true\n";
+            }
+            else if(rhs.is_false())
+            {
+              std::cout << "guard " << lhs->hash() << " aliases false\n";
+            }
+            else
+            {
+              std::cout << "guard " << lhs->hash() << " is child of true\n";
+            }
+          }
+        }
+      }
+
+      if(auto imp = expr_try_dynamic_cast<implies_exprt>(step.cond_expr)){
+        if(imp->lhs().is_true()){
+          std::cout << "true guards " << imp->rhs().hash() << "\n";
+        } else if(imp->lhs().is_false()){
+          std::cout << "false guards " << imp->rhs().hash() << "\n";
+        } else {
+          std::cout << imp->lhs().hash() << " guards " << imp->rhs().hash() << "\n";
+        }
+      } else {
+        std::cout << "true guards " << step.cond_expr.hash() << "\n";
+      }
       decision_procedure.set_to_true(step.cond_expr);
       step.converted = true;
       with_solver_hardness(

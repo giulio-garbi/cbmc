@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/message.h>
 #include <util/threeval.h>
+#include <std_expr.h>
 
 #include "literal.h"
 
@@ -44,7 +45,10 @@ public:
 
   virtual void l_set_to(literalt a, bool value)
   {
+    auto &old = cur_expr;
+    cur_expr = {nil_exprt()};
     set_equal(a, const_literal(value));
+    cur_expr = old;
   }
 
   void l_set_to_true(literalt a)
@@ -119,6 +123,7 @@ public:
 
   std::size_t get_number_of_solver_calls() const;
 
+    optionalt<exprt> cur_expr;
 protected:
   virtual resultt do_prop_solve() = 0;
 

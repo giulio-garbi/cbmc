@@ -27,6 +27,8 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <algorithm>
 #include <cmath>
 
+#include <iostream>
+
 endianness_mapt boolbvt::endianness_map(const typet &type) const
 {
   const bool little_endian =
@@ -51,8 +53,15 @@ boolbvt::convert_bv(const exprt &expr, optionalt<std::size_t> expected_width)
   if(!cache_result.second)
   {
     // Found in cache
+    std::cout << "expr " << expr.hash() << " known\n";
+    std::cout.flush();
     return cache_entry;
   }
+
+  std::cout << "expr " << expr.hash() << " in\n";
+  std::cout.flush();
+  auto old = prop.cur_expr;
+  prop.cur_expr = expr;
 
   // Iterators into hash_maps do not remain valid when inserting
   // more elements recursively. C++11 §23.2.5/13
@@ -100,6 +109,9 @@ boolbvt::convert_bv(const exprt &expr, optionalt<std::size_t> expected_width)
       expr.find_source_location(),
       irep_pretty_diagnosticst(expr));
   }
+  std::cout << "expr " << expr.hash() << " out\n";
+  prop.cur_expr = old;
+  std::cout.flush();
 
   return cache_entry;
 }
@@ -434,10 +446,18 @@ bvt boolbvt::convert_function_application(
   return prop.new_variables(boolbv_width(expr.type()));
 }
 
+literalt boolbvt::convert_rest(const exprt &expr){
+  auto old = prop.cur_expr;
+  prop.cur_expr = expr;
+  auto ans = convert_rest_inner(expr);
+  prop.cur_expr = old;
+  return ans;
+}
 
-literalt boolbvt::convert_rest(const exprt &expr)
+literalt boolbvt::convert_rest_inner(const exprt &expr)
 {
   PRECONDITION(expr.type().id() == ID_bool);
+
 
   if(expr.id()==ID_typecast)
     return convert_typecast(to_typecast_expr(expr));
@@ -631,7 +651,10 @@ void boolbvt::set_to(const exprt &expr, bool value)
   const auto equal_expr = expr_try_dynamic_cast<equal_exprt>(expr);
   if(value && equal_expr && !boolbv_set_equality_to_true(*equal_expr))
     return;
+  auto old = prop.cur_expr;
+  prop.cur_expr = expr;
   SUB::set_to(expr, value);
+  prop.cur_expr = old;
 }
 
 bool boolbvt::is_unbounded_array(const typet &type) const

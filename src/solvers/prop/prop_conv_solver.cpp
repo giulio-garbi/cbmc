@@ -12,6 +12,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <algorithm>
 #include <chrono> // IWYU pragma: keep
+#include <iostream>
 
 bool prop_conv_solvert::is_in_conflict(const exprt &expr) const
 {
@@ -153,9 +154,15 @@ optionalt<bool> prop_conv_solvert::get_bool(const exprt &expr) const
 
 literalt prop_conv_solvert::convert(const exprt &expr)
 {
+
   if(!use_cache || expr.id() == ID_symbol || expr.id() == ID_constant)
   {
+    std::cout << "expr " << expr.hash() << " in\n";
+    std::cout.flush();
+    auto &old = prop.cur_expr;
+    prop.cur_expr = expr;
     literalt literal = convert_bool(expr);
+    prop.cur_expr = old;
     if(freeze_all && !literal.is_constant())
       prop.set_frozen(literal);
     return literal;
@@ -167,12 +174,21 @@ literalt prop_conv_solvert::convert(const exprt &expr)
   // get a reference to the cache entry
   auto &cache_entry = result.first->second;
 
-  if(!result.second) // found in cache
+  if(!result.second)
+  { // found in cache
+    std::cout << "expr " << expr.hash() << " known\n";
+    std::cout.flush();
     return cache_entry;
+  }
 
   // The following may invalidate the iterator result.first,
   // but note that the _reference_ is guaranteed to remain valid.
+  std::cout << "expr " << expr.hash() << " in\n";
+  std::cout.flush();
+  auto &oldd = prop.cur_expr;
+  prop.cur_expr = expr;
   literalt literal = convert_bool(expr);
+  prop.cur_expr = oldd;
 
   // store the literal in the cache using the reference
   cache_entry = literal;

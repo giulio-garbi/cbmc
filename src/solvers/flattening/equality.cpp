@@ -13,6 +13,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #endif
 
 #include "bv_utils.h"
+#include "std_expr.h"
 
 literalt equalityt::equality(const exprt &e1, const exprt &e2)
 {
@@ -124,6 +125,9 @@ void equalityt::add_equality_constraints(const typestructt &typestruct)
     const bvt &bv1=eq_bvs[it->first.first];
     const bvt &bv2=eq_bvs[it->first.second];
 
+    auto& old = prop.cur_expr;
+    prop.cur_expr = {nil_exprt()};
     prop.set_equal(bv_utils.equal(bv1, bv2), it->second);
+    prop.cur_expr = old;
   }
 }

@@ -7,6 +7,7 @@ Author: Daniel Kroening, kroening@kroening.com
 \*******************************************************************/
 
 #include "prop.h"
+#include <iostream>
 
 /// asserts a==b in the propositional formula
 void propt::set_equal(literalt a, literalt b)
@@ -14,14 +15,48 @@ void propt::set_equal(literalt a, literalt b)
   if(b.is_constant())
   {
     if(b.is_true())
+    {
+      if(a.is_constant())
+      {
+        if(a.is_false())
+        {
+          std::cout << cur_expr->hash() << "-: ";
+          std::cout << " 0\n";
+          std::cout.flush();
+        }
+      } else
+      {
+        std::cout << cur_expr->hash() << "-: ";
+        std::cout << a << " 0\n";
+        std::cout.flush();
+      }
       lcnf({a});
-    else
+    } else
+    {
+      if(a.is_constant())
+      {
+        if(a.is_true())
+        {
+          std::cout << cur_expr->hash() << ": ";
+          std::cout << " 0\n";
+          std::cout.flush();
+        }
+      } else
+      {
+        std::cout << cur_expr->hash() << ": ";
+        std::cout << !a << " 0\n";
+        std::cout.flush();
+      }
       lcnf({!a});
+    }
 
     return;
   }
-
+  std::cout << cur_expr->hash() << ": " << a << " " << !b <<" 0\n";
+  std::cout.flush();
   lcnf(a, !b);
+  std::cout << cur_expr->hash() << ": " << !a << " " << b <<" 0\n";
+  std::cout.flush();
   lcnf(!a, b);
 }
 

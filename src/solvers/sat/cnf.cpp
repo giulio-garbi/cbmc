@@ -14,6 +14,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <algorithm>
 
 #include <util/invariant.h>
+#include <iostream>
 
 // #define VERBOSE
 
@@ -28,10 +29,20 @@ void cnft::gate_and(literalt a, literalt b, literalt o)
   lits[0]=pos(a);
   lits[1]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=pos(b);
   lits[1]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits.clear();
   lits.reserve(3);
@@ -39,6 +50,11 @@ void cnft::gate_and(literalt a, literalt b, literalt o)
   lits.push_back(neg(b));
   lits.push_back(pos(o));
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 }
 
 /// Tseitin encoding of disjunction of two literals
@@ -51,16 +67,31 @@ void cnft::gate_or(literalt a, literalt b, literalt o)
   lits[0]=neg(a);
   lits[1]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=neg(b);
   lits[1]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits.resize(3);
   lits[0]=pos(a);
   lits[1]=pos(b);
   lits[2]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 }
 
 /// Tseitin encoding of XOR of two literals
@@ -77,21 +108,41 @@ void cnft::gate_xor(literalt a, literalt b, literalt o)
   lits[1]=neg(b);
   lits[2]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=pos(a);
   lits[1]=pos(b);
   lits[2]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=neg(a);
   lits[1]=pos(b);
   lits[2]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=pos(a);
   lits[1]=neg(b);
   lits[2]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 }
 
 /// Tseitin encoding of NAND of two literals
@@ -104,16 +155,31 @@ void cnft::gate_nand(literalt a, literalt b, literalt o)
   lits[0]=pos(a);
   lits[1]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=pos(b);
   lits[1]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits.resize(3);
   lits[0]=neg(a);
   lits[1]=neg(b);
   lits[2]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 }
 
 /// Tseitin encoding of NOR of two literals
@@ -126,16 +192,31 @@ void cnft::gate_nor(literalt a, literalt b, literalt o)
   lits[0]=neg(a);
   lits[1]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits[0]=neg(b);
   lits[1]=neg(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   lits.resize(3);
   lits[0]=pos(a);
   lits[1]=pos(b);
   lits[2]=pos(o);
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 }
 
 /// Tseitin encoding of equality between two literals
@@ -187,6 +268,11 @@ literalt cnft::land(const bvt &bv)
   {
     lits[0]=pos(l);
     lcnf(lits);
+    std::cout << cur_expr->hash() << ": ";
+    for(size_t i=0; i<lits.size(); i++)
+      std::cout << lits[i] << " ";
+    std::cout << " 0\n";
+    std::cout.flush();
   }
 
   lits.clear();
@@ -197,6 +283,11 @@ literalt cnft::land(const bvt &bv)
 
   lits.push_back(pos(literal));
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\n";
+  std::cout.flush();
 
   return literal;
 }
@@ -236,6 +327,11 @@ literalt cnft::lor(const bvt &bv)
   {
     lits[0]=neg(l);
     lcnf(lits);
+    std::cout << cur_expr->hash() << ": ";
+    for(size_t i=0; i<lits.size(); i++)
+      std::cout << lits[i] << " ";
+    std::cout << " 0\n";
+    std::cout.flush();
   }
 
   lits.clear();
@@ -246,6 +342,11 @@ literalt cnft::lor(const bvt &bv)
 
   lits.push_back(neg(literal));
   lcnf(lits);
+  std::cout << cur_expr->hash() << ": ";
+  for(size_t i=0; i<lits.size(); i++)
+    std::cout << lits[i] << " ";
+  std::cout << " 0\\n";
+  std::cout.flush();
 
   return literal;
 }

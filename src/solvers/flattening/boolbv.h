@@ -133,6 +133,7 @@ protected:
 
   // overloading
   literalt convert_rest(const exprt &expr) override;
+  literalt convert_rest_inner(const exprt &expr);
   virtual bool boolbv_set_equality_to_true(const equal_exprt &expr);
 
   // NOLINTNEXTLINE(readability/identifiers)
